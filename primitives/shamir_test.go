@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/luxfi/pulsar/utils"
+	"github.com/luxfi/corona/utils"
 
 	"github.com/luxfi/lattice/v7/ring"
 	"github.com/luxfi/lattice/v7/utils/sampling"

@@ -30,7 +30,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/luxfi/pulsar/hash"
+	"github.com/luxfi/corona/hash"
 )
 
 // TestBootstrapPinsSuiteSHA3 — Gate 3A: Bootstrap with Pulsar-SHA3 →

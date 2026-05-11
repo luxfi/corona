@@ -26,7 +26,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/luxfi/pulsar/hash"
+	"github.com/luxfi/corona/hash"
 )
 
 // TranscriptPersonalization is the legacy BLAKE3 personalization

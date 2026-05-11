@@ -2,8 +2,8 @@
 // See the file LICENSE for licensing terms.
 
 // Package cli provides the "rt" (ringtail) subcommand for the lux CLI.
-// It wires directly to the github.com/luxfi/pulsar/threshold and
-// github.com/luxfi/pulsar/dkg packages.
+// It wires directly to the github.com/luxfi/corona/threshold and
+// github.com/luxfi/corona/dkg packages.
 package cli
 
 import (
@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/luxfi/pulsar/threshold"
+	"github.com/luxfi/corona/threshold"
 	"github.com/spf13/cobra"
 )
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
 // transcripts_byte_oracle — emits byte-only KATs for the BLAKE3 transcript
-// primitives in github.com/luxfi/pulsar/primitives/hash.go.
+// primitives in github.com/luxfi/corona/primitives/hash.go.
 //
 // The byte-only paths are the parts of each transcript function that do NOT
 // require structs.{Vector,Matrix}[ring.Poly] serialization (i.e. M1). They

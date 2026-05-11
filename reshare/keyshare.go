@@ -33,9 +33,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/luxfi/pulsar/hash"
-	"github.com/luxfi/pulsar/primitives"
-	"github.com/luxfi/pulsar/sign"
+	"github.com/luxfi/corona/hash"
+	"github.com/luxfi/corona/primitives"
+	"github.com/luxfi/corona/sign"
 
 	"github.com/luxfi/lattice/v7/ring"
 	"github.com/luxfi/lattice/v7/utils/structs"

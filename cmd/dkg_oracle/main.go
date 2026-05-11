@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
 // dkg_oracle — emits byte-equal KATs for the Feldman VSS-based DKG protocol
-// in github.com/luxfi/pulsar/dkg.
+// in github.com/luxfi/corona/dkg.
 //
 // For each (t, n) configuration in the catalogue, the oracle:
 //
@@ -45,8 +45,8 @@ import (
 
 	"github.com/luxfi/lattice/v7/ring"
 	"github.com/luxfi/lattice/v7/utils/structs"
-	"github.com/luxfi/pulsar/dkg"
-	"github.com/luxfi/pulsar/sign"
+	"github.com/luxfi/corona/dkg"
+	"github.com/luxfi/corona/sign"
 	"github.com/zeebo/blake3"
 )
 
