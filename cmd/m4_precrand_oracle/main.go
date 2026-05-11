@@ -50,17 +50,17 @@ import (
 // ReadOp is one (n) read from the precomputed buffer; the captured bytes
 // are the expected output.
 type ReadOp struct {
-	N      int    `json:"n"`        // number of bytes pulled
-	OutHex string `json:"out_hex"`  // 2*n hex chars
+	N      int    `json:"n"`       // number of bytes pulled
+	OutHex string `json:"out_hex"` // 2*n hex chars
 }
 
 type Entry struct {
-	Name        string   `json:"name"`
-	KeyHex      string   `json:"key_hex"`       // BLAKE3 input bytes
-	BufferSize  int      `json:"buffer_size"`   // total precomputed bytes
-	BufferHex   string   `json:"buffer_hex"`    // full buffer (sanity-check)
-	Reads       []ReadOp `json:"reads"`
-	FinalIndex  int      `json:"final_index"`   // sum of all n_i (must == buffer cursor at end)
+	Name       string   `json:"name"`
+	KeyHex     string   `json:"key_hex"`     // BLAKE3 input bytes
+	BufferSize int      `json:"buffer_size"` // total precomputed bytes
+	BufferHex  string   `json:"buffer_hex"`  // full buffer (sanity-check)
+	Reads      []ReadOp `json:"reads"`
+	FinalIndex int      `json:"final_index"` // sum of all n_i (must == buffer cursor at end)
 }
 
 type OracleOut struct {

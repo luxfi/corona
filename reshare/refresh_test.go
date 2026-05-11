@@ -14,11 +14,11 @@ import (
 // We build (t, n)-Shamir shares of a planted secret, run Refresh, and
 // verify:
 //
-//   1. Old shares interpolate to the planted secret.
-//   2. New shares interpolate to the SAME planted secret.
-//   3. New shares ≠ old shares (Hamming/byte distance positive — the
-//      probability all coordinates collide is < 2^-48 per coordinate
-//      times nVec*N coordinates ≈ 2^-48 * 7 * 256 ≈ negligible).
+//  1. Old shares interpolate to the planted secret.
+//  2. New shares interpolate to the SAME planted secret.
+//  3. New shares ≠ old shares (Hamming/byte distance positive — the
+//     probability all coordinates collide is < 2^-48 per coordinate
+//     times nVec*N coordinates ≈ 2^-48 * 7 * 256 ≈ negligible).
 //
 // This is the canonical test that proves Refresh implements the
 // HJKY97 zero-polynomial pattern correctly.

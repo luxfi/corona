@@ -180,7 +180,7 @@ func emitGaussian(outDir string) error {
 
 	out := struct {
 		Description string          `json:"description"`
-		Modulus     uint64           `json:"modulus"`
+		Modulus     uint64          `json:"modulus"`
 		N           int             `json:"n"`
 		Entries     []gaussianEntry `json:"entries"`
 	}{
@@ -362,23 +362,23 @@ func emitMontgomeryNTT(outDir string) error {
 
 	sub := r.SubRings[0]
 	out := struct {
-		Description    string             `json:"description"`
-		Modulus        uint64             `json:"modulus"`
-		N              int                `json:"n"`
-		BRedConstant   [2]uint64          `json:"bred_constant"`
-		MRedConstant   uint64             `json:"mred_constant"`
-		Mask           uint64             `json:"mask"`
-		PrimitiveRoot  uint64             `json:"primitive_root"`
-		NthRoot        uint64             `json:"nth_root"`
-		NInvMontgomery uint64             `json:"n_inv_montgomery"`
-		RootsForward   string             `json:"roots_forward_hex"`
-		RootsBackward  string             `json:"roots_backward_hex"`
-		MForm          []mformEntry       `json:"mform"`
-		IMForm         []mformEntry       `json:"imform"`
-		NTT            []mformEntry       `json:"ntt"`
-		INTT           []mformEntry       `json:"intt"`
-		Mul            []mulEntry         `json:"mul_coeffs_montgomery"`
-		MulAdd         []mulAccumEntry    `json:"mul_coeffs_montgomery_then_add"`
+		Description    string          `json:"description"`
+		Modulus        uint64          `json:"modulus"`
+		N              int             `json:"n"`
+		BRedConstant   [2]uint64       `json:"bred_constant"`
+		MRedConstant   uint64          `json:"mred_constant"`
+		Mask           uint64          `json:"mask"`
+		PrimitiveRoot  uint64          `json:"primitive_root"`
+		NthRoot        uint64          `json:"nth_root"`
+		NInvMontgomery uint64          `json:"n_inv_montgomery"`
+		RootsForward   string          `json:"roots_forward_hex"`
+		RootsBackward  string          `json:"roots_backward_hex"`
+		MForm          []mformEntry    `json:"mform"`
+		IMForm         []mformEntry    `json:"imform"`
+		NTT            []mformEntry    `json:"ntt"`
+		INTT           []mformEntry    `json:"intt"`
+		Mul            []mulEntry      `json:"mul_coeffs_montgomery"`
+		MulAdd         []mulAccumEntry `json:"mul_coeffs_montgomery_then_add"`
 	}{
 		Description: "Lattigo Ring at Q=0x1000000004A01, N=256. Constants and " +
 			"forward/inverse NTT + Montgomery transform KATs. Inputs are uint64 " +
@@ -488,10 +488,10 @@ func emitMatrixWire(outDir string) error {
 // ---------- KAT 5: BLAKE3 transcripts (Hash, LowNormHash, MAC, GaussianHash, PRF) ----------
 
 type transcriptEntry struct {
-	Name      string   `json:"name"`
-	InputDesc string   `json:"input_desc"`
-	OutputHex string   `json:"output_hex"`
-	Extras    []kvHex  `json:"extras,omitempty"`
+	Name      string  `json:"name"`
+	InputDesc string  `json:"input_desc"`
+	OutputHex string  `json:"output_hex"`
+	Extras    []kvHex `json:"extras,omitempty"`
 }
 
 func emitTranscripts(outDir string) error {

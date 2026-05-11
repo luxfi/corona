@@ -6,14 +6,14 @@
 //
 // For each (t, n) configuration in the catalogue, the oracle:
 //
-//   1. Derives a master 32-byte seed from MasterSeed | tag(n,t) via BLAKE3.
-//   2. From that master seed, derives one 32-byte sub-seed per party
-//      (BLAKE3(master || "party" || BE32(i))).
-//   3. Constructs n DKGSessions (party 0..n-1) — they all share the same
-//      deterministic A matrix (seedKey = zeros, mirroring dkg.go:99-105).
-//   4. Each party calls Round1WithSeed(party_seed[i]) to produce its
-//      Commits and per-recipient Shares.
-//   5. Each party calls Round2 with the assembled shares/commits.
+//  1. Derives a master 32-byte seed from MasterSeed | tag(n,t) via BLAKE3.
+//  2. From that master seed, derives one 32-byte sub-seed per party
+//     (BLAKE3(master || "party" || BE32(i))).
+//  3. Constructs n DKGSessions (party 0..n-1) — they all share the same
+//     deterministic A matrix (seedKey = zeros, mirroring dkg.go:99-105).
+//  4. Each party calls Round1WithSeed(party_seed[i]) to produce its
+//     Commits and per-recipient Shares.
+//  5. Each party calls Round2 with the assembled shares/commits.
 //
 // The KAT pins, per entry:
 //   - For each party i: seed_hex[i]                      (sub-seed)
@@ -21,8 +21,8 @@
 //   - For each party i, each recipient j: SHA-256(Shares[j].WriteTo) — the
 //     share that party i computed for party j.
 //   - For each party j (the recipient running Round2):
-//       SHA-256(secret_share_j.WriteTo)
-//       SHA-256(bTilde_j.WriteTo)
+//     SHA-256(secret_share_j.WriteTo)
+//     SHA-256(bTilde_j.WriteTo)
 //
 // Replay invariant: every party agrees on bTilde, so all bTilde hashes
 // inside one entry must be identical. The KAT records all n of them so
@@ -91,19 +91,19 @@ func hashVectorBytes(r *ring.Ring, v structs.Vector[ring.Poly]) (string, []byte)
 // PartyEntry is one party's contribution to the KAT.
 type PartyEntry struct {
 	PartyID         int      `json:"party_id"`
-	SeedHex         string   `json:"seed_hex"`           // Round1WithSeed input
-	CommitsHashHex  []string `json:"commits_hash_hex"`   // length t
-	SharesHashHex   []string `json:"shares_hash_hex"`    // length n; index j = share for party j
-	SecretShareHash string   `json:"secret_share_hash"`  // SHA-256 of secret_share_j (after Round2)
-	BTildeHash      string   `json:"btilde_hash"`        // SHA-256 of bTilde_j (after Round2)
+	SeedHex         string   `json:"seed_hex"`          // Round1WithSeed input
+	CommitsHashHex  []string `json:"commits_hash_hex"`  // length t
+	SharesHashHex   []string `json:"shares_hash_hex"`   // length n; index j = share for party j
+	SecretShareHash string   `json:"secret_share_hash"` // SHA-256 of secret_share_j (after Round2)
+	BTildeHash      string   `json:"btilde_hash"`       // SHA-256 of bTilde_j (after Round2)
 }
 
 type Entry struct {
-	T            int          `json:"t"`
-	N            int          `json:"n"`
-	MasterSeedHex string      `json:"master_seed_hex"`
-	AHashHex     string       `json:"a_hash_hex"`     // SHA-256(A.WriteTo) — same for all parties
-	Parties      []PartyEntry `json:"parties"`
+	T             int          `json:"t"`
+	N             int          `json:"n"`
+	MasterSeedHex string       `json:"master_seed_hex"`
+	AHashHex      string       `json:"a_hash_hex"` // SHA-256(A.WriteTo) — same for all parties
+	Parties       []PartyEntry `json:"parties"`
 }
 
 type OracleOut struct {

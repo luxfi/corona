@@ -6,27 +6,27 @@
 //
 // For each (t, n) configuration in the catalogue, the oracle:
 //
-//   1. Derives a master 32-byte seed from MasterSeed | tag(n,t) via BLAKE3.
-//   2. From that master seed, derives one 32-byte sub-seed per party
-//      (BLAKE3(master || "party" || BE32(i))).
-//   3. Constructs n DKGSessions (party 0..n-1) — they all share the same
-//      deterministic A and B matrices (derived from b"pulsar.dkg2.A.v1" /
-//      b"pulsar.dkg2.B.v1" via BLAKE3-XOF).
-//   4. Each party calls Round1WithSeed(party_seed[i]) to produce its
-//      Commits, Shares (per recipient), and Blinds (per recipient).
-//   5. Each party calls Round2 with the assembled shares/blinds/commits.
+//  1. Derives a master 32-byte seed from MasterSeed | tag(n,t) via BLAKE3.
+//  2. From that master seed, derives one 32-byte sub-seed per party
+//     (BLAKE3(master || "party" || BE32(i))).
+//  3. Constructs n DKGSessions (party 0..n-1) — they all share the same
+//     deterministic A and B matrices (derived from b"pulsar.dkg2.A.v1" /
+//     b"pulsar.dkg2.B.v1" via BLAKE3-XOF).
+//  4. Each party calls Round1WithSeed(party_seed[i]) to produce its
+//     Commits, Shares (per recipient), and Blinds (per recipient).
+//  5. Each party calls Round2 with the assembled shares/blinds/commits.
 //
 // The KAT pins, per entry:
 //   - For each party i: seed_hex[i]                       (sub-seed)
 //   - For each party i: SHA-256(Commits[k].WriteTo) × t   (commitment-vector hash)
 //   - For each party i: BLAKE3(serialize(Commits))        (Round 1.5 digest)
 //   - For each party i, each recipient j:
-//         SHA-256(Shares[j].WriteTo)
-//         SHA-256(Blinds[j].WriteTo)
+//     SHA-256(Shares[j].WriteTo)
+//     SHA-256(Blinds[j].WriteTo)
 //   - For each party j (the recipient running Round2):
-//         SHA-256(s_j.WriteTo)
-//         SHA-256(u_j.WriteTo)
-//         SHA-256(b_ped_j.WriteTo)
+//     SHA-256(s_j.WriteTo)
+//     SHA-256(u_j.WriteTo)
+//     SHA-256(b_ped_j.WriteTo)
 //
 // Replay invariant: every party agrees on b_ped, so all b_ped hashes inside
 // one entry must be identical. The KAT records all n of them so the C++
@@ -105,14 +105,14 @@ func hashMatrix(m structs.Matrix[ring.Poly]) string {
 // PartyEntry is one party's contribution to the KAT.
 type PartyEntry struct {
 	PartyID         int      `json:"party_id"`
-	SeedHex         string   `json:"seed_hex"`           // Round1WithSeed input
-	CommitsHashHex  []string `json:"commits_hash_hex"`   // length t
-	CommitDigestHex string   `json:"commit_digest_hex"`  // BLAKE3 over serialized commits
-	SharesHashHex   []string `json:"shares_hash_hex"`    // length n; index j = share to party j
-	BlindsHashHex   []string `json:"blinds_hash_hex"`    // length n; index j = blind to party j
-	SecretShareHash string   `json:"secret_share_hash"`  // SHA-256(s_j) after Round2
-	BlindShareHash  string   `json:"blind_share_hash"`   // SHA-256(u_j) after Round2
-	BPedHash        string   `json:"b_ped_hash"`         // SHA-256(b_ped) after Round2
+	SeedHex         string   `json:"seed_hex"`          // Round1WithSeed input
+	CommitsHashHex  []string `json:"commits_hash_hex"`  // length t
+	CommitDigestHex string   `json:"commit_digest_hex"` // BLAKE3 over serialized commits
+	SharesHashHex   []string `json:"shares_hash_hex"`   // length n; index j = share to party j
+	BlindsHashHex   []string `json:"blinds_hash_hex"`   // length n; index j = blind to party j
+	SecretShareHash string   `json:"secret_share_hash"` // SHA-256(s_j) after Round2
+	BlindShareHash  string   `json:"blind_share_hash"`  // SHA-256(u_j) after Round2
+	BPedHash        string   `json:"b_ped_hash"`        // SHA-256(b_ped) after Round2
 }
 
 type Entry struct {

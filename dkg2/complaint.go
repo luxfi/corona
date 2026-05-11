@@ -126,8 +126,8 @@ func (r ComplaintReason) String() string {
 //     malformed structure.
 type Complaint struct {
 	TranscriptHash [32]byte
-	SenderID       int    // 0-indexed party ID of the misbehaving dealer
-	ComplainerID   int    // 0-indexed party ID of the complainer
+	SenderID       int // 0-indexed party ID of the misbehaving dealer
+	ComplainerID   int // 0-indexed party ID of the complainer
 	Reason         ComplaintReason
 	Evidence       []byte // canonical-serialized evidence (see above)
 	Signature      []byte // Ed25519 signature over Bytes() under ComplainerID's wire key

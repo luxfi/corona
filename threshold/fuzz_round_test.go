@@ -39,13 +39,13 @@ import (
 //
 // IMPORTANT: this duplicate cap exists because the upstream lattice
 // library has TWO DoS surfaces:
-//   1. ReadUintNSlice unbounded recursion — fixed by luxfi/lattice#3
-//      (open as of 2026-05-04).
-//   2. Vector.ReadFrom calling make([]T, size) before any bound check —
-//      NOT addressed by PR #3. A 9-byte input
-//      `\xad\x93\xd8\x5a\x00\x04\x00\x00\\` reads size=0x40005AD893AD
-//      (~70T entries) and OOMs the goroutine before the slice reader
-//      runs. Found by FuzzPulsarSign1Round1Data on 2026-05-04.
+//  1. ReadUintNSlice unbounded recursion — fixed by luxfi/lattice#3
+//     (open as of 2026-05-04).
+//  2. Vector.ReadFrom calling make([]T, size) before any bound check —
+//     NOT addressed by PR #3. A 9-byte input
+//     `\xad\x93\xd8\x5a\x00\x04\x00\x00\\` reads size=0x40005AD893AD
+//     (~70T entries) and OOMs the goroutine before the slice reader
+//     runs. Found by FuzzPulsarSign1Round1Data on 2026-05-04.
 //
 // The walker below pre-validates the wire frame BEFORE handing it to
 // lattigo, mirroring warp/pulsar.validateVectorPolyFrame.
