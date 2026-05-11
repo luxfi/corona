@@ -21,6 +21,8 @@ package reshare
 
 import (
 	"bytes"
+	"crypto/subtle"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -165,12 +167,56 @@ func VerifyShareAgainstCommits(
 		utils.VectorAdd(r, rhs, commits[k], rhs)
 	}
 
+	// Constant-time compare across all M slots, all coefficient levels.
+	// Prior implementation short-circuited on first mismatch and leaked
+	// the diverging slot index via timing. Mirrors dkg2.constTimePolyEqual
+	// (RED-DKG-REVIEW Findings 5/6 — the same fix applied to the reshare
+	// path). Always scans every slot regardless of how many differ.
+	eq := 1
 	for ri := 0; ri < sign.M; ri++ {
-		if !r.Equal(lhs[ri], rhs[ri]) {
-			return fmt.Errorf("%w: mismatch at coordinate %d", ErrCommitMismatch, ri)
-		}
+		eq &= constTimePolyEqual(lhs[ri], rhs[ri])
+	}
+	if eq != 1 {
+		return fmt.Errorf("%w", ErrCommitMismatch)
 	}
 	return nil
+}
+
+// constTimePolyEqual returns 1 iff a and b have identical coefficient
+// arrays at every level, 0 otherwise. The comparison runs in time
+// independent of how many coefficients differ — a full scan is always
+// performed (no early return). Same routine as dkg2.constTimePolyEqual,
+// kept package-local so the reshare module has no dependency on dkg2's
+// internal helpers.
+func constTimePolyEqual(a, b ring.Poly) int {
+	if len(a.Coeffs) != len(b.Coeffs) {
+		return 0
+	}
+	eq := 1
+	for level := range a.Coeffs {
+		al := a.Coeffs[level]
+		bl := b.Coeffs[level]
+		if len(al) != len(bl) {
+			eq = 0
+			continue
+		}
+		ab := uint64SliceToBytes(al)
+		bb := uint64SliceToBytes(bl)
+		eq &= subtle.ConstantTimeCompare(ab, bb)
+	}
+	return eq
+}
+
+// uint64SliceToBytes returns a little-endian byte view of a []uint64.
+// uint64 little-endian coefficient layout is byte-stable on every
+// supported target (amd64, arm64). The caller must not retain the
+// result past the lifetime of the input.
+func uint64SliceToBytes(s []uint64) []byte {
+	b := make([]byte, 8*len(s))
+	for i, v := range s {
+		binary.LittleEndian.PutUint64(b[8*i:8*i+8], v)
+	}
+	return b
 }
 
 // polyMulScalarNTTOnly multiplies each NTT coefficient of p by scalar s
