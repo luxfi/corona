@@ -47,7 +47,7 @@ func TestReshareTranscriptHashStable(t *testing.T) {
 			1: {0x11},
 			5: {0x55},
 		},
-		ComplaintHashes: [][32]byte{{0x99}, {0x88}},
+		ComplaintHashes:     [][32]byte{{0x99}, {0x88}},
 		DisqualifiedSenders: []int{4, 2},
 		QualifiedQuorum:     []int{1, 3, 5},
 	}

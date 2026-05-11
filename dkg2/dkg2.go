@@ -373,11 +373,11 @@ func (d *DKGSession) Round1() (*Round1Output, error) {
 //
 // Sampling order (BYTE-PINNED — must match the C++ port):
 //
-//	1. KeyedPRNG(seed) → Gaussian sampler (σ_E, β_E).
-//	2. For k = 0..t-1:    sample c_{i,k} (Nvec polys, standard form).
-//	3. For k = 0..t-1:    sample r_{i,k} (Nvec polys, standard form).
-//	4. Compute commits[k] = A*NTT(c_k) + B*NTT(r_k).
-//	5. Compute shares[j], blinds[j] via Horner over the (j+1) point.
+//  1. KeyedPRNG(seed) → Gaussian sampler (σ_E, β_E).
+//  2. For k = 0..t-1:    sample c_{i,k} (Nvec polys, standard form).
+//  3. For k = 0..t-1:    sample r_{i,k} (Nvec polys, standard form).
+//  4. Compute commits[k] = A*NTT(c_k) + B*NTT(r_k).
+//  5. Compute shares[j], blinds[j] via Horner over the (j+1) point.
 //
 // The two-pass sample order (all c's first, then all r's) matters for byte
 // equality across the Go reference and the C++ port.

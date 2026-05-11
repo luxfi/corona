@@ -23,19 +23,19 @@ import (
 // TestFullReshareThenKeyShareThenSign — production-relevance integration
 // test that exercises Correction 3:
 //
-//   1. Genesis: create (A, s, e, b̃) and standard-Shamir shares for an
-//      OLD committee.
-//   2. The OLD committee runs sign once with bTilde to confirm the
-//      genesis is sound.
-//   3. Resharing: rotate the share distribution onto a NEW committee
-//      via Reshare. NO trusted dealer.
-//   4. The NEW committee establishes pairwise KEX → DeriveSeeds /
-//      DeriveMACKeys and constructs full PartyKeyShare instances via
-//      PartyKeyShareFromShare (Lambda + Seeds + MACKeys + GroupKey
-//      pointer all populated).
-//   5. The NEW committee drives sign.SignRound1/Round2/Finalize,
-//      and the resulting signature MUST verify against the
-//      UNCHANGED bTilde from step 1.
+//  1. Genesis: create (A, s, e, b̃) and standard-Shamir shares for an
+//     OLD committee.
+//  2. The OLD committee runs sign once with bTilde to confirm the
+//     genesis is sound.
+//  3. Resharing: rotate the share distribution onto a NEW committee
+//     via Reshare. NO trusted dealer.
+//  4. The NEW committee establishes pairwise KEX → DeriveSeeds /
+//     DeriveMACKeys and constructs full PartyKeyShare instances via
+//     PartyKeyShareFromShare (Lambda + Seeds + MACKeys + GroupKey
+//     pointer all populated).
+//  5. The NEW committee drives sign.SignRound1/Round2/Finalize,
+//     and the resulting signature MUST verify against the
+//     UNCHANGED bTilde from step 1.
 //
 // This is the test that proves the brief's Correction 3 is satisfied:
 // resharing only SkShare is not enough — Lambda, Seeds, MACKeys, and
@@ -122,8 +122,8 @@ func TestFullReshareThenKeyShareThenSign(t *testing.T) {
 		wireKeys[i] = wirePub[i]
 	}
 	tIn := TranscriptInputs{
-		ChainID: []byte("lux-mainnet-test"),
-		GroupID: []byte("quasar-pq-test"),
+		ChainID:    []byte("lux-mainnet-test"),
+		GroupID:    []byte("quasar-pq-test"),
 		OldEpochID: 1, NewEpochID: 2,
 		OldSetHash: ValidatorSetHash(wireKeys, nil), NewSetHash: ValidatorSetHash(wireKeys, nil),
 		ThresholdOld: tOld, ThresholdNew: tNew,

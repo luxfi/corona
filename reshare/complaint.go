@@ -123,11 +123,11 @@ func (r ComplaintReason) String() string {
 //   - For ComplaintMalformedCommit: the malformed commit vector.
 type Complaint struct {
 	TranscriptHash [32]byte
-	SenderID       int             // 1-indexed party ID of the misbehaving dealer
-	ComplainerID   int             // 1-indexed party ID of the complainer
+	SenderID       int // 1-indexed party ID of the misbehaving dealer
+	ComplainerID   int // 1-indexed party ID of the complainer
 	Reason         ComplaintReason
-	Evidence       []byte          // canonical-serialized evidence (see above)
-	Signature      []byte          // Ed25519 signature over Bytes() under ComplainerID's wire key
+	Evidence       []byte            // canonical-serialized evidence (see above)
+	Signature      []byte            // Ed25519 signature over Bytes() under ComplainerID's wire key
 	ComplainerKey  ed25519.PublicKey // public key for verification
 }
 
