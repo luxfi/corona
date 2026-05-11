@@ -25,7 +25,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/luxfi/pulsar/hash"
+	"github.com/luxfi/corona/hash"
 )
 
 // ActivationMessage is the canonical bytes-to-be-signed for the

@@ -7,7 +7,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/luxfi/pulsar/threshold"
+	"github.com/luxfi/corona/threshold"
 
 	"github.com/zeebo/blake3"
 )
