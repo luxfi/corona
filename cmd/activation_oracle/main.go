@@ -44,7 +44,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/luxfi/pulsar/reshare"
+	"github.com/luxfi/corona/reshare"
 )
 
 type CommitEntry struct {

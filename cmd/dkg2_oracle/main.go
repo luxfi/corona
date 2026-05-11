@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
 // dkg2_oracle — emits byte-equal KATs for the Pedersen-style DKG protocol
-// in github.com/luxfi/pulsar/dkg2.
+// in github.com/luxfi/corona/dkg2.
 //
 // For each (t, n) configuration in the catalogue, the oracle:
 //
@@ -50,8 +50,8 @@ import (
 	"github.com/luxfi/lattice/v7/ring"
 	"github.com/luxfi/lattice/v7/utils/structs"
 
-	"github.com/luxfi/pulsar/dkg2"
-	"github.com/luxfi/pulsar/sign"
+	"github.com/luxfi/corona/dkg2"
+	"github.com/luxfi/corona/sign"
 	"github.com/zeebo/blake3"
 )
 

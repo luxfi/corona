@@ -6,7 +6,7 @@ package dkg
 import (
 	"testing"
 
-	"github.com/luxfi/pulsar/sign"
+	"github.com/luxfi/corona/sign"
 
 	"github.com/luxfi/lattice/v7/utils/structs"
 

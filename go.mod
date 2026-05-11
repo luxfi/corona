@@ -1,6 +1,6 @@
-module github.com/luxfi/pulsar
+module github.com/luxfi/corona
 
-go 1.26.3
+go 1.26.1
 
 require (
 	github.com/luxfi/lattice/v7 v7.1.0

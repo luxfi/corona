@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
 // reshare_oracle — emits byte-equal KATs for the proactive secret-resharing
-// protocol implemented in github.com/luxfi/pulsar/reshare. The C++ port at
+// protocol implemented in github.com/luxfi/corona/reshare. The C++ port at
 // ~/work/luxcpp/crypto/pulsar/reshare/ replays each entry's seeds and must
 // produce share bytes whose SHA-256 commitment matches the entry's
 // new_share_sha256_hex field.
@@ -58,7 +58,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/luxfi/pulsar/reshare"
+	"github.com/luxfi/corona/reshare"
 
 	"github.com/luxfi/lattice/v7/ring"
 	"github.com/luxfi/lattice/v7/utils/structs"
