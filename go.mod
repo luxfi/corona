@@ -1,6 +1,6 @@
 module github.com/luxfi/pulsar
 
-go 1.26.2
+go 1.26.3
 
 require (
 	github.com/luxfi/lattice/v7 v7.1.0
