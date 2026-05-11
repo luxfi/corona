@@ -32,12 +32,22 @@ import (
 	"github.com/luxfi/lattice/v7/ring"
 	"github.com/luxfi/lattice/v7/utils/sampling"
 	"github.com/luxfi/lattice/v7/utils/structs"
+	pulsarhash "github.com/luxfi/pulsar/hash"
 	"github.com/luxfi/pulsar/primitives"
 	"github.com/luxfi/pulsar/sign"
 	"github.com/luxfi/pulsar/utils"
 	"github.com/spf13/cobra"
 	"github.com/zeebo/blake3"
 )
+
+// legacyBLAKE3Suite is the suite this oracle uses for every primitives.*
+// call. The JSON files produced here are the BLAKE3 KAT transcripts
+// downstream ports (C++, GPU) byte-match against. They were pinned before
+// the Pulsar-SHA3 default was wired into primitives/hash.go, so emission
+// must remain on the legacy BLAKE3 suite to keep the existing transcripts
+// byte-stable. A separate Pulsar-SHA3 KAT oracle lands as follow-up
+// (see CHANGELOG.md).
+var legacyBLAKE3Suite = pulsarhash.NewPulsarBLAKE3()
 
 // MasterSeed is the deterministic root of all KAT generation. Changing it
 // invalidates every downstream port's expected outputs, so it stays fixed
@@ -567,7 +577,7 @@ func emitTranscripts(outDir string) error {
 		}
 		sid := int(int64(i) * 7)
 		T := []int{0, 1, 2}
-		hashOut := primitives.Hash(A, b, D, sid, T)
+		hashOut := primitives.Hash(legacyBLAKE3Suite, A, b, D, sid, T)
 		out.Entries = append(out.Entries, transcriptEntry{
 			Name:      "Hash",
 			InputDesc: fmt.Sprintf("bundle=%d, sid=%d, |T|=%d, A=%dx%d, b len=%d, |D|=%d", i, sid, len(T), sign.M, sign.N, sign.M, len(D)),
@@ -578,7 +588,7 @@ func emitTranscripts(outDir string) error {
 		// Reuse A, b; sample h independently
 		h := pullVector(sign.M)
 		mu := fmt.Sprintf("msg-%02x", i)
-		c := primitives.LowNormHash(r, A, b, h, mu, sign.Kappa)
+		c := primitives.LowNormHash(legacyBLAKE3Suite, r, A, b, h, mu, sign.Kappa)
 		// LowNormHash internally rebuilds the digest before sampling. To capture both,
 		// recompute the digest the same way the function does so the C++ port can
 		// validate hash → sampler chaining.
@@ -597,8 +607,8 @@ func emitTranscripts(outDir string) error {
 		macKey := pullBytes(32)
 		partyID := i % 7
 		otherParty := (partyID + 1) % 7
-		mac := primitives.GenerateMAC(TildeD, macKey, partyID, sid, T, otherParty, false)
-		macVerify := primitives.GenerateMAC(TildeD, macKey, partyID, sid, T, otherParty, true)
+		mac := primitives.GenerateMAC(legacyBLAKE3Suite, TildeD, macKey, partyID, sid, T, otherParty, false)
+		macVerify := primitives.GenerateMAC(legacyBLAKE3Suite, TildeD, macKey, partyID, sid, T, otherParty, true)
 		out.Entries = append(out.Entries, transcriptEntry{
 			Name:      "GenerateMAC",
 			InputDesc: fmt.Sprintf("bundle=%d, partyID=%d, otherParty=%d, sid=%d, |T|=%d", i, partyID, otherParty, sid, len(T)),
@@ -612,7 +622,7 @@ func emitTranscripts(outDir string) error {
 		// --- GaussianHash ---
 		ghHash := pullBytes(32)
 		ghMu := fmt.Sprintf("gh-%02x", i)
-		gh := primitives.GaussianHash(r, ghHash, ghMu, sign.SigmaU, sign.BoundU, sign.Dbar)
+		gh := primitives.GaussianHash(legacyBLAKE3Suite, r, ghHash, ghMu, sign.SigmaU, sign.BoundU, sign.Dbar)
 		ghDig := keyedDigest("GaussianHash", ghHash, ghMu)
 		// Concat all sampled coeffs of gh (each is NTT-Montgomery, so deterministic).
 		ghCoeffs := bytes.Buffer{}
@@ -633,7 +643,7 @@ func emitTranscripts(outDir string) error {
 		sd_ij := pullBytes(32)
 		prfMu := fmt.Sprintf("prf-%02x", i)
 		prfHash := pullBytes(32)
-		prfMask := primitives.PRF(r, sd_ij, prfKey, prfMu, prfHash, sign.N)
+		prfMask := primitives.PRF(legacyBLAKE3Suite, r, sd_ij, prfKey, prfMu, prfHash, sign.N)
 		prfDig := prfDigest(prfKey, sd_ij, prfHash, prfMu)
 		prfCoeffs := bytes.Buffer{}
 		for _, p := range prfMask {
@@ -653,7 +663,7 @@ func emitTranscripts(outDir string) error {
 
 		// --- PRNGKey(skShare) ---
 		skShare := pullVector(sign.N)
-		prngKey := primitives.PRNGKey(skShare)
+		prngKey := primitives.PRNGKey(legacyBLAKE3Suite, skShare)
 		out.Entries = append(out.Entries, transcriptEntry{
 			Name:      "PRNGKey",
 			InputDesc: fmt.Sprintf("bundle=%d, skShare len=%d", i, len(skShare)),
