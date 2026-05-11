@@ -31,8 +31,8 @@ import (
 )
 
 const (
-	Q       uint64 = 0x1000000004A01
-	BsquareDecStr = "184960669042442604975662780477"
+	Q             uint64 = 0x1000000004A01
+	BsquareDecStr        = "184960669042442604975662780477"
 )
 
 func qBig() *big.Int  { return new(big.Int).SetUint64(Q) }
@@ -181,18 +181,18 @@ type L2Entry struct {
 }
 
 type L2OracleOut struct {
-	Description  string    `json:"description"`
-	Q            uint64    `json:"q"`
-	BsquareDec   string    `json:"bsquare_dec"`
-	Entries      []L2Entry `json:"entries"`
+	Description string    `json:"description"`
+	Q           uint64    `json:"q"`
+	BsquareDec  string    `json:"bsquare_dec"`
+	Entries     []L2Entry `json:"entries"`
 }
 
 type FrcEntry struct {
-	Name    string     `json:"name"`
-	Rows    int        `json:"rows"`
-	Cols    int        `json:"cols"`
-	Matrix  [][]uint64 `json:"matrix"`
-	FullRank bool      `json:"full_rank"`
+	Name     string     `json:"name"`
+	Rows     int        `json:"rows"`
+	Cols     int        `json:"cols"`
+	Matrix   [][]uint64 `json:"matrix"`
+	FullRank bool       `json:"full_rank"`
 }
 
 type FrcOracleOut struct {
@@ -216,16 +216,16 @@ func emitL2Norm(outDir string) error {
 	}{
 		{"empty", 0, 0},
 		{"single_zero", 1, 0},
-		{"small_random", 64, 0},        // pure deterministic-random
+		{"small_random", 64, 0}, // pure deterministic-random
 		{"medium_random", 256, 0},
 		{"large_random", 1024, 0},
-		{"under_bound_64", 64, 1 << 30},   // ~ 64 * 2^60 = 2^66, well under
-		{"under_bound_256", 256, 1 << 30}, // ~ 2^68, still well under
-		{"under_bound_3840", 3840, 1 << 25},  // typical Sign vector size; under
-		{"near_bound", 3840, 1 << 31},     // 3840 * 2^62 = 2^74, way under still
-		{"over_bound_small", 4, Q / 2},    // each squared ~Q²/4, 4 of them ≈ Q²
+		{"under_bound_64", 64, 1 << 30},     // ~ 64 * 2^60 = 2^66, well under
+		{"under_bound_256", 256, 1 << 30},   // ~ 2^68, still well under
+		{"under_bound_3840", 3840, 1 << 25}, // typical Sign vector size; under
+		{"near_bound", 3840, 1 << 31},       // 3840 * 2^62 = 2^74, way under still
+		{"over_bound_small", 4, Q / 2},      // each squared ~Q²/4, 4 of them ≈ Q²
 		{"over_bound", 1024, Q / 2},
-		{"max_centered", 8, Q / 2},        // edge: 8 * (Q/2)^2 ≈ 2^97, near bound
+		{"max_centered", 8, Q / 2}, // edge: 8 * (Q/2)^2 ≈ 2^97, near bound
 	}
 
 	for _, c := range cases {
@@ -265,11 +265,11 @@ func emitFullRankCheck(outDir string) error {
 		{"square_5x5", 5, 5, false},
 		{"square_8x8", 8, 8, false},
 		{"wide_5x9", 5, 9, false},
-		{"wide_8x47", 8, 47, false},          // typical Ringtail shape (M × Dbar, but ignore col-0 for total cols)
+		{"wide_8x47", 8, 47, false}, // typical Ringtail shape (M × Dbar, but ignore col-0 for total cols)
 		{"wide_8x12", 8, 12, false},
 		{"deficient_5x5", 5, 5, true},
 		{"deficient_8x10", 8, 10, true},
-		{"tall_3x2", 3, 2, false},            // taller than wide — likely deficient by Q-rank
+		{"tall_3x2", 3, 2, false}, // taller than wide — likely deficient by Q-rank
 		{"identity_4", 4, 4, false},
 	}
 

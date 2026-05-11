@@ -7,23 +7,23 @@
 // These tests pin the era-pinning property of the HashSuite (per
 // proofs/pulsar/hash-suite-separation.tex Remark on era-pinning):
 //
-//   A. Bootstrap pins suite. The HashSuiteID recorded on a freshly
-//      bootstrapped era equals exactly the ID of the supplied
-//      HashSuite, and the field is read-only on the returned KeyEra.
-//   B. Reshare cannot change suite. The Reshare API does not accept a
-//      HashSuite parameter (verified at the type level by reading
-//      reshare API), and the propagated state's HashSuiteID equals the
-//      era's HashSuiteID byte-for-byte.
-//   C. Reanchor MAY change suite. ReanchorWithSuite opens a new era
-//      with a fresh GroupKey and a fresh HashSuiteID; the prior era's
-//      HashSuiteID is unchanged.
+//	A. Bootstrap pins suite. The HashSuiteID recorded on a freshly
+//	   bootstrapped era equals exactly the ID of the supplied
+//	   HashSuite, and the field is read-only on the returned KeyEra.
+//	B. Reshare cannot change suite. The Reshare API does not accept a
+//	   HashSuite parameter (verified at the type level by reading
+//	   reshare API), and the propagated state's HashSuiteID equals the
+//	   era's HashSuiteID byte-for-byte.
+//	C. Reanchor MAY change suite. ReanchorWithSuite opens a new era
+//	   with a fresh GroupKey and a fresh HashSuiteID; the prior era's
+//	   HashSuiteID is unchanged.
 //
 // Citations (canonical proof bucket):
 //
-//   proofs/definitions/transcript-binding.tex
-//     Definition ref:pulsar-transcript
-//   proofs/pulsar/hash-suite-separation.tex
-//     Theorem ref:hash-suite-separation
+//	proofs/definitions/transcript-binding.tex
+//	  Definition ref:pulsar-transcript
+//	proofs/pulsar/hash-suite-separation.tex
+//	  Theorem ref:hash-suite-separation
 package keyera
 
 import (

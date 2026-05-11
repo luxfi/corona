@@ -74,13 +74,13 @@ package reshare
 //   - Threshold may differ from previous epoch (Reshare allows
 //     t_old → t_new transitions). Refresh keeps t unchanged.
 type EpochShareState struct {
-	Epoch           uint64
-	ValidatorSet    []string                 // ordered validator wire-identity strings
-	Threshold       int                      // new threshold t_new (= t_old for Refresh)
-	Shares          map[string]*PartyKeyShare // validator-ID → share
-	GroupKey        *PartyGroupKey           // POINTER to persistent group key
-	TranscriptHash  [32]byte                 // bind to TranscriptInputs.Hash()
-	ActivationCert  *ActivationCert          // proof the chain accepted this epoch
+	Epoch          uint64
+	ValidatorSet   []string                  // ordered validator wire-identity strings
+	Threshold      int                       // new threshold t_new (= t_old for Refresh)
+	Shares         map[string]*PartyKeyShare // validator-ID → share
+	GroupKey       *PartyGroupKey            // POINTER to persistent group key
+	TranscriptHash [32]byte                  // bind to TranscriptInputs.Hash()
+	ActivationCert *ActivationCert           // proof the chain accepted this epoch
 }
 
 // ReshareEpochInputs is the parameter bundle for one resharing round.
@@ -112,14 +112,14 @@ type ReshareEpochInputs struct {
 // Refresh round. The committee and threshold are unchanged, only the
 // share distribution rotates.
 type RefreshEpochInputs struct {
-	ChainID       []byte
-	GroupID       []byte
-	OldEpochID    uint64
-	NewEpochID    uint64
-	Validators    []string      // unchanged committee
-	Shares        map[int]Share // 1-indexed party ID → share
-	Threshold     int           // unchanged threshold
-	GroupKeyHash  [32]byte
+	ChainID      []byte
+	GroupID      []byte
+	OldEpochID   uint64
+	NewEpochID   uint64
+	Validators   []string      // unchanged committee
+	Shares       map[int]Share // 1-indexed party ID → share
+	Threshold    int           // unchanged threshold
+	GroupKeyHash [32]byte
 }
 
 // BuildTranscript converts ReshareEpochInputs into the
