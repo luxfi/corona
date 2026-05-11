@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/luxfi/pulsar/primitives"
+	"github.com/luxfi/corona/primitives"
 	"math/big"
 	"time"
 

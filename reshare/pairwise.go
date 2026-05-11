@@ -31,7 +31,7 @@ import (
 
 	"golang.org/x/crypto/curve25519"
 
-	"github.com/luxfi/pulsar/hash"
+	"github.com/luxfi/corona/hash"
 )
 
 // PairwiseKeyMaterial holds the X25519 keys + signed ephemerals that
