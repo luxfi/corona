@@ -2,9 +2,9 @@ package sign
 
 import (
 	"bytes"
-	"log"
 	"math/big"
 
+	"github.com/luxfi/pulsar/hash"
 	"github.com/luxfi/pulsar/primitives"
 	"github.com/luxfi/pulsar/utils"
 
@@ -13,7 +13,11 @@ import (
 	"github.com/luxfi/lattice/v7/utils/structs"
 )
 
-// Party struct holds all state and methods for a party in the protocol
+// Party struct holds all state and methods for a party in the protocol.
+//
+// Suite is the hash profile this party uses for every primitives.* call.
+// NewParty defaults it to hash.Default() (Pulsar-SHA3). Operators that need
+// to interoperate with old transcripts can override with NewPulsarBLAKE3().
 type Party struct {
 	ID             int
 	Ring           *ring.Ring
@@ -29,10 +33,19 @@ type Party struct {
 	D              structs.Matrix[ring.Poly]
 	MACKeys        map[int][]byte
 	MACs           map[int][]byte
+	Suite          hash.HashSuite
 }
 
-// NewParty initializes a new Party instance
+// NewParty initializes a new Party instance with the production hash suite
+// (Pulsar-SHA3). To use a different suite, set Party.Suite after construction
+// or call NewPartyWithSuite.
 func NewParty(id int, r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, sampler *ring.UniformSampler) *Party {
+	return NewPartyWithSuite(id, r, r_xi, r_nu, sampler, hash.Default())
+}
+
+// NewPartyWithSuite initializes a Party with an explicit hash suite. Pass
+// nil to resolve to the production default at call time.
+func NewPartyWithSuite(id int, r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, sampler *ring.UniformSampler, suite hash.HashSuite) *Party {
 	return &Party{
 		ID:             id,
 		Ring:           r,
@@ -41,6 +54,7 @@ func NewParty(id int, r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, sampler *r
 		UniformSampler: sampler,
 		MACKeys:        make(map[int][]byte),
 		MACs:           make(map[int][]byte),
+		Suite:          hash.Resolve(suite),
 	}
 }
 
@@ -105,7 +119,7 @@ func (party *Party) SignRound1(A structs.Matrix[ring.Poly], sid int, PRFKey []by
 	// R. PRNGKeyForRound domain-separates by sid; per-block sid
 	// monotonicity (LP-020 Quasar = block height) gives uniqueness for
 	// free. See LP-073 §5.8 (amended) and red audit response.
-	skHash := primitives.PRNGKeyForRound(party.SkShare, int64(sid))
+	skHash := primitives.PRNGKeyForRound(party.Suite, party.SkShare, int64(sid))
 	prng, _ := sampling.NewKeyedPRNG(skHash)
 	gaussianParams := ring.DiscreteGaussian{Sigma: SigmaStar, Bound: BoundStar}
 	gaussianSampler := ring.NewGaussianSampler(prng, r, gaussianParams, false)
@@ -141,7 +155,7 @@ func (party *Party) SignRound1(A structs.Matrix[ring.Poly], sid int, PRFKey []by
 	MACs := make(map[int][]byte)
 	for _, j := range T {
 		if j != party.ID {
-			MACs[j] = primitives.GenerateMAC(D, party.MACKeys[j], party.ID, sid, T, j, false)
+			MACs[j] = primitives.GenerateMAC(party.Suite, D, party.MACKeys[j], party.ID, sid, T, j, false)
 		}
 	}
 
@@ -150,12 +164,12 @@ func (party *Party) SignRound1(A structs.Matrix[ring.Poly], sid int, PRFKey []by
 
 // SignRound2Preprocess verifies the MACs received in round 1 and performs the minimum eigenvalue check
 func (party *Party) SignRound2Preprocess(A structs.Matrix[ring.Poly], b structs.Vector[ring.Poly], D map[int]structs.Matrix[ring.Poly], MACs map[int]map[int][]byte, sid int, T []int) (bool, structs.Matrix[ring.Poly], []byte) {
-	hash := primitives.Hash(A, b, D, sid, T)
+	transcriptHash := primitives.Hash(party.Suite, A, b, D, sid, T)
 
 	for _, j := range T {
 		if j != party.ID {
 			MAC := MACs[j][party.ID]
-			expectedMAC := primitives.GenerateMAC(D[j], party.MACKeys[j], party.ID, sid, T, j, true)
+			expectedMAC := primitives.GenerateMAC(party.Suite, D[j], party.MACKeys[j], party.ID, sid, T, j, true)
 			if !bytes.Equal(MAC, expectedMAC) {
 				return false, nil, nil
 			}
@@ -171,11 +185,14 @@ func (party *Party) SignRound2Preprocess(A structs.Matrix[ring.Poly], b structs.
 		return false, nil, nil
 	}
 
-	return true, DSum, hash
+	return true, DSum, transcriptHash
 }
 
-// SignRound2 performs the second round of signing
-func (party *Party) SignRound2(A structs.Matrix[ring.Poly], bTilde structs.Vector[ring.Poly], DSum structs.Matrix[ring.Poly], sid int, mu string, T []int, PRFKey []byte, hash []byte) structs.Vector[ring.Poly] {
+// SignRound2 performs the second round of signing.
+//
+// transcriptHash is the digest returned by SignRound2Preprocess; it
+// binds (A, b, D, sid, T) under the active hash suite.
+func (party *Party) SignRound2(A structs.Matrix[ring.Poly], bTilde structs.Vector[ring.Poly], DSum structs.Matrix[ring.Poly], sid int, mu string, T []int, PRFKey []byte, transcriptHash []byte) structs.Vector[ring.Poly] {
 	r := party.Ring
 	r_nu := party.RingNu
 	partyID := party.ID
@@ -192,7 +209,7 @@ func (party *Party) SignRound2(A structs.Matrix[ring.Poly], bTilde structs.Vecto
 	u := structs.Vector[ring.Poly]{}
 	oneSlice := structs.Vector[ring.Poly]{onePoly}
 	if Dbar > 0 {
-		h_u := primitives.GaussianHash(r, hash, mu, SigmaU, BoundU, Dbar)
+		h_u := primitives.GaussianHash(party.Suite, r, transcriptHash, mu, SigmaU, BoundU, Dbar)
 		u = append(oneSlice, h_u...)
 	}
 
@@ -203,19 +220,19 @@ func (party *Party) SignRound2(A structs.Matrix[ring.Poly], bTilde structs.Vecto
 	roundedH := utils.RoundVector(r, r_nu, h, Nu)
 	party.H = roundedH
 
-	c := primitives.LowNormHash(r, A, bTilde, roundedH, mu, Kappa)
+	c := primitives.LowNormHash(party.Suite, r, A, bTilde, roundedH, mu, Kappa)
 	party.C = c
 
 	seed_i := party.Seed[party.ID]
 	mask := utils.InitializeVector(r, N)
 	for _, j := range T {
-		mask_j := primitives.PRF(r, seed_i[j], PRFKey, mu, hash, N)
+		mask_j := primitives.PRF(party.Suite, r, seed_i[j], PRFKey, mu, transcriptHash, N)
 		utils.VectorAdd(r, mask, mask_j, mask)
 	}
 
 	maskPrime := utils.InitializeVector(r, N)
 	for _, j := range T {
-		mask_j := primitives.PRF(r, seeds[j][partyID], PRFKey, mu, hash, N)
+		mask_j := primitives.PRF(party.Suite, r, seeds[j][partyID], PRFKey, mu, transcriptHash, N)
 		utils.VectorAdd(r, maskPrime, mask_j, maskPrime)
 	}
 
@@ -268,9 +285,16 @@ func (party *Party) SignFinalize(z map[int]structs.Vector[ring.Poly], A structs.
 	return party.C, z_sum, Delta
 }
 
-// Verify verifies the correctness of the signature.
+// Verify verifies the correctness of the signature using the production
+// hash suite (Pulsar-SHA3). For non-default suites use VerifyWithSuite.
 // Note: This function does not modify its inputs - it creates copies where needed.
 func Verify(r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, z structs.Vector[ring.Poly], A structs.Matrix[ring.Poly], mu string, bTilde structs.Vector[ring.Poly], c ring.Poly, roundedDelta structs.Vector[ring.Poly]) bool {
+	return VerifyWithSuite(nil, r, r_xi, r_nu, z, A, mu, bTilde, c, roundedDelta)
+}
+
+// VerifyWithSuite is the suite-explicit form of Verify. suite=nil resolves
+// to the production default (Pulsar-SHA3).
+func VerifyWithSuite(suite hash.HashSuite, r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, z structs.Vector[ring.Poly], A structs.Matrix[ring.Poly], mu string, bTilde structs.Vector[ring.Poly], c ring.Poly, roundedDelta structs.Vector[ring.Poly]) bool {
 	// Make a copy of z to avoid modifying the input signature
 	zCopy := make(structs.Vector[ring.Poly], len(z))
 	for i := range z {
@@ -293,7 +317,7 @@ func Verify(r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, z structs.Vector[rin
 	Az_bc_Delta := utils.InitializeVector(r_nu, M)
 	utils.VectorAdd(r_nu, roundedAz_bc, roundedDelta, Az_bc_Delta)
 
-	computedC := primitives.LowNormHash(r, A, bTilde, Az_bc_Delta, mu, Kappa)
+	computedC := primitives.LowNormHash(suite, r, A, bTilde, Az_bc_Delta, mu, Kappa)
 	if !r.Equal(c, computedC) {
 		return false
 	}
@@ -342,11 +366,11 @@ func CheckL2Norm(r *ring.Ring, Delta structs.Vector[ring.Poly], z structs.Vector
 		}
 	}
 
-	log.Println("Sum of Squares:", sumSquares)
-	log.Println("Bsquare:", Bsquare)
-
-	Bsquare, _ := new(big.Int).SetString(Bsquare, 10)
-	return sumSquares.Cmp(Bsquare) <= 0
+	// Internal norm bound check; intermediate values stay private. Logging
+	// them at any level (even debug) creates a side-channel for validator
+	// monitoring stacks that index logs.
+	BsquareInt, _ := new(big.Int).SetString(Bsquare, 10)
+	return sumSquares.Cmp(BsquareInt) <= 0
 }
 
 // FullRankCheck checks if the given matrix is full-rank, ignoring the first column
