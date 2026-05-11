@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	testLogN  = 8
-	testQ     = sign.Q
-	testNVec  = 3
+	testLogN = 8
+	testQ    = sign.Q
+	testNVec = 3
 )
 
 // fakeRand is a deterministic PRNG built from a SHA-256 counter mode.

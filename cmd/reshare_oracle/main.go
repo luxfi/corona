@@ -12,14 +12,14 @@
 //   - t_old, n_old, t_new, n_new            : protocol parameters
 //   - old_set, new_set                      : 1-indexed party IDs
 //   - secret_polys_hex   [poly_count]       : the master secret s before sharing
-//                                             (4096 hex chars = 256 uint64 BE per poly)
+//     (4096 hex chars = 256 uint64 BE per poly)
 //   - old_shamir_seed_hex                   : deterministic seed for the
-//                                             old Shamir random a_1..a_{t_old-1}
-//                                             (BLAKE3 XOF, q_byte_len bytes per draw)
+//     old Shamir random a_1..a_{t_old-1}
+//     (BLAKE3 XOF, q_byte_len bytes per draw)
 //   - reshare_rng_seed_hex                  : deterministic seed for the
-//                                             reshare random higher-degree
-//                                             coefficients (SHA-256 counter
-//                                             mode, see counterRand)
+//     reshare random higher-degree
+//     coefficients (SHA-256 counter
+//     mode, see counterRand)
 //   - old_shares_hex     [n_old]            : Shamir shares of s for old set
 //   - new_shares_hex     [n_new]            : reshared shares for new set
 //   - old_share_sha256_hex [n_old]          : sha256 of each old party's full share
@@ -118,21 +118,21 @@ func (c *counterRand) Read(p []byte) (int, error) {
 var _ io.Reader = (*counterRand)(nil)
 
 type Entry struct {
-	Label              string   `json:"label"`
-	Variant            string   `json:"variant"` // "reshare" or "refresh"
-	TOld               int      `json:"t_old"`
-	NOld               int      `json:"n_old"`
-	TNew               int      `json:"t_new"`
-	NNew               int      `json:"n_new"`
-	OldSet             []int    `json:"old_set"`
-	NewSet             []int    `json:"new_set"`
-	SecretPolysHex     []string `json:"secret_polys_hex"`
-	OldShamirSeedHex   string   `json:"old_shamir_seed_hex"`
-	ReshareRngSeedHex  string   `json:"reshare_rng_seed_hex"`
-	OldSharesHex       []string `json:"old_shares_hex"`
-	NewSharesHex       []string `json:"new_shares_hex"`
-	OldShareSHA256Hex  []string `json:"old_share_sha256_hex"`
-	NewShareSHA256Hex  []string `json:"new_share_sha256_hex"`
+	Label             string   `json:"label"`
+	Variant           string   `json:"variant"` // "reshare" or "refresh"
+	TOld              int      `json:"t_old"`
+	NOld              int      `json:"n_old"`
+	TNew              int      `json:"t_new"`
+	NNew              int      `json:"n_new"`
+	OldSet            []int    `json:"old_set"`
+	NewSet            []int    `json:"new_set"`
+	SecretPolysHex    []string `json:"secret_polys_hex"`
+	OldShamirSeedHex  string   `json:"old_shamir_seed_hex"`
+	ReshareRngSeedHex string   `json:"reshare_rng_seed_hex"`
+	OldSharesHex      []string `json:"old_shares_hex"`
+	NewSharesHex      []string `json:"new_shares_hex"`
+	OldShareSHA256Hex []string `json:"old_share_sha256_hex"`
+	NewShareSHA256Hex []string `json:"new_share_sha256_hex"`
 }
 
 type OracleOut struct {
@@ -156,8 +156,8 @@ type config struct {
 	variant string // "reshare" (default) or "refresh"
 	tOld    int
 	nOld    int
-	tNew    int    // ignored for refresh (= tOld)
-	newSet  []int  // 1-indexed party IDs (for refresh, this is the unchanged committee)
+	tNew    int   // ignored for refresh (= tOld)
+	newSet  []int // 1-indexed party IDs (for refresh, this is the unchanged committee)
 }
 
 func main() {

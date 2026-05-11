@@ -50,8 +50,8 @@ import (
 )
 
 const (
-	Q    uint64 = 0x1000000004A01
-	N           = 256
+	Q uint64 = 0x1000000004A01
+	N        = 256
 	// QByteLen is the number of bytes returned by big.Int.Bytes() for Q.
 	// Q = 0x1000000004A01 has 7 bytes (high byte 0x01).
 	QByteLen = 7

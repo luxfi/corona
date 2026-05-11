@@ -8,8 +8,8 @@
 // the C++ test is the "Go → C++" direction of the gate.
 //
 // Reverse direction (C++ → Go) is handled by:
-//   * luxcpp/crypto/pulsar/cmd/cross_runtime_oracle/  (C++ writer)
-//   * lux/pulsar/cmd/cross_runtime_verify/           (Go reader)
+//   - luxcpp/crypto/pulsar/cmd/cross_runtime_oracle/  (C++ writer)
+//   - lux/pulsar/cmd/cross_runtime_verify/           (Go reader)
 //
 // Determinism is required. Two runs with the same MasterSeed produce
 // byte-equal manifests AND byte-equal individual KAT JSON files.
@@ -76,9 +76,9 @@ func main() {
 	// reshare_oracle and dkg2_oracle don't expose --out; they write to
 	// hardcoded locations in luxcpp/crypto. For the cross-runtime gate
 	// we hash the canonical paths.
-	signPath    := filepath.Join(*out, "sign_kat.json")
+	signPath := filepath.Join(*out, "sign_kat.json")
 	resharePath := "/Users/z/work/luxcpp/crypto/pulsar/test/kat/reshare_kat.json"
-	dkg2Path    := "/Users/z/work/luxcpp/crypto/pulsar/dkg2/test/kat/dkg2_kat.json"
+	dkg2Path := "/Users/z/work/luxcpp/crypto/pulsar/dkg2/test/kat/dkg2_kat.json"
 
 	files := []struct {
 		name string

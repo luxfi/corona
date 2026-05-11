@@ -35,10 +35,10 @@ const (
 )
 
 type Entry struct {
-	Name      string   `json:"name"`
-	SeedHex   string   `json:"seed_hex"`
-	NumPolys  int      `json:"num_polys"`
-	PolysHex  []string `json:"polys_hex"`
+	Name     string   `json:"name"`
+	SeedHex  string   `json:"seed_hex"`
+	NumPolys int      `json:"num_polys"`
+	PolysHex []string `json:"polys_hex"`
 }
 
 type OracleOut struct {
@@ -87,10 +87,10 @@ func main() {
 		{"single_poly_beta", "beta", 1},
 		{"two_polys_a", "two_a", 2},
 		{"two_polys_b", "two_b", 2},
-		{"five_polys", "five", 5},        // exercises buffer refill (5 * 256 * 8 = 10240B > 1024B buffer)
+		{"five_polys", "five", 5}, // exercises buffer refill (5 * 256 * 8 = 10240B > 1024B buffer)
 		{"eight_polys", "eight", 8},
 		{"thirteen_polys", "thirteen", 13}, // larger refill count
-		{"matrix_7x8", "matrix_7x8", 56},  // M*N_vec scale
+		{"matrix_7x8", "matrix_7x8", 56},   // M*N_vec scale
 	}
 
 	for _, c := range cases {

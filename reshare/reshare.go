@@ -25,13 +25,13 @@
 //     and privately delivers g_i(β_j) to each new party j ∈ N. Each
 //     new party j computes
 //
-//         s'_j = Σ_{i ∈ Q} λ^Q_i · g_i(β_j)
+//     s'_j = Σ_{i ∈ Q} λ^Q_i · g_i(β_j)
 //
 //     where λ^Q_i are the Lagrange coefficients for the quorum Q
 //     evaluated at 0. Define G(X) = Σ_{i ∈ Q} λ^Q_i · g_i(X). Then
 //     deg(G) = t_new − 1 with overwhelming probability, and
 //
-//         G(0) = Σ_{i ∈ Q} λ^Q_i · g_i(0) = Σ_{i ∈ Q} λ^Q_i · s_i = s
+//     G(0) = Σ_{i ∈ Q} λ^Q_i · g_i(0) = Σ_{i ∈ Q} λ^Q_i · s_i = s
 //
 //     by Lagrange interpolation over Q at X=0. The {G(β_j) : j ∈ N}
 //     are therefore valid (t_new, |N|)-Shamir shares of the SAME master
@@ -61,27 +61,27 @@
 // files in this package:
 //
 //   - commit.go       — Pedersen-style polynomial commitments to f_i
-//                       (Refresh) and g_i (Reshare); recipients verify
-//                       each share against the committed polynomial.
+//     (Refresh) and g_i (Reshare); recipients verify
+//     each share against the committed polynomial.
 //   - transcript.go   — Domain-separated transcript binding all
-//                       resharing messages, complaints, and the
-//                       (chain_id, epoch, group_id, sets, thresholds,
-//                       group_pk_hash) tuple.
+//     resharing messages, complaints, and the
+//     (chain_id, epoch, group_id, sets, thresholds,
+//     group_pk_hash) tuple.
 //   - complaint.go    — Complaint format, signed evidence, complaint
-//                       quorum logic, deterministic disqualification of
-//                       misbehaving senders.
+//     quorum logic, deterministic disqualification of
+//     misbehaving senders.
 //   - keyshare.go     — Wraps reshared SkShare values into complete
-//                       Ringtail/Pulsar `KeyShare` instances by
-//                       regenerating Lambda, Seeds, MACKeys, and
-//                       attaching the unchanged GroupKey pointer.
+//     Ringtail/Pulsar `KeyShare` instances by
+//     regenerating Lambda, Seeds, MACKeys, and
+//     attaching the unchanged GroupKey pointer.
 //   - pairwise.go     — Authenticated pairwise KEX (X25519 / ML-KEM
-//                       hybrid) → KDF derivation of new Seeds, MACKeys
-//                       under domain-separated tags.
+//     hybrid) → KDF derivation of new Seeds, MACKeys
+//     under domain-separated tags.
 //   - activation.go   — Post-reshare activation certificate: the new
-//                       committee threshold-signs the resharing
-//                       transcript hash under the unchanged GroupKey.
-//                       The chain accepts the new epoch only when this
-//                       activation cert verifies.
+//     committee threshold-signs the resharing
+//     transcript hash under the unchanged GroupKey.
+//     The chain accepts the new epoch only when this
+//     activation cert verifies.
 //
 // All of the above MUST be wired together at the Quasar consensus
 // layer (`protocol/quasar/epoch.go`) — see `quasar_integration.go` for
@@ -307,12 +307,14 @@ func Reshare(
 //  1. Each party i samples a random degree-(t-1) polynomial z_i(X)
 //     over R_q^{Nvec} with z_i(0) = 0 (i.e. z_i has no constant term;
 //     coefficients of degree 1..t-1 are uniformly random).
+//
 //  2. Each party i privately delivers z_i(α_j) to every party j in the
 //     committee, where α_j is the Shamir evaluation point of party j
 //     (here α_j = j, the 1-indexed party ID).
+//
 //  3. Each party j updates its share:
 //
-//         s'_j = s_j + Σ_i z_i(α_j) (mod q)
+//     s'_j = s_j + Σ_i z_i(α_j) (mod q)
 //
 // Correctness. Define Z(X) = Σ_i z_i(X). Z is a degree-(t-1) random
 // polynomial over R_q with Z(0) = 0. The new shares are evaluations of
@@ -327,13 +329,13 @@ func Reshare(
 //
 //   - r          — the canonical R_q ring (must match sign.Gen).
 //   - shares     — partyID → share, the current committee's shares.
-//                  The map MUST contain every party in the committee
-//                  (refresh has no quorum semantics; ALL parties must
-//                  participate, since the zero-polynomial deltas must
-//                  be computed at every evaluation point).
+//     The map MUST contain every party in the committee
+//     (refresh has no quorum semantics; ALL parties must
+//     participate, since the zero-polynomial deltas must
+//     be computed at every evaluation point).
 //   - threshold  — the unchanged reconstruction threshold t.
 //   - randSource — randomness source for the fresh polynomial
-//                  coefficients (nil → crypto/rand.Reader).
+//     coefficients (nil → crypto/rand.Reader).
 //
 // Returns the refreshed share map, keyed by the SAME party IDs as the
 // input. The output shares are valid (threshold, |committee|)-Shamir

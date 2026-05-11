@@ -17,12 +17,12 @@
 //
 // The 17 fields covered are:
 //
-//   chain_id              network_id           group_id
-//   key_era_id            old_generation       new_generation
-//   old_epoch_id          new_epoch_id         old_set_hash
-//   new_set_hash          threshold_old        threshold_new
-//   group_public_key_hash nebula_root          hash_suite_id
-//   implementation_version variant
+//	chain_id              network_id           group_id
+//	key_era_id            old_generation       new_generation
+//	old_epoch_id          new_epoch_id         old_set_hash
+//	new_set_hash          threshold_old        threshold_new
+//	group_public_key_hash nebula_root          hash_suite_id
+//	implementation_version variant
 //
 // The "unchanged GroupKey" is modelled by a fixed test-side oracle
 // that, given the original activation bytes, returns true for the
@@ -31,10 +31,10 @@
 //
 // Citations (canonical proof bucket):
 //
-//   proofs/definitions/transcript-binding.tex
-//     Definition ref:pulsar-transcript
-//   proofs/pulsar/hash-suite-separation.tex
-//     Theorem ref:hash-suite-separation
+//	proofs/definitions/transcript-binding.tex
+//	  Definition ref:pulsar-transcript
+//	proofs/pulsar/hash-suite-separation.tex
+//	  Theorem ref:hash-suite-separation
 package reshare
 
 import (
