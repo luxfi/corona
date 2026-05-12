@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
 // m4_b_oracle — emits byte-equal KATs for two M4 primitives in the
-// LP-073 canonical Ringtail port:
+// LP-073 canonical Corona port:
 //
 //   1. CheckL2Norm  — sum of centered squares vs Bsquare bound
 //   2. FullRankCheck — Gaussian elimination mod Q over a coefficient sub-matrix
@@ -14,8 +14,8 @@
 // Bsquare = 184960669042442604975662780477 (~98-bit, fits in __uint128_t).
 //
 // Output:
-//   <luxcpp/crypto>/ringtail/test/kat/l2_norm.json
-//   <luxcpp/crypto>/ringtail/test/kat/full_rank_check.json
+//   <luxcpp/crypto>/corona/test/kat/l2_norm.json
+//   <luxcpp/crypto>/corona/test/kat/full_rank_check.json
 
 package main
 
@@ -265,7 +265,7 @@ func emitFullRankCheck(outDir string) error {
 		{"square_5x5", 5, 5, false},
 		{"square_8x8", 8, 8, false},
 		{"wide_5x9", 5, 9, false},
-		{"wide_8x47", 8, 47, false}, // typical Ringtail shape (M × Dbar, but ignore col-0 for total cols)
+		{"wide_8x47", 8, 47, false}, // typical Corona shape (M × Dbar, but ignore col-0 for total cols)
 		{"wide_8x12", 8, 12, false},
 		{"deficient_5x5", 5, 5, true},
 		{"deficient_8x10", 8, 10, true},
@@ -318,7 +318,7 @@ func writeJSON(path string, v any) error {
 }
 
 func main() {
-	outDir := "/Users/z/work/luxcpp/crypto/ringtail/test/kat"
+	outDir := "/Users/z/work/luxcpp/crypto/corona/test/kat"
 	if err := emitL2Norm(outDir); err != nil {
 		fmt.Fprintln(os.Stderr, "l2:", err)
 		os.Exit(1)

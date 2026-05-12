@@ -6,7 +6,7 @@
 // (NOT primitives.ShamirSecretSharingGeneral, which the existing
 // shamir_share KAT covers).
 //
-// Algorithm reference: ringtail/primitives/shamir.go:66 (ShamirSecretSharing).
+// Algorithm reference: corona/primitives/shamir.go:66 (ShamirSecretSharing).
 // For each coefficient k in 0..N-1:
 //   1. Pull (n-1) random ints r_0..r_{n-2} mod q from utils.GetRandomInt
 //      (which reads len(q.Bytes())=7 bytes BE, mods to q).
@@ -31,7 +31,7 @@
 //   - shares_hex:  array of n strings, each 4096 hex chars (party (i+1)'s share)
 //   - lambdas_hex: array of n strings, each 16 hex chars (one BE u64 per λ)
 //
-// Output: <luxcpp/crypto>/ringtail/test/kat/shamir_tk.json (16 entries:
+// Output: <luxcpp/crypto>/corona/test/kat/shamir_tk.json (16 entries:
 // 4 (n) configs × 4 runs).
 
 package main
@@ -297,7 +297,7 @@ func main() {
 		}
 	}
 
-	outPath := filepath.Join("/Users/z/work/lux/cpp/crypto/ringtail/test/kat", "shamir_tk.json")
+	outPath := filepath.Join("/Users/z/work/lux/cpp/crypto/corona/test/kat", "shamir_tk.json")
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

@@ -3,7 +3,7 @@
 
 package reshare
 
-// KeyShare regeneration for Ringtail / Pulsar integration.
+// KeyShare regeneration for Corona / Pulsar integration.
 //
 // The Reshare and Refresh kernels operate on bare Shamir shares — the
 // SkShare field of the production-grade
@@ -42,7 +42,7 @@ import (
 )
 
 // PartyKeyShare is the Pulsar-internal mirror of
-// ringtail/threshold.KeyShare.
+// corona/threshold.KeyShare.
 type PartyKeyShare struct {
 	Index    int
 	SkShare  structs.Vector[ring.Poly]
@@ -52,7 +52,7 @@ type PartyKeyShare struct {
 	GroupKey *PartyGroupKey
 }
 
-// PartyGroupKey mirrors ringtail/threshold.GroupKey.
+// PartyGroupKey mirrors corona/threshold.GroupKey.
 type PartyGroupKey struct {
 	A      structs.Matrix[ring.Poly]
 	BTilde structs.Vector[ring.Poly]

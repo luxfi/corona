@@ -28,7 +28,7 @@
 // inside one entry must be identical. The KAT records all n of them so
 // the C++ port can prove that property too.
 //
-// Output: <luxcpp/crypto>/ringtail/test/kat/dkg_kat.json (4 entries:
+// Output: <luxcpp/crypto>/corona/test/kat/dkg_kat.json (4 entries:
 // 2-of-3, 3-of-5, 5-of-7, 7-of-11).
 package main
 
@@ -273,7 +273,7 @@ func main() {
 
 	// Default output path is the C++ port's KAT directory; allow override via
 	// argv[1].
-	outPath := "../../../luxcpp/crypto/ringtail/test/kat/dkg_kat.json"
+	outPath := "../../../luxcpp/crypto/corona/test/kat/dkg_kat.json"
 	if len(os.Args) >= 2 {
 		outPath = os.Args[1]
 	}

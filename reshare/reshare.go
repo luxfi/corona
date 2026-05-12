@@ -40,7 +40,7 @@
 //
 // Both primitives leave the public key b = A·s + e (and its rounded
 // form b̃) UNCHANGED. The genesis values (A, b, e) — and Pulsar's
-// `bTilde` and Ringtail's `GroupKey` — are persistent for the entire
+// `bTilde` and Corona's `GroupKey` — are persistent for the entire
 // group lineage. Only the share distribution changes. This is the
 // fundamental property that lets Quasar avoid running a full DKG on
 // every validator-set rotation.
@@ -71,7 +71,7 @@
 //     quorum logic, deterministic disqualification of
 //     misbehaving senders.
 //   - keyshare.go     — Wraps reshared SkShare values into complete
-//     Ringtail/Pulsar `KeyShare` instances by
+//     Corona/Pulsar `KeyShare` instances by
 //     regenerating Lambda, Seeds, MACKeys, and
 //     attaching the unchanged GroupKey pointer.
 //   - pairwise.go     — Authenticated pairwise KEX (X25519 / ML-KEM

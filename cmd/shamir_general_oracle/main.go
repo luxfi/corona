@@ -5,7 +5,7 @@
 // general Shamir variant from primitives.ShamirSecretSharingGeneralWithSeed,
 // the deterministic sister of primitives.ShamirSecretSharingGeneral.
 //
-// Algorithm reference: ringtail/primitives/shamir.go (ShamirSecretSharingGeneral
+// Algorithm reference: corona/primitives/shamir.go (ShamirSecretSharingGeneral
 // + ShamirSecretSharingGeneralWithSeed).
 //
 // For each polyIndex of the secret vector s, for each coefficient k:
@@ -16,8 +16,8 @@
 //  2. P(x) = secret + a_1*x + a_2*x^2 + ... + a_{t-1}*x^{t-1} mod q
 //  3. share_i[polyIndex][k] = P(i) for i in 1..k (1-based party indices)
 //
-// Wire format mirrors the existing shamir_share KAT (lux/ringtail/cmd/
-// ringtail_oracle_v2/main.go:emitShamir) but with a vector secret s of
+// Wire format mirrors the existing shamir_share KAT (lux/corona/cmd/
+// corona_oracle_v2/main.go:emitShamir) but with a vector secret s of
 // length poly_count instead of a single poly:
 //
 //   - secret_polys_hex:  [poly_count strings, each 4096 hex chars]
@@ -26,7 +26,7 @@
 //   - share_sha256_hex:  [k strings, each 64 hex chars]
 //     (sha256 of the BE-uint64 wire bytes of each party's full share vector)
 //
-// Output: <luxcpp/crypto>/ringtail/test/kat/shamir_general_kat.json
+// Output: <luxcpp/crypto>/corona/test/kat/shamir_general_kat.json
 // (16 entries: 4 (t, k) configs × 4 runs each, matching the DKG test shapes
 // 2-of-3, 3-of-5, 5-of-7, 7-of-11).
 //
@@ -209,7 +209,7 @@ func main() {
 	q := new(big.Int).SetUint64(Q)
 
 	// Shapes pinned to the DKG-test family in primitives/shamir_test.go +
-	// Ringtail's threshold protocol shapes.
+	// Corona's threshold protocol shapes.
 	configs := []struct{ t, k int }{
 		{2, 3},
 		{3, 5},
@@ -305,7 +305,7 @@ func main() {
 	}
 
 	outPath := filepath.Join(
-		"/Users/z/work/luxcpp/crypto/ringtail/test/kat",
+		"/Users/z/work/luxcpp/crypto/corona/test/kat",
 		"shamir_general_kat.json",
 	)
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {

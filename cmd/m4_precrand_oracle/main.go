@@ -18,7 +18,7 @@
 // ShamirSecretSharing. Every byte emitted in this exact order is part of
 // the KAT-binding chain.
 //
-// This oracle re-implements the primitive in-line (no ringtail/utils
+// This oracle re-implements the primitive in-line (no corona/utils
 // import) because the surrounding workspace has a checksum-mismatch on
 // luxfi/lattice. The algorithm is small (<10 lines) and matches utils.go
 // byte-for-byte; any future drift in utils.PrecomputeRandomness must update
@@ -28,7 +28,7 @@
 // Replaying with the same key bytes and the same sequence of get_random_bytes
 // calls must produce byte-equal output streams.
 //
-// Output: <luxcpp/crypto>/ringtail/test/kat/precrand.json (12 entries
+// Output: <luxcpp/crypto>/corona/test/kat/precrand.json (12 entries
 // covering: short keys, 32-byte seeds, single read, sequential reads,
 // reads larger than 64 (BLAKE3 block size), reads spanning chunk
 // boundaries, an oversized buffer with sparse reads).
@@ -280,7 +280,7 @@ func main() {
 		out.Entries = append(out.Entries, entry)
 	}
 
-	outPath := filepath.Join("/Users/z/work/lux/cpp/crypto/ringtail/test/kat", "precrand.json")
+	outPath := filepath.Join("/Users/z/work/lux/cpp/crypto/corona/test/kat", "precrand.json")
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

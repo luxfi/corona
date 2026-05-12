@@ -1,7 +1,7 @@
 // Copyright (C) 2025, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package cli provides the "rt" (ringtail) subcommand for the lux CLI.
+// Package cli provides the "rt" (corona) subcommand for the lux CLI.
 // It wires directly to the github.com/luxfi/corona/threshold and
 // github.com/luxfi/corona/dkg packages.
 package cli
@@ -20,12 +20,12 @@ import (
 func NewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "rt",
-		Aliases: []string{"ringtail"},
-		Short:   "Ringtail threshold signing",
-		Long: `The rt (ringtail) command provides tools for Ringtail threshold signing,
+		Aliases: []string{"corona"},
+		Short:   "Corona threshold signing",
+		Long: `The rt (corona) command provides tools for Corona threshold signing,
 a post-quantum threshold signature scheme using Ring-LWE.
 
-Ringtail is part of the triple consensus (BLS + Ringtail + ML-DSA) used
+Corona is part of the triple consensus (BLS + Corona + ML-DSA) used
 by Lux validators. It provides threshold signatures where t-of-n parties
 can cooperatively produce a valid signature without reconstructing the
 full private key.
@@ -71,7 +71,7 @@ func newKeygenCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "keygen",
 		Short: "Generate threshold key shares",
-		Long: `Generate t-of-n threshold key shares for Ringtail signing.
+		Long: `Generate t-of-n threshold key shares for Corona signing.
 
 Examples:
   lux rt keygen --threshold 3 --parties 5 --output ./shares/
@@ -149,7 +149,7 @@ func newSignCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sign",
 		Short: "Initiate threshold signing",
-		Long: `Initiate a Ringtail threshold signing session.
+		Long: `Initiate a Corona threshold signing session.
 
 Requires t-of-n key holders to participate in the 2-round signing protocol:
   Round 1: Each party broadcasts D matrix + MACs
@@ -171,8 +171,8 @@ Examples:
 func newVerifyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "verify",
-		Short: "Verify a Ringtail signature",
-		Long: `Verify a Ringtail threshold signature against the group public key.
+		Short: "Verify a Corona signature",
+		Long: `Verify a Corona threshold signature against the group public key.
 
 Examples:
   lux rt verify --signature sig.json --message "hello" --group-key group.json`,

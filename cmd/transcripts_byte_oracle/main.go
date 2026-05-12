@@ -6,7 +6,7 @@
 //
 // The byte-only paths are the parts of each transcript function that do NOT
 // require structs.{Vector,Matrix}[ring.Poly] serialization (i.e. M1). They
-// validate the C++ port at luxcpp/crypto/ringtail/cpp/transcripts.{hpp,cpp}
+// validate the C++ port at luxcpp/crypto/corona/cpp/transcripts.{hpp,cpp}
 // before M1 lands.
 //
 // Each entry in the emitted JSON has:
@@ -17,7 +17,7 @@
 //   - output_hex  : the 32-byte BLAKE3 digest, hex-encoded
 //
 // To regenerate:
-//   go run ./cmd/transcripts_byte_oracle/ > /Users/z/work/luxcpp/crypto/ringtail/test/kat/transcripts_byte_only.json
+//   go run ./cmd/transcripts_byte_oracle/ > /Users/z/work/luxcpp/crypto/corona/test/kat/transcripts_byte_only.json
 //
 // Determinism: pure functions of the input bytes; no random seeds.
 
@@ -167,7 +167,7 @@ func katPRF(prfKey [32]byte, sdIj, hash, mu []byte) Entry {
 
 func main() {
 	out := Output{
-		Description: "Byte-only KATs for ringtail BLAKE3 transcripts. Validates buffer construction + BLAKE3 wiring without depending on M1 (lattice_ring + structs.Matrix). Each entry pins the exact concatenated input bytes and the resulting 32-byte digest.",
+		Description: "Byte-only KATs for corona BLAKE3 transcripts. Validates buffer construction + BLAKE3 wiring without depending on M1 (lattice_ring + structs.Matrix). Each entry pins the exact concatenated input bytes and the resulting 32-byte digest.",
 	}
 
 	// 1. PRNGKey
@@ -212,7 +212,7 @@ func main() {
 	out.Entries = append(out.Entries,
 		katGaussianHash(nil, nil),
 		katGaussianHash([]byte("hash"), []byte("mu")),
-		katGaussianHash(bytes.Repeat([]byte{0xCC}, 32), []byte("ringtail-mu-77")),
+		katGaussianHash(bytes.Repeat([]byte{0xCC}, 32), []byte("corona-mu-77")),
 	)
 
 	// 6. PRFDigest
@@ -223,7 +223,7 @@ func main() {
 	out.Entries = append(out.Entries,
 		katPRF([32]byte{}, nil, nil, nil),
 		katPRF(prfKey, []byte("sd_ij"), []byte("hash"), []byte("mu")),
-		katPRF(prfKey, bytes.Repeat([]byte{0x77}, 64), bytes.Repeat([]byte{0x88}, 32), []byte("ringtail-prf")),
+		katPRF(prfKey, bytes.Repeat([]byte{0x77}, 64), bytes.Repeat([]byte{0x88}, 32), []byte("corona-prf")),
 	)
 
 	enc := json.NewEncoder(os.Stdout)
