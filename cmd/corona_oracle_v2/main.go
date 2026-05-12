@@ -29,13 +29,13 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/luxfi/lattice/v7/ring"
-	"github.com/luxfi/lattice/v7/utils/sampling"
-	"github.com/luxfi/lattice/v7/utils/structs"
 	pulsarhash "github.com/luxfi/corona/hash"
 	"github.com/luxfi/corona/primitives"
 	"github.com/luxfi/corona/sign"
 	"github.com/luxfi/corona/utils"
+	"github.com/luxfi/lattice/v7/ring"
+	"github.com/luxfi/lattice/v7/utils/sampling"
+	"github.com/luxfi/lattice/v7/utils/structs"
 	"github.com/spf13/cobra"
 	"github.com/zeebo/blake3"
 )

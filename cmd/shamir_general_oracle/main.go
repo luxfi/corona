@@ -47,8 +47,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/luxfi/lattice/v7/ring"
 	"github.com/luxfi/corona/primitives"
+	"github.com/luxfi/lattice/v7/ring"
 )
 
 const (

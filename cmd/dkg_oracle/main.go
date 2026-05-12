@@ -43,10 +43,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/luxfi/lattice/v7/ring"
-	"github.com/luxfi/lattice/v7/utils/structs"
 	"github.com/luxfi/corona/dkg"
 	"github.com/luxfi/corona/sign"
+	"github.com/luxfi/lattice/v7/ring"
+	"github.com/luxfi/lattice/v7/utils/structs"
 	"github.com/zeebo/blake3"
 )
 
