@@ -55,7 +55,7 @@ func PRNGKey(suite hash.HashSuite, skShare structs.Vector[ring.Poly]) []byte {
 // across every Sign call of the same Setup — multi-Sign leaks R via
 // (z_sum − Σ s_i·λ_i·c)·u^{-1} = R.
 //
-// Layout: PRF(key=skShare.WriteTo bytes, msg="RingtailRoundV2" || be64(sid)).
+// Layout: PRF(key=skShare.WriteTo bytes, msg="CoronaRoundV2" || be64(sid)).
 // Domain tag distinguishes from any other future per-share keying.
 //
 // `suite` selects the hash profile. nil resolves to the production
@@ -66,7 +66,7 @@ func PRNGKeyForRound(suite hash.HashSuite, skShare structs.Vector[ring.Poly], si
 	_, err := skShare.WriteTo(skBuf)
 	must("skShare.WriteTo", err)
 	msg := new(bytes.Buffer)
-	const tag = "RingtailRoundV2"
+	const tag = "CoronaRoundV2"
 	_, err = msg.WriteString(tag)
 	must("msg.WriteString(tag)", err)
 	must("binary.Write(sid)", binary.Write(msg, binary.BigEndian, sid))

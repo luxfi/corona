@@ -670,7 +670,7 @@ func Reanchor(prev *KeyEra, t int, validators []ValidatorID, groupID PulsarGroup
 
 ### Surgical edit: `~/work/lux/consensus/protocol/quasar/epoch.go`
 
-Replace `RotateEpoch` body (the call to `ringtailThreshold.GenerateKeys(threshold, n, nil)`) with:
+Replace `RotateEpoch` body (the call to `coronaThreshold.GenerateKeys(threshold, n, nil)`) with:
 
 ```go
 func (em *EpochManager) ReshareEpoch(validators []string, force bool) (*EpochShareState, error) {
@@ -761,7 +761,7 @@ Once Go ships and KATs are pinned:
     └── c_pulsar_lifecycle.cpp   ← pulsar_bootstrap, pulsar_reshare, pulsar_activate
 ```
 
-C-ABI surface (mirror existing `ringtail_*` pattern):
+C-ABI surface (mirror existing `corona_*` pattern):
 
 ```c
 int pulsar_bootstrap(

@@ -25,7 +25,7 @@ package reshare
 //	  → calls GenerateKeys      instead of GenerateKeys
 //
 // Concretely the existing `EpochManager.RotateEpoch` re-runs
-// `ringtailThreshold.GenerateKeys(t, n, nil)` which generates a FRESH
+// `coronaThreshold.GenerateKeys(t, n, nil)` which generates a FRESH
 // secret and a NEW group public key per epoch. With Reshare, the
 // master secret and group public key are PERSISTENT across epochs;
 // only the share distribution rotates. So:
@@ -177,7 +177,7 @@ func (i *RefreshEpochInputs) BuildTranscript() TranscriptInputs {
 //	    name but change the body). Caller code in quasar.go and the
 //	    `validator-rotation` consensus path need updates.
 //
-//	[2] Replace `ringtailThreshold.GenerateKeys` call with a Reshare
+//	[2] Replace `coronaThreshold.GenerateKeys` call with a Reshare
 //	    invocation: extract OldShares from current EpochShareState,
 //	    feed into Reshare(r, oldShares, tOld, newSet, tNew, randSource).
 //
