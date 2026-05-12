@@ -6,11 +6,9 @@ See [LP-105 §Claims and evidence](https://github.com/luxfi/lps/blob/main/LP-105
 
 **Corona** is the Lux **Ring-LWE** post-quantum threshold signature library
 for **Quasar consensus**. The 2-round threshold construction line traces back
-to Boschini–Kaviani–Lai–Malavolta–Takahashi–Tibouchi's academic R-LWE paper
-(ePrint 2024/1113); the academic codebase lives at
-[`luxfi/nasua`](https://github.com/luxfi/nasua) (historical reference fork,
-trusted-dealer DKG only — not for public-chain use). Corona adds the
-production lifecycle that fork lacked: Pedersen DKG over `R_q` with proper
+to the Boschini–Kaviani–Lai–Malavolta–Takahashi–Tibouchi R-LWE paper
+([ePrint 2024/1113](https://eprint.iacr.org/2024/1113)). Corona adds the
+production lifecycle that line lacked: Pedersen DKG over `R_q` with proper
 hiding, proactive resharing for epoch validator rotation, identifiable
 abort, and the integration surface Quasar consumes.
 
@@ -46,14 +44,14 @@ Brand-paired with Pulsar (Module-LWE) and Quasar (the consensus that
 consumes both): the same family of threshold-finality light, observed at
 a different layer.
 
-## Relationship to academic Nasua (formerly upstream Ringtail)
+## Production lifecycle additions
 
-[`luxfi/nasua`](https://github.com/luxfi/nasua) holds the academic
-2-round R-LWE threshold construction (Boschini et al, ePrint 2024/1113)
-as a **historical reference fork** — "not ready for production use" per
-its origin. Corona is the production track:
+The original Boschini et al construction (ePrint 2024/1113) is a
+research artefact — trusted-dealer DKG, no proactive resharing, no
+integration surface. Corona is the production track that fills those
+gaps:
 
-| Layer | Academic Nasua | Corona |
+| Layer | Original R-LWE construction | Corona |
 |---|---|---|
 | 2-round threshold sign | ✅ same byte-equal protocol | ✅ inherited |
 | Trusted-dealer Gen | ✅ for fixed federation | ✅ retained for bridge MPC |
@@ -95,4 +93,4 @@ BLS entirely and runs on `Corona + Pulsar`.
 
 ## Status
 
-WIP. The 2-round Sign+Verify path is byte-equal-validated against the academic Ringtail spec via 16 SHA-256 KATs. The Pulsar-specific additions (resharing + Pedersen DKG) are under design and implementation.
+WIP. The 2-round Sign+Verify path is byte-equal-validated against the original R-LWE construction (ePrint 2024/1113) via 16 SHA-256 KATs. The production-lifecycle additions (resharing + Pedersen DKG) are under design and implementation.
