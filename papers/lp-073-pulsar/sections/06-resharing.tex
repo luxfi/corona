@@ -201,7 +201,7 @@ Failure to erase undermines the proactive-security guarantee: a long-running adv
 \subsection{Quasar consensus integration}
 \label{sec:resharing-quasar}
 
-The Quasar epoch manager (\texttt{consensus/protocol/quasar/epoch.go}) currently regenerates a \emph{fresh} group public key at every validator-set rotation by calling \texttt{ringtailThreshold.GenerateKeys}. Under \textsc{Reshare}, the group public key is invariant for the entire group lineage; the rotation method is renamed for clarity:
+The Quasar epoch manager (\texttt{consensus/protocol/quasar/epoch.go}) currently regenerates a \emph{fresh} group public key at every validator-set rotation by calling \texttt{coronaThreshold.GenerateKeys}. Under \textsc{Reshare}, the group public key is invariant for the entire group lineage; the rotation method is renamed for clarity:
 
 \begin{center}
 \begin{tabular}{ll}
