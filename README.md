@@ -18,24 +18,6 @@ ML-DSA (NIST MPTC Class N1). The two libraries are independent — there is
 no import line between them — and Quasar consumes them as parallel kernels
 selected per-chain via `FinalitySchemeID`.
 
-## Version note
-
-This repository owns the former `luxfi/pulsar` `v0.1.x` Ring-LWE code line.
-Following the 2026 Pulsar / Corona split:
-
-- **Ring-LWE** code (this repository) retains `v0.1.0`, `v0.1.1`, `v0.1.2`,
-  `v0.1.5` as historical R-LWE releases under their new home, and continues
-  with `v0.2.0` onward as the post-split Corona line.
-- **Module-LWE** code moved to [`luxfi/pulsar`](https://github.com/luxfi/pulsar)
-  and starts at `v1.0.0` to signal the identity break.
-
-Use:
-
-```sh
-go get github.com/luxfi/corona@v0.2.0         # Ring-LWE (this repo, post-split)
-go get github.com/luxfi/pulsar@v1.0.0         # Module-LWE (sibling repo)
-```
-
 ## Why "Corona"
 
 A corona is the luminous ring of light surrounding a star — visible only
