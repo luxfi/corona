@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Eco
 //
 // m4_precrand_oracle — emits byte-equal KATs for the PrecomputedRandomness
-// state machine from luxfi/ringtail/utils/utils.go.
+// state machine from luxfi/nasua/utils/utils.go.
 //
 // Algorithm:
 //
