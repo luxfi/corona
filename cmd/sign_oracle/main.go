@@ -142,7 +142,7 @@ func emitSignVerify(outDir string) error {
 		Description: "Full Pulsar Sign+Verify round-trip (LP-073 Q-witness). " +
 			"For each (t,n,msg,seed): Gen → SignRound1 (all parties) → " +
 			"SignRound2Preprocess+SignRound2 (all parties) → SignFinalize → " +
-			"Verify. Pulsar's sign module is byte-identical to corona's at " +
+			"Verify. Pulsar's sign module is byte-identical to the original construction at " +
 			"the Go source level (only the import path differs). The current " +
 			"KAT signs with K=Threshold=n; the t field documents the " +
 			"threshold-aware variant for downstream use. SHA-256 hashes are " +
