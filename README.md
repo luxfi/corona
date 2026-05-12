@@ -1,26 +1,51 @@
-# Pulsar
+# Corona
 
 > Lux is not merely adding post-quantum signatures to a chain; it defines a hybrid finality architecture for DAG-native consensus, with protocol-agnostic threshold lifecycle, post-quantum threshold sealing, and cross-chain propagation of Horizon finality.
 
 See [LP-105 §Claims and evidence](https://github.com/luxfi/lps/blob/main/LP-105-lux-stack-lexicon.md#claims-and-evidence) for the canonical claims/evidence table and the ten architectural commitments — single source of truth.
 
-**Pulsar** is the Lux-evolved post-quantum threshold signature stack for **Quasar consensus**, derived from [daryakaviani/ringtail](https://github.com/daryakaviani/ringtail) (academic 2-round threshold signature from LWE) with the protocol additions needed to operate on a **leaderless open public chain**.
+**Corona** is the Lux **Ring-LWE** post-quantum threshold signature library
+for **Quasar consensus**, derived from [daryakaviani/ringtail](https://github.com/daryakaviani/ringtail) (academic 2-round threshold signature from R-LWE) with the protocol additions needed to operate on a **leaderless open public chain**.
 
-## Why "Pulsar"
+The Module-LWE sibling library — byte-equal to FIPS 204 single-party ML-DSA per the Class N1 manifesto — lives at [`luxfi/pulsar`](https://github.com/luxfi/pulsar).
 
-`Lux` (Latin) → light. `Pulsar` → SI unit of luminous flux. Each validator emits a "pulsar" of signature toward consensus; aggregated, they form the chain's overall light. Brand-paired with Quasar (the consensus that consumes them).
+## Version note
+
+This repository owns the former `luxfi/pulsar` `v0.1.x` Ring-LWE code line.
+Following the 2026 Pulsar / Corona split:
+
+- **Ring-LWE** code (this repository) retains `v0.1.0`, `v0.1.1`, `v0.1.2`,
+  `v0.1.5` as historical R-LWE releases under their new home, and continues
+  with `v0.2.0` onward as the post-split Corona line.
+- **Module-LWE** code moved to [`luxfi/pulsar`](https://github.com/luxfi/pulsar)
+  and starts at `v1.0.0` to signal the identity break.
+
+Use:
+
+```sh
+go get github.com/luxfi/corona@v0.2.0         # Ring-LWE (this repo, post-split)
+go get github.com/luxfi/pulsar@v1.0.0         # Module-LWE (sibling repo)
+```
+
+## Why "Corona"
+
+A corona is the luminous ring of light surrounding a star — visible only
+when the brighter central body (the Pulsar / Quasar) is partially occluded.
+Brand-paired with Pulsar (Module-LWE) and Quasar (the consensus that
+consumes both): the same family of threshold-finality light, observed at
+a different layer.
 
 ## Relationship to upstream Ringtail
 
-The upstream repo at `daryakaviani/ringtail` is an **academic proof-of-concept** ("not ready for production use" per its README). Pulsar is the production track:
+The upstream repo at `daryakaviani/ringtail` is an **academic proof-of-concept** ("not ready for production use" per its README). Corona is the production track:
 
-| Layer | Upstream Ringtail | Pulsar |
+| Layer | Upstream Ringtail | Corona |
 |---|---|---|
 | 2-round threshold sign | ✅ same byte-equal protocol | ✅ inherited |
 | Trusted-dealer Gen | ✅ for fixed federation | ✅ retained for bridge MPC |
-| **Proactive resharing** for epoch validator rotation | ❌ not specified | 🚧 **pulsar/reshare/** (this fork) |
-| **Pedersen DKG over R_q** with proper hiding | ❌ not specified | 🚧 **pulsar/dkg2/** (this fork) |
-| Per-validator triple-sign integration with Quasar | ❌ N/A | 🚧 **pulsar/consensus/** integration |
+| **Proactive resharing** for epoch validator rotation | ❌ not specified | 🚧 **corona/reshare/** (this fork) |
+| **Pedersen DKG over R_q** with proper hiding | ❌ not specified | 🚧 **corona/dkg2/** (this fork) |
+| Per-validator triple-sign integration with Quasar | ❌ N/A | 🚧 **corona/consensus/** integration |
 
 ## Layout
 
