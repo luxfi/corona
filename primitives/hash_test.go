@@ -400,7 +400,7 @@ func TestPulsarSHA3VsBLAKE3_DistinctOutput(t *testing.T) {
 
 // TestKATsRegenerated documents the cross-suite KAT state.
 //
-// The legacy BLAKE3 KATs in cmd/ringtail_oracle_v2/ historically reflected
+// The legacy BLAKE3 KATs in cmd/corona_oracle_v2/ historically reflected
 // raw blake3.New() framing in primitives/hash.go. After the suite
 // refactor, primitives now uses pulsarBLAKE3.PRF / pulsarBLAKE3.Hu /
 // pulsarBLAKE3.MAC which prepend customization tags and length-prefix —

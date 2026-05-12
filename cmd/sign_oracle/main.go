@@ -7,9 +7,9 @@
 // 2-of-3, 3-of-5, 5-of-7, 7-of-11. The C++ port at
 // luxcpp/crypto/pulsar/cpp/sign/ replays these entries byte-equal.
 //
-// Pulsar's sign/sign.go is byte-identical to ringtail/sign/sign.go (the
+// Pulsar's sign/sign.go is byte-identical to corona/sign/sign.go (the
 // only diff is the import path), so the JSON shape mirrors the existing
-// ringtail sign_verify_e2e KAT.
+// corona sign_verify_e2e KAT.
 //
 // Usage:
 //
@@ -142,7 +142,7 @@ func emitSignVerify(outDir string) error {
 		Description: "Full Pulsar Sign+Verify round-trip (LP-073 Q-witness). " +
 			"For each (t,n,msg,seed): Gen → SignRound1 (all parties) → " +
 			"SignRound2Preprocess+SignRound2 (all parties) → SignFinalize → " +
-			"Verify. Pulsar's sign module is byte-identical to ringtail's at " +
+			"Verify. Pulsar's sign module is byte-identical to the original construction at " +
 			"the Go source level (only the import path differs). The current " +
 			"KAT signs with K=Threshold=n; the t field documents the " +
 			"threshold-aware variant for downstream use. SHA-256 hashes are " +

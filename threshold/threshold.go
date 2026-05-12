@@ -1,7 +1,7 @@
 // Copyright (C) 2025, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package ringtail provides post-quantum threshold signatures using Ring-LWE.
+// Package corona provides post-quantum threshold signatures using Ring-LWE.
 //
 // Signing is a 2-round protocol:
 //   - Round 1: Each party broadcasts D matrix + MACs

@@ -23,8 +23,8 @@ instead of running a fresh trusted-dealer `GenerateKeys` every time.
 func (em *EpochManager) generateEpochKeysWithThreshold(
     epoch uint64, validators []string, threshold int,
 ) (*EpochKeys, error) {
-    // ... Generate Ringtail threshold keys ...
-    shares, groupKey, err := ringtailThreshold.GenerateKeys(threshold, n, nil)
+    // ... Generate Corona threshold keys ...
+    shares, groupKey, err := coronaThreshold.GenerateKeys(threshold, n, nil)
     // ...
 }
 ```
@@ -43,7 +43,7 @@ func (em *EpochManager) InitializeGenesis(validators []string) (*EpochKeys, erro
     // ceremony in pulsar/dkg2/). Result: shares + groupKey + master
     // public key b̃. Persist b̃ to chain genesis state — it is a
     // permanent, public, never-rotating value.
-    shares, groupKey, err := ringtailThreshold.GenerateKeys(
+    shares, groupKey, err := coronaThreshold.GenerateKeys(
         em.threshold, len(validators), nil)
     // ...
 }
@@ -76,9 +76,9 @@ func (em *EpochManager) RotateEpochViaReshare(
         per_party_rng_source(epoch),
     )
 
-    // 4. Wrap the new shares into Ringtail KeyShare instances.
+    // 4. Wrap the new shares into Corona KeyShare instances.
     //    GroupKey is INHERITED from the old epoch — same A, same b̃.
-    newKeyShares := wrapAsRingtailShares(
+    newKeyShares := wrapAsCoronaShares(
         newShares, oldEpoch.GroupKey,
         recomputeLagrangeCoefficients(newValidators, em.threshold),
     )

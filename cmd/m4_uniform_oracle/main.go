@@ -111,7 +111,7 @@ func main() {
 		})
 	}
 
-	outPath := filepath.Join("/Users/z/work/luxcpp/crypto/ringtail/test/kat", "uniform_sampler.json")
+	outPath := filepath.Join("/Users/z/work/luxcpp/crypto/corona/test/kat", "uniform_sampler.json")
 	f, err := os.Create(outPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
