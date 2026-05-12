@@ -41,7 +41,7 @@ were consuming `pulsar/hash/HashSuite` previously).
 ### Follow-up — KAT regeneration
 
 The historical BLAKE3 KAT transcripts emitted by
-`cmd/ringtail_oracle_v2` were computed against the previous raw
+`cmd/corona_oracle_v2` were computed against the previous raw
 `blake3.New()` framing in `primitives/hash.go`. After this refactor, the
 oracle still emits under `pulsarhash.NewPulsarBLAKE3()`, but the framing
 now includes the suite's customization tags (`PULSAR-HC-v1`,
@@ -52,9 +52,9 @@ The Pulsar-SHA3 production KATs are not yet emitted. Both lie outside
 the scope of this PR:
 
 - Regenerate the legacy BLAKE3 oracle JSON
-  (`go run ./cmd/ringtail_oracle_v2 emit --out ./test/kats/blake3`)
+  (`go run ./cmd/corona_oracle_v2 emit --out ./test/kats/blake3`)
   and cross-validate with the C++ port.
-- Land a parallel `cmd/ringtail_oracle_v3` (or `--suite` flag) that
+- Land a parallel `cmd/corona_oracle_v3` (or `--suite` flag) that
   emits Pulsar-SHA3 KATs under `./test/kats/sha3/` and pin them as the
   normative reference for downstream ports.
 
