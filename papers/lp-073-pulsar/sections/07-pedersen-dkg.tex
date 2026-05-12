@@ -5,7 +5,7 @@ This section specifies the Pedersen-style distributed key generation
 protocol shipped at \texttt{github.com/luxfi/pulsar/dkg2}, the
 trusted-dealer-free genesis path that runs in parallel with the
 foundation MPC ceremony of \S\ref{sec:lifecycle:dkg}. The construction
-replaces upstream Ringtail's Feldman commit
+replaces upstream Corona's Feldman commit
 $\mathbf{C}_k = \mathbf{A}\cdot\mathrm{NTT}(c_k)$ with a Pedersen
 commit hiding under MLWE on a second uniform matrix $\mathbf{B}$ and
 binding under MSIS on the wide concatenation
@@ -21,7 +21,7 @@ referenced are
 \subsection{The broken Feldman commit}
 \label{ssec:dkg-broken}
 
-The upstream Ringtail DKG at \texttt{ringtail/dkg/dkg.go} uses Feldman
+The upstream Corona DKG at \texttt{corona/dkg/dkg.go} uses Feldman
 commits
 \begin{equation}
 \label{eq:feldman-broken}
@@ -52,7 +52,7 @@ pseudoinverse, slot-by-slot:
 Total cost: $\Theta(\varphi\cdot m_{\textrm{pk}}^3)$ ring multiplications,
 a few milliseconds on a laptop. This is the headline finding of the red
 review at
-\texttt{luxcpp/crypto/ringtail/RED-DKG-REVIEW.md} (Finding~1)
+\texttt{luxcpp/crypto/corona/RED-DKG-REVIEW.md} (Finding~1)
 \cite{red-dkg-review}. Public-key rounding
 $\tilde{\mathbf{b}} = \lfloor\sum_i \mathbf{C}_{i,0}\rceil_\Xi$ does not
 save the construction because the attacker has full-precision
@@ -334,7 +334,7 @@ Lean reference: \texttt{Crypto.Pulsar.DKG2.pedersen\_identity}.
 \toprule
 Scheme & Hiding & Binding & Cost / Round & Round count \\
 \midrule
-Broken \texttt{ringtail/dkg/} (Feldman, no noise)
+Broken \texttt{corona/dkg/} (Feldman, no noise)
         & \emph{none} (linear)
         & statistical
         & $1\times\mathrm{matvec}_\mathbf{A}$
@@ -408,7 +408,7 @@ $\Xi$               & $30$ bits \\
 \end{tabular}
 
 These are the same lattice-attack-estimator parameters as upstream
-Ringtail \cite{ringtail2025}: at least 128-bit classical and at least
+Corona \cite{ringtail2025}: at least 128-bit classical and at least
 120-bit quantum security per the Albrecht primal/dual estimator. The
 matrix $\mathbf{B}$ inherits the same regime as $\mathbf{A}$
 (uniform over $R_q$, dimension $8\times 7$); the additional MLWE

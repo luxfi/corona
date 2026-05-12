@@ -7,7 +7,7 @@
 //
 // dkg2 is the production parallel-track keygen for Pulsar. It replaces the
 // pseudoinverse-recoverable Feldman commit C_k = A · NTT(c_k) of the
-// upstream Ringtail DKG with a Pedersen commit
+// upstream Corona DKG with a Pedersen commit
 //
 //	C_{i,k} = A · NTT(c_{i,k}) + B · NTT(r_{i,k})           (R_q^M, NTT-Mont)
 //
@@ -475,7 +475,7 @@ func hornerEval(r *ring.Ring, coeffs []structs.Vector[ring.Poly], x, q *big.Int)
 //
 // Comparison is constant-time across all M·N coefficient slots — no
 // short-circuit on the first mismatched slot, which matches the response to
-// Findings 5/6 of luxcpp/crypto/ringtail/RED-DKG-REVIEW.md.
+// Findings 5/6 of luxcpp/crypto/corona/RED-DKG-REVIEW.md.
 //
 // recipientID is 0-indexed (the (j+1) shift to the Lagrange evaluation
 // point is applied internally).
@@ -553,7 +553,7 @@ func VerifyShareAgainstCommits(
 // performed (no early return).
 //
 // This is the dkg2 response to Findings 5/6 of
-// luxcpp/crypto/ringtail/RED-DKG-REVIEW.md, which note that the Round 2
+// luxcpp/crypto/corona/RED-DKG-REVIEW.md, which note that the Round 2
 // share-comparison loop in the upstream dkg/ package short-circuits on the
 // first slot mismatch and so leaks the location of any planted divergence
 // to a network observer measuring response timing.

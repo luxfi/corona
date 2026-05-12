@@ -34,7 +34,7 @@
 // TernarySampler.ReadNew is called num_polys times. polys_hex is BE-encoded
 // uint64 coefficients per poly (matches the m4_uniform_oracle wire format).
 //
-// Output: <luxcpp>/crypto/ringtail/test/kat/ternary_sampler.json
+// Output: <luxcpp>/crypto/corona/test/kat/ternary_sampler.json
 
 package main
 
@@ -153,7 +153,7 @@ func main() {
 		})
 	}
 
-	outPath := filepath.Join("/Users/z/work/luxcpp/crypto/ringtail/test/kat", "ternary_sampler.json")
+	outPath := filepath.Join("/Users/z/work/luxcpp/crypto/corona/test/kat", "ternary_sampler.json")
 	f, err := os.Create(outPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

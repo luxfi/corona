@@ -1,16 +1,16 @@
-// Package main is the Ringtail KAT oracle.
+// Package main is the Corona KAT oracle.
 //
 // Given a fixed master seed, it emits seven JSON files of known-answer
 // test vectors covering every internal that the upcoming C++ and GPU ports
 // must byte-match: the BLAKE2-XOF KeyedPRNG stream from Lattigo, the
 // discrete-Gaussian sampler, Montgomery/NTT operations on Q=0x1000000004A01,
 // the structs.Matrix[ring.Poly] wire format, the BLAKE3 transcripts in
-// ringtail/primitives/hash.go, deterministic Shamir over R_q, and a full
+// corona/primitives/hash.go, deterministic Shamir over R_q, and a full
 // Sign+Verify round-trip.
 //
 // Usage:
 //
-//	go run ./cmd/ringtail_oracle_v2 emit --out <dir>
+//	go run ./cmd/corona_oracle_v2 emit --out <dir>
 //
 // Determinism is required. Two runs with the same seed produce byte-equal
 // JSON files. The seed is fixed at MasterSeed = 0xDEADBEEFCAFEBABE.
@@ -327,7 +327,7 @@ func emitMontgomeryNTT(outDir string) error {
 		a := pullPoly(s)
 		b := pullPoly(s)
 		// MulCoeffsMontgomery expects Montgomery-form inputs. We keep as-is (raw uniform mod q),
-		// matching ringtail's protocol invariant: NTT-Montgomery inputs.
+		// matching corona's protocol invariant: NTT-Montgomery inputs.
 		pa := r.NewPoly()
 		copy(pa.Coeffs[0], a)
 		pb := r.NewPoly()
@@ -555,7 +555,7 @@ func emitTranscripts(outDir string) error {
 		N           int               `json:"n"`
 		Entries     []transcriptEntry `json:"entries"`
 	}{
-		Description: "Ringtail BLAKE3 transcripts: Hash, LowNormHash, GenerateMAC, " +
+		Description: "Corona BLAKE3 transcripts: Hash, LowNormHash, GenerateMAC, " +
 			"GaussianHash, PRF, PRNGKey. Each entry feeds Vector/Matrix.WriteTo + " +
 			"binary.BigEndian-encoded scalars into BLAKE3 and emits the 32-byte digest. " +
 			"For samplers (LowNormHash, GaussianHash, PRF) the output_hex is the digest; " +
@@ -942,9 +942,9 @@ func emitSignVerify(outDir string) error {
 		Description string      `json:"description"`
 		Entries     []signEntry `json:"entries"`
 	}{
-		Description: "Full Ringtail Sign+Verify round-trip. For each (t,n,msg,seed): " +
+		Description: "Full Corona Sign+Verify round-trip. For each (t,n,msg,seed): " +
 			"Gen → SignRound1 (all parties) → SignRound2Preprocess+SignRound2 (all parties) → " +
-			"SignFinalize → Verify. Note: ringtail/sign currently signs with K=Threshold=n " +
+			"SignFinalize → Verify. Note: corona/sign currently signs with K=Threshold=n " +
 			"(see threshold.GenerateKeys). The n in this KAT is the total signer count; " +
 			"the t is documented for the C++ port to validate threshold-aware sharing logic " +
 			"once it is implemented downstream. SHA-256 hashes are used for large fields " +
@@ -1078,7 +1078,7 @@ func hashVectors(m map[int]structs.Vector[ring.Poly], n int) []string {
 // ---------- main ----------
 
 func main() {
-	root := &cobra.Command{Use: "ringtail_oracle_v2"}
+	root := &cobra.Command{Use: "corona_oracle_v2"}
 	emit := &cobra.Command{
 		Use:   "emit",
 		Short: "Emit all KAT JSON files",

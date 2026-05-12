@@ -135,7 +135,7 @@ type HorizonCertificate struct {
 
 ## Relationship to LSS
 
-**Pulsar is not a replacement for LSS. Pulsar is the lattice adapter that makes LSS dynamic resharing available to Ringtail-style post-quantum threshold finality.**
+**Pulsar is not a replacement for LSS. Pulsar is the lattice adapter that makes LSS dynamic resharing available to Corona-style post-quantum threshold finality.**
 
 LSS is Lux's generic dynamic threshold lifecycle framework (`~/work/lux/threshold/protocols/lss/`, paper-backed by Seesahai 2025). It **owns** the orchestration:
 
@@ -149,13 +149,13 @@ Pulsar **contributes** the lattice math the framework needs:
 
 - `R_q` share representation (Z_q[X]/(X^N+1) over a 48-bit NTT prime)
 - Pedersen-style commitments where applicable (`A·NTT(s) + B·NTT(r)`)
-- Ringtail/Pulsar signing material: `Lambda` + PRF `Seeds` + `MACKeys` regeneration
+- Corona/Pulsar signing material: `Lambda` + PRF `Seeds` + `MACKeys` regeneration
 - Activation certificate **message format** (the lattice signature itself)
 - Lattice-specific transcript binding for Quasar epochs
 
 What Pulsar must NOT inherit from LSS-ECDSA internals:
 
-- ECDSA auxiliary secrets `w`, `q` (Section 4 nonce blinding) — Ringtail's signing protocol has Gaussian noise blinding built into Sign1/Sign2; no `w, q` needed
+- ECDSA auxiliary secrets `w`, `q` (Section 4 nonce blinding) — Corona's signing protocol has Gaussian noise blinding built into Sign1/Sign2; no `w, q` needed
 - `curve.Point` Pedersen commits — replaced by lattice commits over `R_q`
 - ECDSA scalar serialization
 - Curve-specific Lagrange interpolation — replaced by `primitives.ComputeLagrangeCoefficients` over Z_q
@@ -215,7 +215,7 @@ ML-DSA lane: each validator has its OWN keypair.
 Pulsar lane:  each validator has a SHARE of one group key — NOT a keypair.
 ```
 
-Resharing reshuffles shares. It does NOT make independent keys threshold-compatible. Anyone proposing "give each validator their own Ringtail keypair" is conceptually proposing to delete Ringtail's threshold property — which is the only reason to use it.
+Resharing reshuffles shares. It does NOT make independent keys threshold-compatible. Anyone proposing "give each validator their own Corona keypair" is conceptually proposing to delete Corona's threshold property — which is the only reason to use it.
 
 ---
 
@@ -361,7 +361,7 @@ mac_i_j        = KDF(pair_secret_ij, "pulsar.reshare.mac-key.v1",
                      chain_id, epoch, group_id, i, j)
 ```
 
-Domain-separation tags MUST be distinct from any other Pulsar/Ringtail KDF tag.
+Domain-separation tags MUST be distinct from any other Pulsar/Corona KDF tag.
 
 ---
 
@@ -459,7 +459,7 @@ There are two distinct production targets, with very different effort budgets:
 - Activation certificate gating epoch acceptance.
 - Fallback path: if activation fails, old committee continues; chain stays at old epoch.
 
-This is `pulsar/reshare/` today. Effort estimate from "kernel landed" to "Quasar-integrated MVP": **8-13 weeks** for an engineer fluent in Quasar internals, including consensus go.mod migration, complaint mempool, and Ringtail KAT extension. Production hardening (mlock-pinned shares, secure erasure pinpointing, transport ML-KEM hybrid) adds another 2-4 weeks.
+This is `pulsar/reshare/` today. Effort estimate from "kernel landed" to "Quasar-integrated MVP": **8-13 weeks** for an engineer fluent in Quasar internals, including consensus go.mod migration, complaint mempool, and Corona KAT extension. Production hardening (mlock-pinned shares, secure erasure pinpointing, transport ML-KEM hybrid) adds another 2-4 weeks.
 
 ### Robust VSR (mainnet-grade target)
 
@@ -485,7 +485,7 @@ The shipping plan: land MVP first; iterate on Robust as a separate workstream.
 
 ## Threshold layer wiring (`~/work/lux/threshold`)
 
-`~/work/lux/threshold` is THE consolidation point for all Lux threshold protocols. It already contains `protocols/{bls, mldsa, ringtail, frost, cmp, doerner, lss, tfhe, quasar}/`.
+`~/work/lux/threshold` is THE consolidation point for all Lux threshold protocols. It already contains `protocols/{bls, mldsa, corona, frost, cmp, doerner, lss, tfhe, quasar}/`.
 
 **Pulsar is the lattice adapter to LSS.** Just as `lss_frost.go` adapts FROST to LSS's dynamic-resharing framework and `lss_cmp.go` adapts ECDSA-CMP, `lss_pulsar.go` adapts Pulsar.
 
@@ -508,7 +508,7 @@ LSS already provides:
 
 What is **scheme-specific** in LSS (and therefore not reusable verbatim for Pulsar):
 
-- The auxiliary secrets `w` and `q` for ECDSA multiplicative nonce blinding (Protocol I/II). Pulsar/Ringtail's signing protocol has its own Gaussian-noise blinding built into Sign1/Sign2; no `w, q` needed.
+- The auxiliary secrets `w` and `q` for ECDSA multiplicative nonce blinding (Protocol I/II). Pulsar/Corona's signing protocol has its own Gaussian-noise blinding built into Sign1/Sign2; no `w, q` needed.
 - The `curve.Point` Pedersen commits in JVSS — for Pulsar these become `A·NTT(s) + B·NTT(r)` lattice commits over R_q.
 
 What IS reusable verbatim:
@@ -579,7 +579,7 @@ The two roles are **distinct**: a compromise of the Signature Coordinator does n
 //  2. Auxiliary secrets w, q (LSS Section 4 ECDSA nonce blinding) are
 //     not needed — Pulsar's signing protocol has Gaussian blinding
 //     built into Sign1/Sign2.
-//  3. The activation cert is a Lumen / Ringtail threshold signature
+//  3. The activation cert is a Lumen / Corona threshold signature
 //     under the unchanged GroupKey, not an ECDSA verification.
 //
 // Everything else (orchestration, generation tracking, rollback,
@@ -593,13 +593,13 @@ func DynamicResharePulsar(
 ) (*pulsar.KeyEra, error)
 ```
 
-### Migration plan: protocols/ringtail → protocols/pulsar (revised)
+### Migration plan: protocols/corona → protocols/pulsar (revised)
 
-Don't back-port the corrected kernel under `protocols/ringtail/`. Keep them distinct:
+Don't back-port the corrected kernel under `protocols/corona/`. Keep them distinct:
 
 | Package | Status |
 |---|---|
-| `protocols/ringtail/` | DEPRECATED. Upstream academic POC; broken DKG; trusted-dealer-per-epoch. `GenerateKeys` should return an error pointing callers at `protocols/pulsar`. |
+| `protocols/corona/` | DEPRECATED. Upstream academic POC; broken DKG; trusted-dealer-per-epoch. `GenerateKeys` should return an error pointing callers at `protocols/pulsar`. |
 | `protocols/pulsar/` | Production. Corrected kernel via `github.com/luxfi/pulsar`. |
 | `protocols/lss/lss_pulsar.go` | NEW. Dynamic-resharing adapter — production resharing path. |
 | `protocols/quasar/` | Update to consume `protocols/pulsar` + `lss/lss_pulsar.go` + `bls/` + `mldsa/`. |
@@ -615,9 +615,9 @@ Don't back-port the corrected kernel under `protocols/ringtail/`. Keep them dist
 7. Add `RefreshSameSet` round-based protocol (3-round shape from LSS).
 8. Add `ReshareToNewSet` round-based protocol (same shape).
 9. Add activation cert sign as a follow-on round after reshare round 3.
-10. Quasar: switch from `protocols/ringtail` to `protocols/pulsar` + `lss/lss_pulsar`.
+10. Quasar: switch from `protocols/corona` to `protocols/pulsar` + `lss/lss_pulsar`.
 11. Quasar: add ML-DSA certificate-set lane.
-12. Deprecate `protocols/ringtail` (`GenerateKeys` returns error).
+12. Deprecate `protocols/corona` (`GenerateKeys` returns error).
 13. Add grouped Pulsar certificates.
 
 ### Cited works
@@ -626,7 +626,7 @@ Don't back-port the corrected kernel under `protocols/ringtail/`. Keep them dist
 - **HJKY97**: Herzberg-Jakobsson-Jarecki-Krawczyk-Yung, *"Proactive secret sharing or: How to cope with perpetual leakage"* (CRYPTO 1995/1997) — the Refresh primitive.
 - **Desmedt-Jajodia 1997**: *"Redistributing secret shares to new access structures"* — the ReshareToNewSet primitive.
 - **Wong-Wang-Wing 2002**: *"Verifiable secret redistribution for archive systems"* — the VSR composition.
-- **NTT et al 2024**: *"Ringtail"* (eprint 2024/1113, IEEE S&P 2025) — the inherited 2-round Sign protocol.
+- **NTT et al 2024**: *"Corona"* (eprint 2024/1113, IEEE S&P 2025) — the inherited 2-round Sign protocol.
 - **BDLOP18**: Baum-Damgård-Lyubashevsky-Oechsner-Peikert, *"More Efficient Commitments from Structured Lattice Assumptions"* (SCN 2018) — informs the lattice Pedersen commits in `pulsar/reshare/commit.go` (and the dkg2 research path).
 
 ---
@@ -714,7 +714,7 @@ Everything else in `epoch.go` (rate limit, change detection, validator set manag
 A Reshare implementation merges into `consensus/protocol/quasar/epoch.go` only after:
 
 1. Old → new resharing works for `t_old != t_new`.
-2. New shares reconstruct the same Ringtail master secret (verified via `Lagrange(new_shares) == s`).
+2. New shares reconstruct the same Corona master secret (verified via `Lagrange(new_shares) == s`).
 3. Original `GroupKey` (== `bTilde`) is **byte-identical** after resharing.
 4. New committee produces a valid Pulsar signature that verifies under the unchanged `GroupKey` — this is what the activation cert proves.
 5. Old shares are unnecessary after activation (chain rejects signatures from old committee under the new epoch).
@@ -738,7 +738,7 @@ Deterministic test vectors (Go oracle → JSON → C++ test, byte-equal):
 4. Invalid old share is detected during resharing.
 5. Invalid resharing evaluation triggers complaint + disqualification.
 6. Activation signature verifies under unchanged `GroupKey`.
-7. Inherited Sign1/Sign2/Combine remain byte-equal vs upstream Ringtail.
+7. Inherited Sign1/Sign2/Combine remain byte-equal vs upstream Corona.
 8. Go and C++ serialization of `EpochShareState` are byte-identical.
 9. Domain separation: changing any field in `TranscriptBinding` alters the resulting transcript hash.
 10. Hash-output sanity: `H_u` outputs Gaussian `u`-vector; `H_c` outputs ternary challenge `c`. Don't accidentally invert.
@@ -784,7 +784,7 @@ int pulsar_verify_activation(
     const uint8_t* activation_sig, size_t activation_sig_len);
 ```
 
-GPU acceleration: only the **inherited Sign protocol** has GPU-relevant primitives (NTT/Mont). Reshare itself is small-N polynomial arithmetic + KDF; no GPU win. The existing Metal/CUDA/WGSL kernels in `~/work/luxcpp/crypto/ringtail/gpu/` cover Sign; they're inherited unchanged.
+GPU acceleration: only the **inherited Sign protocol** has GPU-relevant primitives (NTT/Mont). Reshare itself is small-N polynomial arithmetic + KDF; no GPU win. The existing Metal/CUDA/WGSL kernels in `~/work/luxcpp/crypto/corona/gpu/` cover Sign; they're inherited unchanged.
 
 ---
 

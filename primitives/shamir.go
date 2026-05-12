@@ -70,9 +70,9 @@ func ShamirSecretSharingGeneral(r *ring.Ring, s []ring.Poly, t, k int) map[int]s
 // polynomial coefficients per coordinate from crypto/rand, it draws them
 // from a BLAKE3(seed) XOF stream using qByteLen big-endian bytes per draw,
 // reduced mod q via big.Int.Mod. The byte-stream contract matches the
-// existing ringtail_oracle_v2 deterministicShamir (see
-// cmd/ringtail_oracle_v2/main.go) and is the canonical KAT input for the
-// C++ port at luxcpp/crypto/ringtail/cpp/shamir_general.{hpp,cpp}.
+// existing corona_oracle_v2 deterministicShamir (see
+// cmd/corona_oracle_v2/main.go) and is the canonical KAT input for the
+// C++ port at luxcpp/crypto/corona/cpp/shamir_general.{hpp,cpp}.
 //
 // Iteration order MUST match ShamirSecretSharingGeneral exactly:
 //
