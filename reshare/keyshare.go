@@ -7,7 +7,7 @@ package reshare
 //
 // The Reshare and Refresh kernels operate on bare Shamir shares — the
 // SkShare field of the production-grade
-// `github.com/luxfi/ringtail/threshold.KeyShare` struct. A KeyShare is
+// `github.com/luxfi/nasua/threshold.KeyShare` struct. A KeyShare is
 // MORE than just SkShare; it carries:
 //
 //	type KeyShare struct {
