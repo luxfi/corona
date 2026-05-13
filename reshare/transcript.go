@@ -17,10 +17,10 @@ package reshare
 // this hash.
 //
 // Domain separation. Every input field is unambiguously length-prefixed
-// (TupleHash framing under Pulsar-SHA3, hand-rolled length prefixes
-// under the legacy Pulsar-BLAKE3 suite). The customization tag is
-// "PULSAR-TRANSCRIPT-v1" — distinct from any DKG transcript tag (e.g.
-// "pulsar.dkg2.commit.v1") and from any Pulsar Sign transcript tag.
+// (TupleHash framing under Corona-SHA3, hand-rolled length prefixes
+// under the legacy Corona-BLAKE3 suite). The customization tag is
+// "CORONA-TRANSCRIPT-v1" — distinct from any DKG transcript tag (e.g.
+// "corona.dkg2.commit.v1") and from any Corona Sign transcript tag.
 
 import (
 	"bytes"
@@ -33,7 +33,7 @@ import (
 // string. Kept as an exported symbol because some external consumers
 // (cross-language KAT loaders) reference it; the canonical transcript
 // binding is now produced via the HashSuite layer.
-const TranscriptPersonalization = "pulsar.reshare.transcript.v1"
+const TranscriptPersonalization = "corona.reshare.transcript.v1"
 
 // TranscriptInputs holds the public binding fields for one resharing
 // invocation. All fields are mandatory; the transcript hash is well-
@@ -60,7 +60,7 @@ type TranscriptInputs struct {
 
 // Hash returns the canonical 32-byte transcript binding for the inputs
 // under the supplied HashSuite. nil resolves to the production default
-// (Pulsar-SHA3); pass hash.NewPulsarBLAKE3() to reproduce legacy bytes.
+// (Corona-SHA3); pass hash.NewCoronaBLAKE3() to reproduce legacy bytes.
 func (t *TranscriptInputs) Hash(suite hash.HashSuite) [32]byte {
 	s := hash.Resolve(suite)
 	parts := buildTranscriptParts(t)
@@ -102,7 +102,7 @@ func buildTranscriptParts(t *TranscriptInputs) [][]byte {
 }
 
 // ValidatorSetHash returns the canonical hash of a validator set.
-// suite=nil resolves to the production default (Pulsar-SHA3).
+// suite=nil resolves to the production default (Corona-SHA3).
 func ValidatorSetHash(publicKeys [][]byte, suite hash.HashSuite) [32]byte {
 	s := hash.Resolve(suite)
 	sorted := make([][]byte, len(publicKeys))
@@ -113,7 +113,7 @@ func ValidatorSetHash(publicKeys [][]byte, suite hash.HashSuite) [32]byte {
 		}
 	}
 	parts := make([][]byte, 0, 2+len(sorted))
-	parts = append(parts, []byte("pulsar.reshare.validator-set.v1"))
+	parts = append(parts, []byte("corona.reshare.validator-set.v1"))
 	var nBuf [4]byte
 	binary.BigEndian.PutUint32(nBuf[:], uint32(len(sorted)))
 	parts = append(parts, nBuf[:])

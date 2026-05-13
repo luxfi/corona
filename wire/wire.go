@@ -1,16 +1,16 @@
 // Copyright (C) 2025-2026, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package wire is pulsar's wire-format hardening boundary.
+// Package wire is corona's wire-format hardening boundary.
 //
-// LP-107 Phase 4: pulsar consumes luxfi/math/codec for bounded
+// LP-107 Phase 4: corona consumes luxfi/math/codec for bounded
 // decoding. Untrusted lattice wire data — Vector[Poly] frames from
 // network peers, threshold-share blobs from disk, KAT replays —
 // flows through luxfi/math/codec.Reader so the bounded-decode contract
 // is centralised: no recursion, no hidden growth, no unbounded
 // allocation.
 //
-// Before this package, pulsar had its own validateVectorPolyFrame
+// Before this package, corona had its own validateVectorPolyFrame
 // walker in threshold/fuzz_round_test.go (test-only). This package
 // replaces that with a production-grade equivalent that consumes the
 // shared luxfi/math/codec substrate.
@@ -23,16 +23,16 @@ import (
 	"github.com/luxfi/math/codec"
 )
 
-// MaxLatticeUintSliceLen is pulsar's cap on lattigo Vector[Poly] /
+// MaxLatticeUintSliceLen is corona's cap on lattigo Vector[Poly] /
 // Poly inner slice lengths — matches the value warp/pulsar.go already
 // enforces and the cap at threshold/fuzz_round_test.go:52.
 //
-// Pulsar canonical N = 256 and Q ≈ 2^48 (one-prime); a reasonable
+// Corona canonical N = 256 and Q ≈ 2^48 (one-prime); a reasonable
 // vector cap is K_max * 1 levels * 256 coeffs = bounded under the
 // math/codec MaxFrameBytes.
 const MaxLatticeUintSliceLen = 4096
 
-// LatticeWireLimits is the codec.Limits configuration pulsar uses for
+// LatticeWireLimits is the codec.Limits configuration corona uses for
 // every lattice Vector[Poly] frame on the wire.
 var LatticeWireLimits = codec.Limits{
 	MaxFrameBytes:     16 * 1024 * 1024,

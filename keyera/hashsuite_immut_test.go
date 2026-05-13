@@ -33,11 +33,11 @@ import (
 	"github.com/luxfi/corona/hash"
 )
 
-// TestBootstrapPinsSuiteSHA3 — Gate 3A: Bootstrap with Pulsar-SHA3 →
-// era.HashSuiteID == "Pulsar-SHA3".
+// TestBootstrapPinsSuiteSHA3 — Gate 3A: Bootstrap with Corona-SHA3 →
+// era.HashSuiteID == "Corona-SHA3".
 func TestBootstrapPinsSuiteSHA3(t *testing.T) {
 	era, err := BootstrapWithSuite(
-		hash.NewPulsarSHA3(),
+		hash.NewCoronaSHA3(),
 		3,
 		[]string{"a", "b", "c"},
 		0, 0,
@@ -54,11 +54,11 @@ func TestBootstrapPinsSuiteSHA3(t *testing.T) {
 	}
 }
 
-// TestBootstrapPinsSuiteBLAKE3 — Gate 3A: Bootstrap with Pulsar-BLAKE3
-// → era.HashSuiteID == "Pulsar-BLAKE3".
+// TestBootstrapPinsSuiteBLAKE3 — Gate 3A: Bootstrap with Corona-BLAKE3
+// → era.HashSuiteID == "Corona-BLAKE3".
 func TestBootstrapPinsSuiteBLAKE3(t *testing.T) {
 	era, err := BootstrapWithSuite(
-		hash.NewPulsarBLAKE3(),
+		hash.NewCoronaBLAKE3(),
 		3,
 		[]string{"a", "b", "c"},
 		0, 0,
@@ -89,11 +89,11 @@ func TestBootstrapDefaultsToSHA3(t *testing.T) {
 	}
 }
 
-// TestReshareCannotChangeSuiteSHA3 — Gate 3B: Reshare on a Pulsar-SHA3
-// era yields a state with HashSuiteID == "Pulsar-SHA3" (unchanged).
+// TestReshareCannotChangeSuiteSHA3 — Gate 3B: Reshare on a Corona-SHA3
+// era yields a state with HashSuiteID == "Corona-SHA3" (unchanged).
 func TestReshareCannotChangeSuiteSHA3(t *testing.T) {
 	era, err := BootstrapWithSuite(
-		hash.NewPulsarSHA3(),
+		hash.NewCoronaSHA3(),
 		3,
 		[]string{"v1", "v2", "v3"},
 		0, 0,
@@ -120,7 +120,7 @@ func TestReshareCannotChangeSuiteSHA3(t *testing.T) {
 // profile. A BLAKE3-pinned era stays BLAKE3 across Reshare.
 func TestReshareCannotChangeSuiteBLAKE3(t *testing.T) {
 	era, err := BootstrapWithSuite(
-		hash.NewPulsarBLAKE3(),
+		hash.NewCoronaBLAKE3(),
 		3,
 		[]string{"v1", "v2", "v3"},
 		0, 0,
@@ -170,11 +170,11 @@ func TestReshareAPIHasNoHashSuiteParameter(t *testing.T) {
 }
 
 // TestReanchorMayChangeSuite — Gate 3C: ReanchorWithSuite from a
-// Pulsar-SHA3 era to a Pulsar-BLAKE3 era yields era_2.HashSuiteID ==
-// "Pulsar-BLAKE3", and era_1 is unchanged.
+// Corona-SHA3 era to a Corona-BLAKE3 era yields era_2.HashSuiteID ==
+// "Corona-BLAKE3", and era_1 is unchanged.
 func TestReanchorMayChangeSuite(t *testing.T) {
 	era1, err := BootstrapWithSuite(
-		hash.NewPulsarSHA3(),
+		hash.NewCoronaSHA3(),
 		3,
 		[]string{"a", "b", "c"},
 		0, 1,
@@ -189,7 +189,7 @@ func TestReanchorMayChangeSuite(t *testing.T) {
 
 	era2, err := ReanchorWithSuite(
 		era1,
-		hash.NewPulsarBLAKE3(),
+		hash.NewCoronaBLAKE3(),
 		3,
 		[]string{"d", "e", "f"},
 		0,

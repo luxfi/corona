@@ -3,7 +3,7 @@
 //
 // reshare_oracle — emits byte-equal KATs for the proactive secret-resharing
 // protocol implemented in github.com/luxfi/corona/reshare. The C++ port at
-// ~/work/luxcpp/crypto/pulsar/reshare/ replays each entry's seeds and must
+// ~/work/luxcpp/crypto/corona/reshare/ replays each entry's seeds and must
 // produce share bytes whose SHA-256 commitment matches the entry's
 // new_share_sha256_hex field.
 //
@@ -35,16 +35,16 @@
 // old_set, new_set, t_old, t_new) and must reproduce
 // (old_shares_hex, new_shares_hex) exactly.
 //
-// Output: ~/work/luxcpp/crypto/pulsar/test/kat/reshare_kat.json
+// Output: ~/work/luxcpp/crypto/corona/test/kat/reshare_kat.json
 //
 // Algorithm references:
-//   - pulsar/reshare/reshare.go (canonical Go)
-//   - pulsar/papers/lp-073-pulsar/sections/06-resharing.tex (paper)
+//   - corona/reshare/reshare.go (canonical Go)
+//   - corona/papers/lp-073-pulsar/sections/06-resharing.tex (paper)
 //
 // Note on RNG choice: production reshare.Reshare consumes from
 // crypto/rand.Reader by default. For KAT determinism we substitute a
 // SHA-256-counter PRNG (counterRand below). The same counterRand is
-// implemented in C++ (luxcpp/crypto/pulsar/reshare/counter_rand.cpp).
+// implemented in C++ (luxcpp/crypto/corona/reshare/counter_rand.cpp).
 package main
 
 import (
@@ -72,7 +72,7 @@ const (
 	// QByteLen = len(big.Int.Bytes(Q)).
 	QByteLen = 7
 	// PolyCount is sign.Nvec = 7 (the secret-vector dimension in the
-	// production Pulsar path). Smaller values would also work; 7 lets
+	// production Corona path). Smaller values would also work; 7 lets
 	// the KAT exercise the same shape as production.
 	PolyCount = 7
 )
@@ -212,14 +212,14 @@ func main() {
 	}
 
 	out := OracleOut{
-		Description: "Pulsar proactive resharing KAT. " +
+		Description: "Corona proactive resharing KAT. " +
 			"Each entry deterministically reconstructs (1) Shamir shares of " +
 			"a planted secret s for the old committee and (2) reshared " +
 			"shares for the new committee, using counterRand SHA-256 streams " +
 			"seeded by old_shamir_seed_hex / reshare_rng_seed_hex. The new " +
 			"shares interpolate (any t_new of them) to the SAME s. The " +
 			"public key b in production is computed from s and is therefore " +
-			"unchanged across resharing — see pulsar/papers/lp-073-pulsar/" +
+			"unchanged across resharing — see corona/papers/lp-073-pulsar/" +
 			"sections/06-resharing.tex.",
 		Modulus:   Q,
 		NPoly:     N,
@@ -344,12 +344,12 @@ func main() {
 	}
 
 	// Write the file. Default output: canonical luxcpp KAT directory;
-	// allow override via PULSAR_RESHARE_KAT_PATH or a positional arg.
+	// allow override via CORONA_RESHARE_KAT_PATH or a positional arg.
 	outPath := filepath.Join(
 		os.Getenv("HOME"), "work", "luxcpp", "crypto", "pulsar",
 		"test", "kat", "reshare_kat.json",
 	)
-	if env := os.Getenv("PULSAR_RESHARE_KAT_PATH"); env != "" {
+	if env := os.Getenv("CORONA_RESHARE_KAT_PATH"); env != "" {
 		outPath = env
 	}
 	if len(os.Args) >= 2 {

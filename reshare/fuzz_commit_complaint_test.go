@@ -56,7 +56,7 @@ func fuzzCommitDigestRecover(raw []byte) (err error) {
 // strict: rejects truncated inputs, oversized evidence claims, and
 // version-tag mismatches with a clean error rather than a panic.
 func parseComplaintBytes(raw []byte) (*Complaint, error) {
-	const versionTag = "pulsar.reshare.complaint.v1"
+	const versionTag = "corona.reshare.complaint.v1"
 	if len(raw) < len(versionTag)+32+4+4+1+4 {
 		return nil, fmt.Errorf("truncated: %d bytes", len(raw))
 	}
@@ -91,8 +91,8 @@ func addSmallSeeds(f *testing.F) {
 	f.Add([]byte{})
 	f.Add([]byte{0x00})
 	f.Add(bytes.Repeat([]byte{0xff}, 32))
-	f.Add(append([]byte("pulsar.reshare.complaint.v1"), bytes.Repeat([]byte{0x00}, 41)...))
-	f.Add(append([]byte("pulsar.reshare.complaint.v1"),
+	f.Add(append([]byte("corona.reshare.complaint.v1"), bytes.Repeat([]byte{0x00}, 41)...))
+	f.Add(append([]byte("corona.reshare.complaint.v1"),
 		append(bytes.Repeat([]byte{0x00}, 41),
 			[]byte{0xff, 0xff, 0xff, 0xff}...)...)) // huge evidence claim
 }
@@ -137,7 +137,7 @@ func TestFuzzCorpus_ReshareComplaintReplay(t *testing.T) {
 	for _, raw := range [][]byte{
 		{},
 		{0x00},
-		append([]byte("pulsar.reshare.complaint.v1"), bytes.Repeat([]byte{0x00}, 41)...),
+		append([]byte("corona.reshare.complaint.v1"), bytes.Repeat([]byte{0x00}, 41)...),
 	} {
 		_, _ = parseComplaintBytes(raw)
 	}

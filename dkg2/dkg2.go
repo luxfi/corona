@@ -2,10 +2,10 @@
 // See the file LICENSE for licensing terms.
 
 // Package dkg2 implements a Pedersen-style verifiable-secret-sharing-based
-// distributed key generation over the Pulsar polynomial ring
+// distributed key generation over the Corona polynomial ring
 // R_q = Z_q[X]/(X^256 + 1).
 //
-// dkg2 is the production parallel-track keygen for Pulsar. It replaces the
+// dkg2 is the production parallel-track keygen for Corona. It replaces the
 // pseudoinverse-recoverable Feldman commit C_k = A · NTT(c_k) of the
 // upstream Corona DKG with a Pedersen commit
 //
@@ -16,7 +16,7 @@
 // decisional MLWE on B; binding holds under MSIS on the wide concatenation
 // [A | B]. Formal statements live in
 // papers/lp-073-pulsar/sections/07-pedersen-dkg.tex; Lean theorem references
-// are in proofs/lean/Crypto/Pulsar/dkg2.lean.
+// are in proofs/lean/Crypto/Corona/dkg2.lean.
 //
 // # Round structure
 //
@@ -45,14 +45,14 @@
 // # Hash suite
 //
 // dkg2 routes every cohort-bound digest through the canonical
-// hash.HashSuite (Pulsar-SHA3 in production; Pulsar-BLAKE3 retained for
+// hash.HashSuite (Corona-SHA3 in production; Corona-BLAKE3 retained for
 // byte-equality with pre-cutover KATs). NewDKGSession accepts a HashSuite;
 // nil resolves to the production default. Matrix derivation (A, B) uses a
 // dedicated, version-pinned BLAKE3 path to keep KAT bytes stable across
 // the SHA3 cutover — the matrix derivation is structural, not transcript-
-// bound, so it has its own version tag (pulsar.dkg2.A.v1 / .B.v1). The
+// bound, so it has its own version tag (corona.dkg2.A.v1 / .B.v1). The
 // Round 1.5 commit digest, by contrast, is HashSuite-bound and uses the
-// PULSAR-TRANSCRIPT-v1 customization of the active suite.
+// CORONA-TRANSCRIPT-v1 customization of the active suite.
 //
 // # Identifiable abort
 //
@@ -64,12 +64,12 @@
 //
 // # File-level invariants
 //
-//   - All ring arithmetic uses sign.Q (the Pulsar 48-bit prime).
+//   - All ring arithmetic uses sign.Q (the Corona 48-bit prime).
 //   - Sampler parameters reuse sign.SigmaE / sign.BoundE for both c_{i,k}
-//     and r_{i,k}, mirroring the Pulsar secret distribution.
-//   - A is derived from the 16-byte tag b"pulsar.dkg2.A.v1" via BLAKE3-XOF
+//     and r_{i,k}, mirroring the Corona secret distribution.
+//   - A is derived from the 16-byte tag b"corona.dkg2.A.v1" via BLAKE3-XOF
 //     (KAT-pinned).
-//   - B is derived from the 16-byte tag b"pulsar.dkg2.B.v1" via BLAKE3-XOF
+//   - B is derived from the 16-byte tag b"corona.dkg2.B.v1" via BLAKE3-XOF
 //     (KAT-pinned).
 //   - Commits are stored in NTT-Montgomery form (matches A, B).
 //   - Shares are stored in standard coefficient form (NTT=false, mont=false).
@@ -80,7 +80,7 @@
 //
 // Round1WithSeed pins every byte of the protocol output for byte-equal C++
 // porting. See cmd/dkg2_oracle for the canonical generator and
-// luxcpp/crypto/pulsar/dkg2/test/kat/dkg2_kat.json for the 4 reference
+// luxcpp/crypto/corona/dkg2/test/kat/dkg2_kat.json for the 4 reference
 // entries (2-of-3, 3-of-5, 5-of-7, 7-of-11).
 package dkg2
 
@@ -113,18 +113,18 @@ import (
 // breaking compatibility.
 //
 // Matrix derivation is BLAKE3 directly, NOT the active HashSuite. This keeps
-// public-matrix bytes stable across the Pulsar-SHA3 cutover (the matrices
+// public-matrix bytes stable across the Corona-SHA3 cutover (the matrices
 // are structural, not transcript-bound; their version tag covers any future
 // rotation).
 var (
-	tagA = []byte("pulsar.dkg2.A.v1")
-	tagB = []byte("pulsar.dkg2.B.v1")
+	tagA = []byte("corona.dkg2.A.v1")
+	tagB = []byte("corona.dkg2.B.v1")
 )
 
 // Customization tag bound into the Round 1.5 commit-digest under the active
 // HashSuite. The suite ID is bound into the digest input as well so two
 // suites can never produce a colliding digest for the same commit vector.
-const tagCommitDigest = "PULSAR-DKG2-COMMIT-DIGEST-v1"
+const tagCommitDigest = "CORONA-DKG2-COMMIT-DIGEST-v1"
 
 var (
 	ErrInvalidThreshold  = errors.New("dkg2: threshold must be > 0 and < total parties")
@@ -150,7 +150,7 @@ type Params struct {
 //
 // Mirrors dkg.NewParams: the RXi ring is the post-rounding modulus
 // (Xi = 30 bits, sign.QXi = 0x40000 = 2^18) — not prime, but that's the
-// canonical Pulsar layout used by sign.Gen and the Round2 b_ped output.
+// canonical Corona layout used by sign.Gen and the Round2 b_ped output.
 // ring.NewRing returns a non-prime-modulus error here that we deliberately
 // ignore (matches dkg/dkg.go:53), and the constructor remains usable
 // because RoundVector only needs the ring as a coefficient container.
@@ -240,7 +240,7 @@ func (r *Round1Output) SerializeCommits() ([]byte, error) {
 
 // CommitDigest returns the Round 1.5 cross-party-consistency digest under
 // the supplied HashSuite. Passing nil resolves to the production default
-// (Pulsar-SHA3); pass hash.NewPulsarBLAKE3() for byte-equal replay against
+// (Corona-SHA3); pass hash.NewCoronaBLAKE3() for byte-equal replay against
 // the canonical KATs.
 //
 // Format (suite-agnostic):
@@ -260,7 +260,7 @@ func (r *Round1Output) CommitDigest(suite hash.HashSuite) ([32]byte, error) {
 }
 
 // CommitDigestBLAKE3 returns the legacy BLAKE3 commit digest used by the
-// pre-SHA3-cutover KAT (pulsar/dkg2 oracle, luxcpp dkg2_kat.json). Format:
+// pre-SHA3-cutover KAT (corona/dkg2 oracle, luxcpp dkg2_kat.json). Format:
 //
 //	BLAKE3(serialize(Commits[0]) || ... || serialize(Commits[t-1]))[:32]
 //
@@ -301,9 +301,9 @@ type DKGSession struct {
 //
 // suite parameterizes the cohort-bound hash routines (Round 1.5 commit
 // digest, complaint transcripts). nil resolves to the production default
-// (Pulsar-SHA3). Public-matrix derivation is deliberately HashSuite-
+// (Corona-SHA3). Public-matrix derivation is deliberately HashSuite-
 // independent — it uses a dedicated BLAKE3 path so KAT bytes stay stable
-// across the Pulsar-SHA3 cutover (see package documentation).
+// across the Corona-SHA3 cutover (see package documentation).
 //
 // Mirrors dkg.NewDKGSession exactly except that the matrices A, B are
 // derived from public domain-separated tags via BLAKE3, removing the
@@ -603,11 +603,11 @@ func uint64SliceToBytes(s []uint64) []byte {
 //
 // Returns (s_j, u_j, b_ped) on success.
 //
-//	s_j   = Σ_i share_{i→j}    (Pulsar secret share)
-//	u_j   = Σ_i blind_{i→j}    (private; discarded by Pulsar Sign callers)
+//	s_j   = Σ_i share_{i→j}    (Corona secret share)
+//	u_j   = Σ_i blind_{i→j}    (private; discarded by Corona Sign callers)
 //	b_ped = Σ_i C_{i,0}        (rounded to Xi, Pedersen-shaped pk)
 //
-// b_ped has shape Round_Xi(A·s + B·t_master). Pulsar Sign verification
+// b_ped has shape Round_Xi(A·s + B·t_master). Corona Sign verification
 // running in 2-secret mode (path (b)) takes (A, B, b_ped) jointly; see
 // papers/lp-073-pulsar/sections/07-pedersen-dkg.tex §Mapping for the
 // integration recipe.

@@ -39,8 +39,8 @@ func must(op string, err error) {
 // 2026-05-03 in coordination with the C++ port at luxcpp/crypto).
 //
 // `suite` selects the hash profile. nil resolves to the production
-// default (Pulsar-SHA3). Output bytes differ between Pulsar-SHA3 and
-// Pulsar-BLAKE3 — this is the F22 cross-profile separation.
+// default (Corona-SHA3). Output bytes differ between Corona-SHA3 and
+// Corona-BLAKE3 — this is the F22 cross-profile separation.
 func PRNGKey(suite hash.HashSuite, skShare structs.Vector[ring.Poly]) []byte {
 	s := hash.Resolve(suite)
 	buf := new(bytes.Buffer)
@@ -59,7 +59,7 @@ func PRNGKey(suite hash.HashSuite, skShare structs.Vector[ring.Poly]) []byte {
 // Domain tag distinguishes from any other future per-share keying.
 //
 // `suite` selects the hash profile. nil resolves to the production
-// default (Pulsar-SHA3).
+// default (Corona-SHA3).
 func PRNGKeyForRound(suite hash.HashSuite, skShare structs.Vector[ring.Poly], sid int64) []byte {
 	s := hash.Resolve(suite)
 	skBuf := new(bytes.Buffer)
@@ -76,7 +76,7 @@ func PRNGKeyForRound(suite hash.HashSuite, skShare structs.Vector[ring.Poly], si
 // GenerateMAC generates a MAC for a given TildeD matrix and mask.
 //
 // `suite` selects the hash profile. nil resolves to the production
-// default (Pulsar-SHA3).
+// default (Corona-SHA3).
 func GenerateMAC(suite hash.HashSuite, TildeD structs.Matrix[ring.Poly], MACKey []byte, partyID int, sid int, T []int, otherParty int, verify bool) []byte {
 	s := hash.Resolve(suite)
 	buf := new(bytes.Buffer)
@@ -101,7 +101,7 @@ func GenerateMAC(suite hash.HashSuite, TildeD structs.Matrix[ring.Poly], MACKey 
 // GaussianHash hashes parameters to a Gaussian distribution.
 //
 // `suite` selects the hash profile. nil resolves to the production
-// default (Pulsar-SHA3).
+// default (Corona-SHA3).
 func GaussianHash(suite hash.HashSuite, r *ring.Ring, hashIn []byte, mu string, sigmaU float64, boundU float64, length int) structs.Vector[ring.Poly] {
 	s := hash.Resolve(suite)
 	transcript := new(bytes.Buffer)
@@ -120,7 +120,7 @@ func GaussianHash(suite hash.HashSuite, r *ring.Ring, hashIn []byte, mu string, 
 // PRF generates pseudorandom ring elements.
 //
 // `suite` selects the hash profile. nil resolves to the production
-// default (Pulsar-SHA3).
+// default (Corona-SHA3).
 func PRF(suite hash.HashSuite, r *ring.Ring, sd_ij []byte, PRFKey []byte, mu string, hashIn []byte, n int) structs.Vector[ring.Poly] {
 	s := hash.Resolve(suite)
 	msg := new(bytes.Buffer)
@@ -139,7 +139,7 @@ func PRF(suite hash.HashSuite, r *ring.Ring, sd_ij []byte, PRFKey []byte, mu str
 // Hash hashes precomputable values.
 //
 // `suite` selects the hash profile. nil resolves to the production
-// default (Pulsar-SHA3).
+// default (Corona-SHA3).
 func Hash(suite hash.HashSuite, A structs.Matrix[ring.Poly], b structs.Vector[ring.Poly], D map[int]structs.Matrix[ring.Poly], sid int, T []int) []byte {
 	s := hash.Resolve(suite)
 	buf := new(bytes.Buffer)
@@ -168,7 +168,7 @@ func Hash(suite hash.HashSuite, A structs.Matrix[ring.Poly], b structs.Vector[ri
 // LowNormHash hashes to low norm ring elements.
 //
 // `suite` selects the hash profile. nil resolves to the production
-// default (Pulsar-SHA3).
+// default (Corona-SHA3).
 func LowNormHash(suite hash.HashSuite, r *ring.Ring, A structs.Matrix[ring.Poly], b structs.Vector[ring.Poly], h structs.Vector[ring.Poly], mu string, kappa int) ring.Poly {
 	s := hash.Resolve(suite)
 	buf := new(bytes.Buffer)
