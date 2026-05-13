@@ -380,7 +380,7 @@ Every signature produced under any Quasar lane carries a distinct version-tagged
 | `QUASAR-PULSAR-COMBINE-v1` | Pulsar finalize transcript | Pulsar |
 | `QUASAR-PULSAR-REFRESH-v1` | Refresh activation cert (same set) | Pulsar |
 | `QUASAR-PULSAR-RESHARE-v1` | Reshare activation cert (set rotation) | Pulsar |
-| `QUASAR-PULSAR-ACTIVATE-v1` | Generic activation cert (Refresh/Reshare alias) | Pulsar |
+| `QUASAR-CORONA-ACTIVATE-v1` | Generic activation cert (Refresh/Reshare alias) | Pulsar |
 | `QUASAR-PULSAR-REANCHOR-v1` | Reanchor authorization (governance) | Pulsar |
 
 If a new class of signed message emerges, it MUST get its own version-tagged prefix; never reuse one.
@@ -390,7 +390,7 @@ If a new class of signed message emerges, it MUST get its own version-tagged pre
 The activation message bound by the new committee under the unchanged GroupKey:
 
 ```
-QUASAR-PULSAR-ACTIVATE-v1 ||
+QUASAR-CORONA-ACTIVATE-v1 ||
     chain_id ||
     network_id ||
     key_era_id ||
@@ -416,7 +416,7 @@ The last two fields are essential for KAT/cross-language byte-identical replay. 
 After resharing finishes the math, the chain does NOT accept the new epoch on faith. The new committee threshold-signs an activation message under the **unchanged GroupKey** using their freshly-derived shares; only when this signature verifies does the chain mark the new epoch live.
 
 ```
-activation_msg = "QUASAR-PULSAR-ACTIVATE-v1"
+activation_msg = "QUASAR-CORONA-ACTIVATE-v1"
                || transcript_hash       (32 bytes; from TranscriptInputs.Hash)
                || reshare_transcript_hash (32 bytes; exchange digest)
 
@@ -806,7 +806,7 @@ GPU acceleration: only the **inherited Sign protocol** has GPU-relevant primitiv
 | Inherited Sign1/Sign2/Combine | byte-equal vs upstream |
 | `pulsar/reshare/` (kernel + VSR scaffolding) | shipping (45 tests passing) |
 | `pulsar/keyera/` | shipping (proper t-of-n via general Shamir) |
-| Activation cert format `QUASAR-PULSAR-ACTIVATE-v1` | shipping |
+| Activation cert format `QUASAR-CORONA-ACTIVATE-v1` | shipping |
 | Quasar `epoch.go` LSS-Pulsar wiring | shipping (consensus 119c2166 lineage) |
 | LSS-Pulsar adapter at `threshold/protocols/lss/lss_pulsar.go` | shipping (10/10 acceptance tests) |
 | Warp 2.0 envelope at `warp/pulsar` | shipping |
