@@ -374,14 +374,14 @@ Every signature produced under any Quasar lane carries a distinct version-tagged
 | `QUASAR-PHOTON-VOTE-v1` | Individual validator vote / attestation | (any) |
 | `QUASAR-BEAM-BLS-v1` | BLS aggregate certificate | Beam |
 | `QUASAR-MLDSA-ATTEST-v1` | ML-DSA attestation set | ML-DSA |
-| `QUASAR-PULSAR-BUNDLE-v1` | Pulsar pulse over a Quasar bundle | Pulsar |
-| `QUASAR-PULSAR-SIGN1-v1` | Pulsar signing Round 1 message | Pulsar |
-| `QUASAR-PULSAR-SIGN2-v1` | Pulsar signing Round 2 message | Pulsar |
-| `QUASAR-PULSAR-COMBINE-v1` | Pulsar finalize transcript | Pulsar |
-| `QUASAR-PULSAR-REFRESH-v1` | Refresh activation cert (same set) | Pulsar |
-| `QUASAR-PULSAR-RESHARE-v1` | Reshare activation cert (set rotation) | Pulsar |
-| `QUASAR-CORONA-ACTIVATE-v1` | Generic activation cert (Refresh/Reshare alias) | Pulsar |
-| `QUASAR-PULSAR-REANCHOR-v1` | Reanchor authorization (governance) | Pulsar |
+| `QUASAR-CORONA-BUNDLE-v1` | Corona pulse over a Quasar bundle | Corona |
+| `QUASAR-CORONA-SIGN1-v1` | Corona signing Round 1 message | Corona |
+| `QUASAR-CORONA-SIGN2-v1` | Corona signing Round 2 message | Corona |
+| `QUASAR-CORONA-COMBINE-v1` | Corona finalize transcript | Corona |
+| `QUASAR-CORONA-REFRESH-v1` | Refresh activation cert (same set) | Corona |
+| `QUASAR-CORONA-RESHARE-v1` | Reshare activation cert (set rotation) | Corona |
+| `QUASAR-CORONA-ACTIVATE-v1` | Generic activation cert (Refresh/Reshare alias) | Corona |
+| `QUASAR-CORONA-REANCHOR-v1` | Reanchor authorization (governance) | Corona |
 
 If a new class of signed message emerges, it MUST get its own version-tagged prefix; never reuse one.
 
@@ -703,7 +703,7 @@ In Quasar consensus:
 | `RotateEpochKeys` (function/method names) | `ReshareEpoch` |
 | comment "rotate keys" | "rotate shares; group key persistent" |
 | `currentKeys *EpochKeys` | `currentEra *keyera.KeyEra` |
-| `QUASAR-QB-v1:%x` (bundle prefix) | `QUASAR-PULSAR-BUNDLE-v1:%x` |
+| `QUASAR-QB-v1:%x` (bundle prefix) | `QUASAR-CORONA-BUNDLE-v1:%x` |
 
 Everything else in `epoch.go` (rate limit, change detection, validator set management) stays.
 
