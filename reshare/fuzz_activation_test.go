@@ -7,7 +7,7 @@
 // The activation cert is the post-reshare circuit-breaker; it must be
 // produced over a deterministic byte stream that uniquely binds the
 // resharing transcript hash and the protocol-domain prefix
-// "QUASAR-PULSAR-ACTIVATE-v1". This harness exercises the
+// "QUASAR-CORONA-ACTIVATE-v1". This harness exercises the
 // SignableBytes encoder against arbitrary mutated inputs.
 
 package reshare
@@ -25,7 +25,7 @@ import (
 //  1. SignableBytes never panics on arbitrary inputs.
 //  2. Output is deterministic: same struct → same bytes across calls.
 //  3. The output begins with the canonical protocol prefix
-//     "QUASAR-PULSAR-ACTIVATE-v1".
+//     "QUASAR-CORONA-ACTIVATE-v1".
 //  4. The output length is exactly len(prefix) + 32 + 32 = 89 bytes,
 //     irrespective of how large the input fields are.
 func FuzzActivationMessageSignableBytes(f *testing.F) {
@@ -35,8 +35,8 @@ func FuzzActivationMessageSignableBytes(f *testing.F) {
 	f.Add(seedActivationBytes("lux-testnet", "g0", 1, 2, "refresh", 5, 0, 1))
 	f.Add(seedActivationBytes("", "", 0, 0, "", 0, 0, 0))
 
-	prefix := []byte("QUASAR-PULSAR-ACTIVATE-v1")
-	const wantLen = len("QUASAR-PULSAR-ACTIVATE-v1") + 32 + 32
+	prefix := []byte("QUASAR-CORONA-ACTIVATE-v1")
+	const wantLen = len("QUASAR-CORONA-ACTIVATE-v1") + 32 + 32
 
 	f.Fuzz(func(t *testing.T, raw []byte) {
 		msg := decodeFuzzActivation(raw)
@@ -68,7 +68,7 @@ func FuzzActivationMessageSignableBytes(f *testing.F) {
 // TestFuzzCorpus_ActivationReplay re-runs the seed corpus
 // deterministically for CI replay.
 func TestFuzzCorpus_ActivationReplay(t *testing.T) {
-	prefix := []byte("QUASAR-PULSAR-ACTIVATE-v1")
+	prefix := []byte("QUASAR-CORONA-ACTIVATE-v1")
 	seeds := [][]byte{
 		seedActivationBytes("lux-mainnet", "quasar-pq", 100, 101, "reshare", 3, 2, 0),
 		seedActivationBytes("lux-testnet", "g0", 1, 2, "refresh", 5, 0, 1),

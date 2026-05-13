@@ -139,11 +139,11 @@ type Complaint struct {
 //
 // Format:
 //
-//	"pulsar.dkg2.complaint.v1" || transcript || sender_id_be32 ||
+//	"corona.dkg2.complaint.v1" || transcript || sender_id_be32 ||
 //	complainer_id_be32 || reason_u8 || evidence_len_be32 || evidence
 func (c *Complaint) Bytes() []byte {
 	var buf bytes.Buffer
-	buf.WriteString("pulsar.dkg2.complaint.v1")
+	buf.WriteString("corona.dkg2.complaint.v1")
 	buf.Write(c.TranscriptHash[:])
 	var b4 [4]byte
 	binary.BigEndian.PutUint32(b4[:], uint32(c.SenderID))
@@ -186,10 +186,10 @@ func (c *Complaint) Verify() error {
 // commit to the SET of complaints in the Round 2 transcript and the
 // activation message.
 //
-// Pass nil for the production default (Pulsar-SHA3).
+// Pass nil for the production default (Corona-SHA3).
 func ComplaintHash(suite hash.HashSuite, c *Complaint) [32]byte {
 	s := hash.Resolve(suite)
-	return s.TranscriptHash([]byte("pulsar.dkg2.complaint-hash.v1"), c.Bytes(), c.Signature)
+	return s.TranscriptHash([]byte("corona.dkg2.complaint-hash.v1"), c.Bytes(), c.Signature)
 }
 
 // DisqualificationThreshold returns the minimum number of distinct,

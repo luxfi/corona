@@ -1,14 +1,14 @@
-// Package main is the Pulsar cross-runtime KAT oracle.
+// Package main is the Corona cross-runtime KAT oracle.
 //
 // Emits a single JSON manifest at <out>/cross_runtime_kat.json that ties
-// together the three canonical Pulsar KATs (sign, reshare, dkg2) with
+// together the three canonical Corona KATs (sign, reshare, dkg2) with
 // the SHA-256 of each individual KAT file. The C++ side
-// (luxcpp/crypto/pulsar/test/cross_runtime_test.cpp) replays each KAT
+// (luxcpp/crypto/corona/test/cross_runtime_test.cpp) replays each KAT
 // in C++ and verifies byte-equality; running this oracle first then
 // the C++ test is the "Go → C++" direction of the gate.
 //
 // Reverse direction (C++ → Go) is handled by:
-//   - luxcpp/crypto/pulsar/cmd/cross_runtime_oracle/  (C++ writer)
+//   - luxcpp/crypto/corona/cmd/cross_runtime_oracle/  (C++ writer)
 //   - lux/pulsar/cmd/cross_runtime_verify/           (Go reader)
 //
 // Determinism is required. Two runs with the same MasterSeed produce
@@ -77,8 +77,8 @@ func main() {
 	// hardcoded locations in luxcpp/crypto. For the cross-runtime gate
 	// we hash the canonical paths.
 	signPath := filepath.Join(*out, "sign_kat.json")
-	resharePath := "/Users/z/work/luxcpp/crypto/pulsar/test/kat/reshare_kat.json"
-	dkg2Path := "/Users/z/work/luxcpp/crypto/pulsar/dkg2/test/kat/dkg2_kat.json"
+	resharePath := "/Users/z/work/luxcpp/crypto/corona/test/kat/reshare_kat.json"
+	dkg2Path := "/Users/z/work/luxcpp/crypto/corona/dkg2/test/kat/dkg2_kat.json"
 
 	files := []struct {
 		name string
@@ -90,7 +90,7 @@ func main() {
 	}
 
 	m := manifest{
-		Description: "Pulsar cross-runtime KAT manifest. SHA-256 of each canonical Go-emitted KAT JSON. The C++ cross_runtime_test consumes the same paths and asserts byte-equality at every entry; this manifest pins the Go-side bytes so any drift produces a SHA-256 mismatch caught by the gate.",
+		Description: "Corona cross-runtime KAT manifest. SHA-256 of each canonical Go-emitted KAT JSON. The C++ cross_runtime_test consumes the same paths and asserts byte-equality at every entry; this manifest pins the Go-side bytes so any drift produces a SHA-256 mismatch caught by the gate.",
 		Direction:   "go-to-cpp",
 	}
 	for _, f := range files {

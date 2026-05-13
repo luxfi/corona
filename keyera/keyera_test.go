@@ -15,7 +15,7 @@ import (
 // TestBootstrapBuildsAndSigns confirms that Bootstrap returns a complete
 // KeyShare set that can produce a verifying signature under the produced
 // GroupKey. We exercise t = n (every validator in the active signing
-// set) here; pulsar's signing protocol assumes the full committee
+// set) here; corona's signing protocol assumes the full committee
 // participates in each Sign invocation.
 func TestBootstrapBuildsAndSigns(t *testing.T) {
 	const tThr, n = 3, 3

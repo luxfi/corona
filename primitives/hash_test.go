@@ -260,17 +260,17 @@ func TestGenerateRandomSeed(t *testing.T) {
 	}
 }
 
-// TestPulsarSHA3VsBLAKE3_DistinctOutput is the F22 fix surfaced as a test:
+// TestCoronaSHA3VsBLAKE3_DistinctOutput is the F22 fix surfaced as a test:
 // the same byte-identical inputs must produce different bytes under
-// Pulsar-SHA3 and Pulsar-BLAKE3 across every Sign-path primitive. If two
+// Corona-SHA3 and Corona-BLAKE3 across every Sign-path primitive. If two
 // suites collide here, customization tags or framing are broken.
-func TestPulsarSHA3VsBLAKE3_DistinctOutput(t *testing.T) {
+func TestCoronaSHA3VsBLAKE3_DistinctOutput(t *testing.T) {
 	r, err := ring.NewRing(256, []uint64{8380417})
 	if err != nil {
 		t.Fatal(err)
 	}
-	sha3 := hash.NewPulsarSHA3()
-	bl3 := hash.NewPulsarBLAKE3()
+	sha3 := hash.NewCoronaSHA3()
+	bl3 := hash.NewCoronaBLAKE3()
 
 	prng, _ := sampling.NewPRNG()
 	sampler := ring.NewUniformSampler(prng, r)
@@ -402,15 +402,15 @@ func TestPulsarSHA3VsBLAKE3_DistinctOutput(t *testing.T) {
 //
 // The legacy BLAKE3 KATs in cmd/corona_oracle_v2/ historically reflected
 // raw blake3.New() framing in primitives/hash.go. After the suite
-// refactor, primitives now uses pulsarBLAKE3.PRF / pulsarBLAKE3.Hu /
-// pulsarBLAKE3.MAC which prepend customization tags and length-prefix —
+// refactor, primitives now uses coronaBLAKE3.PRF / coronaBLAKE3.Hu /
+// coronaBLAKE3.MAC which prepend customization tags and length-prefix —
 // so the BLAKE3 oracle output_hex no longer byte-matches pre-refactor
-// transcripts. New Pulsar-SHA3 KATs are not yet emitted.
+// transcripts. New Corona-SHA3 KATs are not yet emitted.
 //
 // This is documented in pulsar/CHANGELOG.md as follow-up work. The test
 // here is a guard rail: it fails if anyone hand-edits the legacy BLAKE3
 // JSON in tree before regeneration, so the C++ port team gets a loud
 // signal.
 func TestKATsRegenerated(t *testing.T) {
-	t.Skip("legacy BLAKE3 KATs and new Pulsar-SHA3 KATs land as follow-up; see pulsar/CHANGELOG.md")
+	t.Skip("legacy BLAKE3 KATs and new Corona-SHA3 KATs land as follow-up; see pulsar/CHANGELOG.md")
 }

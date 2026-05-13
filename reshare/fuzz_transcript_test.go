@@ -4,7 +4,7 @@
 // Package reshare fuzz harness for transcript binding.
 //
 // Property anchor: proofs/definitions/transcript-binding.tex
-// Definition ref:pulsar-transcript ("Pulsar TranscriptInputs.Hash") —
+// Definition ref:pulsar-transcript ("Corona TranscriptInputs.Hash") —
 // the canonical TranscriptHash is collision-resistant, and any two
 // distinct field tuples yield distinct hashes by collision resistance
 // of TupleHash256.
@@ -41,8 +41,8 @@ func FuzzTranscriptInputsHash(f *testing.F) {
 	// Seed corpus: a few representative TranscriptInputs values pulled
 	// from the activation_oracle KAT shape. Each is encoded as a flat
 	// byte stream the harness decodes into a TranscriptInputs.
-	f.Add(seedTranscriptBytes("lux-mainnet", "quasar-pq", 1, 100, 101, 11, 11, "Pulsar-SHA3", "v1", "reshare"))
-	f.Add(seedTranscriptBytes("lux-testnet", "g0", 0, 1, 2, 3, 3, "Pulsar-BLAKE3", "v1", "refresh"))
+	f.Add(seedTranscriptBytes("lux-mainnet", "quasar-pq", 1, 100, 101, 11, 11, "Corona-SHA3", "v1", "reshare"))
+	f.Add(seedTranscriptBytes("lux-testnet", "g0", 0, 1, 2, 3, 3, "Corona-BLAKE3", "v1", "refresh"))
 	f.Add(seedTranscriptBytes("", "", 0, 0, 0, 0, 0, "", "", ""))
 
 	f.Fuzz(func(t *testing.T, raw []byte) {
@@ -89,8 +89,8 @@ func FuzzTranscriptInputsHash(f *testing.F) {
 // hash to stable values without invoking the native fuzzer.
 func TestFuzzCorpus_TranscriptReplay(t *testing.T) {
 	seeds := [][]byte{
-		seedTranscriptBytes("lux-mainnet", "quasar-pq", 1, 100, 101, 11, 11, "Pulsar-SHA3", "v1", "reshare"),
-		seedTranscriptBytes("lux-testnet", "g0", 0, 1, 2, 3, 3, "Pulsar-BLAKE3", "v1", "refresh"),
+		seedTranscriptBytes("lux-mainnet", "quasar-pq", 1, 100, 101, 11, 11, "Corona-SHA3", "v1", "reshare"),
+		seedTranscriptBytes("lux-testnet", "g0", 0, 1, 2, 3, 3, "Corona-BLAKE3", "v1", "refresh"),
 		seedTranscriptBytes("", "", 0, 0, 0, 0, 0, "", "", ""),
 	}
 	for i, s := range seeds {

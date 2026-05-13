@@ -16,8 +16,8 @@ import (
 // Party struct holds all state and methods for a party in the protocol.
 //
 // Suite is the hash profile this party uses for every primitives.* call.
-// NewParty defaults it to hash.Default() (Pulsar-SHA3). Operators that need
-// to interoperate with old transcripts can override with NewPulsarBLAKE3().
+// NewParty defaults it to hash.Default() (Corona-SHA3). Operators that need
+// to interoperate with old transcripts can override with NewCoronaBLAKE3().
 type Party struct {
 	ID             int
 	Ring           *ring.Ring
@@ -37,7 +37,7 @@ type Party struct {
 }
 
 // NewParty initializes a new Party instance with the production hash suite
-// (Pulsar-SHA3). To use a different suite, set Party.Suite after construction
+// (Corona-SHA3). To use a different suite, set Party.Suite after construction
 // or call NewPartyWithSuite.
 func NewParty(id int, r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, sampler *ring.UniformSampler) *Party {
 	return NewPartyWithSuite(id, r, r_xi, r_nu, sampler, hash.Default())
@@ -286,14 +286,14 @@ func (party *Party) SignFinalize(z map[int]structs.Vector[ring.Poly], A structs.
 }
 
 // Verify verifies the correctness of the signature using the production
-// hash suite (Pulsar-SHA3). For non-default suites use VerifyWithSuite.
+// hash suite (Corona-SHA3). For non-default suites use VerifyWithSuite.
 // Note: This function does not modify its inputs - it creates copies where needed.
 func Verify(r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, z structs.Vector[ring.Poly], A structs.Matrix[ring.Poly], mu string, bTilde structs.Vector[ring.Poly], c ring.Poly, roundedDelta structs.Vector[ring.Poly]) bool {
 	return VerifyWithSuite(nil, r, r_xi, r_nu, z, A, mu, bTilde, c, roundedDelta)
 }
 
 // VerifyWithSuite is the suite-explicit form of Verify. suite=nil resolves
-// to the production default (Pulsar-SHA3).
+// to the production default (Corona-SHA3).
 func VerifyWithSuite(suite hash.HashSuite, r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, z structs.Vector[ring.Poly], A structs.Matrix[ring.Poly], mu string, bTilde structs.Vector[ring.Poly], c ring.Poly, roundedDelta structs.Vector[ring.Poly]) bool {
 	// Make a copy of z to avoid modifying the input signature
 	zCopy := make(structs.Vector[ring.Poly], len(z))

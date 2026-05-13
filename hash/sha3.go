@@ -3,17 +3,17 @@
 
 package hash
 
-// PulsarSHA3 is the production hash suite for Pulsar. Built on
+// CoronaSHA3 is the production hash suite for Corona. Built on
 // cSHAKE256 / KMAC256 / TupleHash256 from FIPS 202 and NIST SP 800-185.
 //
-// Customization tags pin every operation to the Pulsar protocol:
+// Customization tags pin every operation to the Corona protocol:
 //
-//	Hc                "PULSAR-HC-v1"
-//	Hu                "PULSAR-HU-v1"
-//	TranscriptHash    "PULSAR-TRANSCRIPT-v1"
-//	PRF               "PULSAR-PRF-v1"     (KMAC256)
-//	MAC               "PULSAR-MAC-v1"     (KMAC256)
-//	DerivePairwise    "PULSAR-PAIRWISE-v1" (KMAC256)
+//	Hc                "CORONA-HC-v1"
+//	Hu                "CORONA-HU-v1"
+//	TranscriptHash    "CORONA-TRANSCRIPT-v1"
+//	PRF               "CORONA-PRF-v1"     (KMAC256)
+//	MAC               "CORONA-MAC-v1"     (KMAC256)
+//	DerivePairwise    "CORONA-PAIRWISE-v1" (KMAC256)
 //
 // Distinct customization strings are essential — same primitive +
 // different tag = independent oracle. Bumping any tag invalidates
@@ -26,46 +26,46 @@ import (
 )
 
 const (
-	tagHC         = "PULSAR-HC-v1"
-	tagHU         = "PULSAR-HU-v1"
-	tagTranscript = "PULSAR-TRANSCRIPT-v1"
-	tagPRF        = "PULSAR-PRF-v1"
-	tagMAC        = "PULSAR-MAC-v1"
-	tagPairwise   = "PULSAR-PAIRWISE-v1"
+	tagHC         = "CORONA-HC-v1"
+	tagHU         = "CORONA-HU-v1"
+	tagTranscript = "CORONA-TRANSCRIPT-v1"
+	tagPRF        = "CORONA-PRF-v1"
+	tagMAC        = "CORONA-MAC-v1"
+	tagPairwise   = "CORONA-PAIRWISE-v1"
 )
 
-// pulsarSHA3 implements HashSuite using the SP 800-185 primitives.
-type pulsarSHA3 struct{}
+// coronaSHA3 implements HashSuite using the SP 800-185 primitives.
+type coronaSHA3 struct{}
 
-// NewPulsarSHA3 returns the production hash suite.
-func NewPulsarSHA3() HashSuite { return pulsarSHA3{} }
+// NewCoronaSHA3 returns the production hash suite.
+func NewCoronaSHA3() HashSuite { return coronaSHA3{} }
 
-func (pulsarSHA3) ID() string { return "Pulsar-SHA3" }
+func (coronaSHA3) ID() string { return "Corona-SHA3" }
 
-func (pulsarSHA3) Hc(transcript []byte) []byte {
+func (coronaSHA3) Hc(transcript []byte) []byte {
 	return cshake256Stream(tagHC, transcript, 32)
 }
 
-func (pulsarSHA3) Hu(transcript []byte, outLen int) []byte {
+func (coronaSHA3) Hu(transcript []byte, outLen int) []byte {
 	return cshake256Stream(tagHU, transcript, outLen)
 }
 
-func (pulsarSHA3) TranscriptHash(parts ...[]byte) [32]byte {
+func (coronaSHA3) TranscriptHash(parts ...[]byte) [32]byte {
 	out := tupleHash256(parts, 32, tagTranscript)
 	var fixed [32]byte
 	copy(fixed[:], out)
 	return fixed
 }
 
-func (pulsarSHA3) PRF(key, msg []byte, outLen int) []byte {
+func (coronaSHA3) PRF(key, msg []byte, outLen int) []byte {
 	return kmac256(key, msg, outLen, tagPRF)
 }
 
-func (pulsarSHA3) MAC(key, msg []byte, outLen int) []byte {
+func (coronaSHA3) MAC(key, msg []byte, outLen int) []byte {
 	return kmac256(key, msg, outLen, tagMAC)
 }
 
-func (pulsarSHA3) DerivePairwise(
+func (coronaSHA3) DerivePairwise(
 	kex []byte,
 	chainID, groupID []byte,
 	eraID, generation uint64,

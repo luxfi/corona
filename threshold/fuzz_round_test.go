@@ -1,15 +1,15 @@
 // Copyright (C) 2019-2026, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Pulsar threshold-kernel wire-format fuzz harnesses.
+// Corona threshold-kernel wire-format fuzz harnesses.
 //
-// Each FuzzPulsar* harness fuzzes one external wire surface of the
-// pulsar/threshold kernel:
+// Each FuzzCorona* harness fuzzes one external wire surface of the
+// corona/threshold kernel:
 //
-//   - FuzzPulsarSign1Round1Data    — Round1Data.D matrix bytes (sign-1)
-//   - FuzzPulsarSign2Round2Data    — Round2Data.Z vector bytes (sign-2)
-//   - FuzzPulsarKeyShareSerialize  — KeyShare.SkShare wire bytes
-//   - FuzzPulsarGroupKeySerialize  — GroupKey.A,BTilde wire bytes
+//   - FuzzCoronaSign1Round1Data    — Round1Data.D matrix bytes (sign-1)
+//   - FuzzCoronaSign2Round2Data    — Round2Data.Z vector bytes (sign-2)
+//   - FuzzCoronaKeyShareSerialize  — KeyShare.SkShare wire bytes
+//   - FuzzCoronaGroupKeySerialize  — GroupKey.A,BTilde wire bytes
 //
 // Property: the corresponding decoder NEVER panics on arbitrary input.
 // Companion TestFuzzCorpus_*Replay tests deterministically replay the
@@ -33,9 +33,9 @@ import (
 
 // maxLatticeUintSliceLen mirrors warp/pulsar.MaxLatticeUintSliceLen and
 // bounds every length field a lattigo wire frame can declare. A
-// canonical Pulsar Poly has 256 coefficients per level; a Vector/Matrix
+// canonical Corona Poly has 256 coefficients per level; a Vector/Matrix
 // has at most M*N = 8*32 = 256 polys. This cap is structural — frames
-// that declare more are not legitimate Pulsar protocol bytes.
+// that declare more are not legitimate Corona protocol bytes.
 //
 // IMPORTANT: this duplicate cap exists because the upstream lattice
 // library has TWO DoS surfaces:
@@ -45,7 +45,7 @@ import (
 //     NOT addressed by PR #3. A 9-byte input
 //     `\xad\x93\xd8\x5a\x00\x04\x00\x00\\` reads size=0x40005AD893AD
 //     (~70T entries) and OOMs the goroutine before the slice reader
-//     runs. Found by FuzzPulsarSign1Round1Data on 2026-05-04.
+//     runs. Found by FuzzCoronaSign1Round1Data on 2026-05-04.
 //
 // The walker below pre-validates the wire frame BEFORE handing it to
 // lattigo, mirroring warp/pulsar.validateVectorPolyFrame.
@@ -102,7 +102,7 @@ func makeEmptyPolyVector(r *ring.Ring, length int) structs.Vector[ring.Poly] {
 
 // fuzzMaxRawSize bounds the raw input handed to the lattigo decoder.
 //
-// We use 1024 bytes — much tighter than warp/pulsar's
+// We use 1024 bytes — much tighter than warp/corona's
 // MaxPulseFrameSize=32KB — because Go's recover() cannot catch the
 // runtime-fatal "goroutine stack exceeds 1000000000-byte limit"
 // kill that an unpatched lattigo v7.0.1 produces on the
@@ -246,10 +246,10 @@ func addSmallSeeds(f *testing.F) {
 	f.Add(append([]byte{0x10, 0x00, 0x00, 0x00}, bytes.Repeat([]byte{0xcc}, 16)...))
 }
 
-// FuzzPulsarSign1Round1Data fuzzes the Vector[Poly] decoder used to
+// FuzzCoronaSign1Round1Data fuzzes the Vector[Poly] decoder used to
 // reconstruct a peer's Round-1 D matrix row. A panic here corresponds
 // to a malicious peer being able to take down a Round-1 receiver.
-func FuzzPulsarSign1Round1Data(f *testing.F) {
+func FuzzCoronaSign1Round1Data(f *testing.F) {
 	addSmallSeeds(f)
 
 	f.Fuzz(func(t *testing.T, raw []byte) {
@@ -264,10 +264,10 @@ func FuzzPulsarSign1Round1Data(f *testing.F) {
 	})
 }
 
-// FuzzPulsarSign2Round2Data fuzzes the Vector[Poly] decoder used to
+// FuzzCoronaSign2Round2Data fuzzes the Vector[Poly] decoder used to
 // reconstruct a peer's Round-2 Z vector. Matches the Round-1 surface
 // but exercises the smaller payload.
-func FuzzPulsarSign2Round2Data(f *testing.F) {
+func FuzzCoronaSign2Round2Data(f *testing.F) {
 	addSmallSeeds(f)
 
 	f.Fuzz(func(t *testing.T, raw []byte) {
@@ -275,10 +275,10 @@ func FuzzPulsarSign2Round2Data(f *testing.F) {
 	})
 }
 
-// FuzzPulsarKeyShareSerialize fuzzes the KeyShare.SkShare wire decoder.
+// FuzzCoronaKeyShareSerialize fuzzes the KeyShare.SkShare wire decoder.
 // A KeyShare is the persisted output of DKG; corrupted on-disk shares
 // must surface as errors, not panics.
-func FuzzPulsarKeyShareSerialize(f *testing.F) {
+func FuzzCoronaKeyShareSerialize(f *testing.F) {
 	addSmallSeeds(f)
 
 	f.Fuzz(func(t *testing.T, raw []byte) {
@@ -286,9 +286,9 @@ func FuzzPulsarKeyShareSerialize(f *testing.F) {
 	})
 }
 
-// FuzzPulsarGroupKeySerialize fuzzes the GroupKey.BTilde wire decoder
+// FuzzCoronaGroupKeySerialize fuzzes the GroupKey.BTilde wire decoder
 // (the persistent public key portion of a group key).
-func FuzzPulsarGroupKeySerialize(f *testing.F) {
+func FuzzCoronaGroupKeySerialize(f *testing.F) {
 	addSmallSeeds(f)
 
 	f.Fuzz(func(t *testing.T, raw []byte) {
@@ -296,11 +296,11 @@ func FuzzPulsarGroupKeySerialize(f *testing.F) {
 	})
 }
 
-// TestFuzzCorpus_PulsarSign1Replay replays the canonical seed
+// TestFuzzCorpus_CoronaSign1Replay replays the canonical seed
 // deterministically without invoking the fuzz engine. The Sign1 seed
 // is a serialized Matrix[Poly]; reading it into a fresh Matrix[Poly]
 // must succeed and return a non-zero byte count.
-func TestFuzzCorpus_PulsarSign1Replay(t *testing.T) {
+func TestFuzzCorpus_CoronaSign1Replay(t *testing.T) {
 	mustKernelCeremony(t)
 	if len(kSignSeed) == 0 {
 		t.Fatal("empty Sign1 seed")
@@ -316,8 +316,8 @@ func TestFuzzCorpus_PulsarSign1Replay(t *testing.T) {
 	}
 }
 
-// TestFuzzCorpus_PulsarSign2Replay replays the Round-2 seed.
-func TestFuzzCorpus_PulsarSign2Replay(t *testing.T) {
+// TestFuzzCorpus_CoronaSign2Replay replays the Round-2 seed.
+func TestFuzzCorpus_CoronaSign2Replay(t *testing.T) {
 	mustKernelCeremony(t)
 	if len(kRound2) == 0 {
 		t.Fatal("empty Sign2 seed")
@@ -332,9 +332,9 @@ func TestFuzzCorpus_PulsarSign2Replay(t *testing.T) {
 	}
 }
 
-// TestFuzzCorpus_PulsarKeyShareReplay confirms the KeyShare decoder
+// TestFuzzCorpus_CoronaKeyShareReplay confirms the KeyShare decoder
 // accepts the canonical share bytes.
-func TestFuzzCorpus_PulsarKeyShareReplay(t *testing.T) {
+func TestFuzzCorpus_CoronaKeyShareReplay(t *testing.T) {
 	mustKernelCeremony(t)
 	var b bytes.Buffer
 	if _, err := kShares[0].SkShare.WriteTo(&b); err != nil {
@@ -350,9 +350,9 @@ func TestFuzzCorpus_PulsarKeyShareReplay(t *testing.T) {
 	}
 }
 
-// TestFuzzCorpus_PulsarGroupKeyReplay confirms the GroupKey decoder
+// TestFuzzCorpus_CoronaGroupKeyReplay confirms the GroupKey decoder
 // accepts the canonical bytes.
-func TestFuzzCorpus_PulsarGroupKeyReplay(t *testing.T) {
+func TestFuzzCorpus_CoronaGroupKeyReplay(t *testing.T) {
 	mustKernelCeremony(t)
 	var b bytes.Buffer
 	if _, err := kGroupKey.BTilde.WriteTo(&b); err != nil {

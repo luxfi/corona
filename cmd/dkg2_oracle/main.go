@@ -10,8 +10,8 @@
 //  2. From that master seed, derives one 32-byte sub-seed per party
 //     (BLAKE3(master || "party" || BE32(i))).
 //  3. Constructs n DKGSessions (party 0..n-1) — they all share the same
-//     deterministic A and B matrices (derived from b"pulsar.dkg2.A.v1" /
-//     b"pulsar.dkg2.B.v1" via BLAKE3-XOF).
+//     deterministic A and B matrices (derived from b"corona.dkg2.A.v1" /
+//     b"corona.dkg2.B.v1" via BLAKE3-XOF).
 //  4. Each party calls Round1WithSeed(party_seed[i]) to produce its
 //     Commits, Shares (per recipient), and Blinds (per recipient).
 //  5. Each party calls Round2 with the assembled shares/blinds/commits.
@@ -32,7 +32,7 @@
 // one entry must be identical. The KAT records all n of them so the C++
 // port can prove that property too.
 //
-// Output: <luxcpp/crypto>/pulsar/dkg2/test/kat/dkg2_kat.json (4 entries:
+// Output: <luxcpp/crypto>/corona/dkg2/test/kat/dkg2_kat.json (4 entries:
 // 2-of-3, 3-of-5, 5-of-7, 7-of-11).
 package main
 
@@ -159,8 +159,8 @@ func runEntry(t, n int) Entry {
 	sessions := make([]*dkg2.DKGSession, n)
 	for i := 0; i < n; i++ {
 		// Use the legacy BLAKE3 hash suite for the canonical KAT — keeps
-		// every byte in dkg2_kat.json byte-stable across the Pulsar-SHA3
-		// cutover. Production-track callers use hash.Default() (Pulsar-SHA3).
+		// every byte in dkg2_kat.json byte-stable across the Corona-SHA3
+		// cutover. Production-track callers use hash.Default() (Corona-SHA3).
 		s, err := dkg2.NewDKGSession(params, i, n, t, nil)
 		if err != nil {
 			panic(fmt.Errorf("NewDKGSession(%d, %d, %d): %w", i, n, t, err))
@@ -272,8 +272,8 @@ func main() {
 	out := OracleOut{
 		Description: "Pedersen-style DKG over R = Z_q[X]/(X^256+1), Q=0x1000000004A01. " +
 			"C_k = A·NTT(c_k) + B·NTT(r_k) — hiding under MLWE on B, binding under " +
-			"MSIS on [A|B].  A derived from BLAKE3(\"pulsar.dkg2.A.v1\"); B from " +
-			"BLAKE3(\"pulsar.dkg2.B.v1\").  Each entry runs the full t-of-n protocol " +
+			"MSIS on [A|B].  A derived from BLAKE3(\"corona.dkg2.A.v1\"); B from " +
+			"BLAKE3(\"corona.dkg2.B.v1\").  Each entry runs the full t-of-n protocol " +
 			"with deterministic per-party Round1WithSeed inputs derived from " +
 			"MasterSeed=0xC0FFEEF00DFACE.  Wire format: structs.{Vector,Matrix}[ring.Poly]" +
 			".WriteTo (LE u64).  Hashes are SHA-256 of those wire bytes.  CommitDigest " +
@@ -284,8 +284,8 @@ func main() {
 		M:       sign.M,
 		Nvec:    sign.N,
 		Xi:      sign.Xi,
-		TagAHex: hex.EncodeToString([]byte("pulsar.dkg2.A.v1")),
-		TagBHex: hex.EncodeToString([]byte("pulsar.dkg2.B.v1")),
+		TagAHex: hex.EncodeToString([]byte("corona.dkg2.A.v1")),
+		TagBHex: hex.EncodeToString([]byte("corona.dkg2.B.v1")),
 	}
 
 	for _, c := range cases {
@@ -295,10 +295,10 @@ func main() {
 
 	// Default output path: canonical luxcpp KAT directory.  Pass an
 	// argument to override.  When the oracle is invoked via `go run` from
-	// the pulsar repo root, the relative form ../../../luxcpp/... resolves
+	// the corona repo root, the relative form ../../../luxcpp/... resolves
 	// correctly; otherwise pass an absolute path.
-	outPath := "../../../luxcpp/crypto/pulsar/dkg2/test/kat/dkg2_kat.json"
-	if env := os.Getenv("PULSAR_DKG2_KAT_PATH"); env != "" {
+	outPath := "../../../luxcpp/crypto/corona/dkg2/test/kat/dkg2_kat.json"
+	if env := os.Getenv("CORONA_DKG2_KAT_PATH"); env != "" {
 		outPath = env
 	}
 	if len(os.Args) >= 2 {

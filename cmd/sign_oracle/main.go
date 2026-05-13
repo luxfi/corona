@@ -1,13 +1,13 @@
-// Package main is the Pulsar sign+verify KAT oracle.
+// Package main is the Corona sign+verify KAT oracle.
 //
 // Given a fixed master seed, it emits a deterministic JSON file of
-// known-answer test vectors covering the full LP-073 Pulsar threshold
+// known-answer test vectors covering the full LP-073 Corona threshold
 // signature pipeline (Gen + SignRound1 + SignRound2{Preprocess,} +
 // SignFinalize + Verify) for the canonical (t, n) configurations
 // 2-of-3, 3-of-5, 5-of-7, 7-of-11. The C++ port at
-// luxcpp/crypto/pulsar/cpp/sign/ replays these entries byte-equal.
+// luxcpp/crypto/corona/cpp/sign/ replays these entries byte-equal.
 //
-// Pulsar's sign/sign.go is byte-identical to corona/sign/sign.go (the
+// Corona's sign/sign.go is byte-identical to corona/sign/sign.go (the
 // only diff is the import path), so the JSON shape mirrors the existing
 // corona sign_verify_e2e KAT.
 //
@@ -127,7 +127,7 @@ type signEntry struct {
 }
 
 func emitSignVerify(outDir string) error {
-	root := derive("sign_e2e_pulsar")
+	root := derive("sign_e2e_corona")
 	cfgs := []struct{ t, n int }{
 		{2, 3}, {3, 5}, {5, 7}, {7, 11},
 	}
@@ -139,10 +139,10 @@ func emitSignVerify(outDir string) error {
 		Description string      `json:"description"`
 		Entries     []signEntry `json:"entries"`
 	}{
-		Description: "Full Pulsar Sign+Verify round-trip (LP-073 Q-witness). " +
+		Description: "Full Corona Sign+Verify round-trip (LP-073 Q-witness). " +
 			"For each (t,n,msg,seed): Gen → SignRound1 (all parties) → " +
 			"SignRound2Preprocess+SignRound2 (all parties) → SignFinalize → " +
-			"Verify. Pulsar's sign module is byte-identical to the original construction at " +
+			"Verify. Corona's sign module is byte-identical to the original construction at " +
 			"the Go source level (only the import path differs). The current " +
 			"KAT signs with K=Threshold=n; the t field documents the " +
 			"threshold-aware variant for downstream use. SHA-256 hashes are " +

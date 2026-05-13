@@ -43,11 +43,11 @@ import (
 // legacyBLAKE3Suite is the suite this oracle uses for every primitives.*
 // call. The JSON files produced here are the BLAKE3 KAT transcripts
 // downstream ports (C++, GPU) byte-match against. They were pinned before
-// the Pulsar-SHA3 default was wired into primitives/hash.go, so emission
+// the Corona-SHA3 default was wired into primitives/hash.go, so emission
 // must remain on the legacy BLAKE3 suite to keep the existing transcripts
-// byte-stable. A separate Pulsar-SHA3 KAT oracle lands as follow-up
+// byte-stable. A separate Corona-SHA3 KAT oracle lands as follow-up
 // (see CHANGELOG.md).
-var legacyBLAKE3Suite = pulsarhash.NewPulsarBLAKE3()
+var legacyBLAKE3Suite = pulsarhash.NewCoronaBLAKE3()
 
 // MasterSeed is the deterministic root of all KAT generation. Changing it
 // invalidates every downstream port's expected outputs, so it stays fixed

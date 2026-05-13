@@ -2,15 +2,15 @@
 // See the file LICENSE for licensing terms.
 
 // Package hash defines the canonical hashing profile used by every
-// Pulsar reshare / activation / pairwise routine.
+// Corona reshare / activation / pairwise routine.
 //
 // Two profiles are shipped:
 //
-//   - Pulsar-SHA3   — the production profile. Built on cSHAKE256, KMAC256,
+//   - Corona-SHA3   — the production profile. Built on cSHAKE256, KMAC256,
 //     and TupleHash256 from FIPS 202 / NIST SP 800-185. KATs in the
 //     reshare oracle are emitted under this profile.
 //
-//   - Pulsar-BLAKE3 — the legacy / non-normative profile. Preserved so
+//   - Corona-BLAKE3 — the legacy / non-normative profile. Preserved so
 //     historical bytes can be reproduced for cross-checks. Marked NOT
 //     for production.
 //
@@ -34,12 +34,12 @@
 // produce different bytes (cross-profile collision avoidance).
 package hash
 
-// HashSuite is the canonical hashing surface every Pulsar reshare,
+// HashSuite is the canonical hashing surface every Corona reshare,
 // activation, and pairwise routine uses. Implementations are
 // stateless, goroutine-safe, and deterministic.
 type HashSuite interface {
-	// ID returns the profile identifier, e.g. "Pulsar-SHA3" or
-	// "Pulsar-BLAKE3". Bound into transcripts so two profiles can
+	// ID returns the profile identifier, e.g. "Corona-SHA3" or
+	// "Corona-BLAKE3". Bound into transcripts so two profiles can
 	// never collide on the byte level.
 	ID() string
 
@@ -82,14 +82,14 @@ type HashSuite interface {
 	) []byte
 }
 
-// Default returns the production hash suite: Pulsar-SHA3.
+// Default returns the production hash suite: Corona-SHA3.
 func Default() HashSuite { return defaultSuite }
 
 // DefaultID is the string ID of the production suite.
-const DefaultID = "Pulsar-SHA3"
+const DefaultID = "Corona-SHA3"
 
 // LegacyBLAKE3ID is the string ID of the non-normative legacy suite.
-const LegacyBLAKE3ID = "Pulsar-BLAKE3"
+const LegacyBLAKE3ID = "Corona-BLAKE3"
 
 // resolve picks the suite to use for a given call.
 func resolve(s HashSuite) HashSuite {
@@ -103,4 +103,4 @@ func resolve(s HashSuite) HashSuite {
 func Resolve(s HashSuite) HashSuite { return resolve(s) }
 
 // defaultSuite is the package-level singleton for the production profile.
-var defaultSuite HashSuite = NewPulsarSHA3()
+var defaultSuite HashSuite = NewCoronaSHA3()

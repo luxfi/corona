@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package reshare — Gate 4 negative-transcript tests for the Pulsar
+// Package reshare — Gate 4 negative-transcript tests for the Corona
 // VSR transcript and activation message (Mar-3-2026 PQ Consensus
 // Architecture Freeze).
 //
@@ -63,7 +63,7 @@ func baselineTranscriptInputs() TranscriptInputs {
 		ThresholdNew:          13,
 		GroupPublicKeyHash:    [32]byte{0xa0, 0xa1, 0xa2, 0xa3, 0xa4},
 		NebulaRoot:            [32]byte{0xb0, 0xb1, 0xb2, 0xb3, 0xb4},
-		HashSuiteID:           "Pulsar-SHA3",
+		HashSuiteID:           "Corona-SHA3",
 		ImplementationVersion: "pulsar-go-1.0.0",
 		Variant:               "reshare",
 	}
@@ -88,7 +88,7 @@ func baselineActivationMessage() ActivationMessage {
 }
 
 // honestThresholdVerifier returns a verifier closure that mimics the
-// behaviour of a real Pulsar.Verify under an unchanged GroupKey: it
+// behaviour of a real Corona.Verify under an unchanged GroupKey: it
 // accepts iff the bytes-to-be-signed equal the baseline activation
 // message's bytes-to-be-signed, and rejects everything else.
 //
@@ -139,7 +139,7 @@ func mutateTranscriptField(t *testing.T, base ActivationMessage, field string) A
 	case "nebula_root":
 		m.Transcript.NebulaRoot = [32]byte{0xee, 0xee, 0xee, 0xee}
 	case "hash_suite_id":
-		m.Transcript.HashSuiteID = "Pulsar-BLAKE3"
+		m.Transcript.HashSuiteID = "Corona-BLAKE3"
 	case "implementation_version":
 		m.Transcript.ImplementationVersion = "pulsar-rs-2.0.0"
 	case "variant":
