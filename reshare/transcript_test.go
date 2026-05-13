@@ -101,7 +101,7 @@ func TestValidatorSetHashUniqueness(t *testing.T) {
 }
 
 // TestTranscriptHashCrossLanguageCompatibility — emits the
-// canonical bytes the C++ port at luxcpp/crypto/pulsar/reshare/ MUST
+// canonical bytes the C++ port at luxcpp/crypto/corona/reshare/ MUST
 // reproduce. Useful as a fixed-vector smoke test when porting.
 func TestTranscriptHashFixedVector(t *testing.T) {
 	in := TranscriptInputs{

@@ -12,14 +12,14 @@ import (
 
 // TestSuiteIDs ensures the two suites declare distinct, stable IDs.
 func TestSuiteIDs(t *testing.T) {
-	sha3 := NewPulsarSHA3()
-	bl3 := NewPulsarBLAKE3()
+	sha3 := NewCoronaSHA3()
+	bl3 := NewCoronaBLAKE3()
 
-	if sha3.ID() != "Pulsar-SHA3" {
-		t.Errorf("SHA3 suite ID: want Pulsar-SHA3, got %q", sha3.ID())
+	if sha3.ID() != "Corona-SHA3" {
+		t.Errorf("SHA3 suite ID: want Corona-SHA3, got %q", sha3.ID())
 	}
-	if bl3.ID() != "Pulsar-BLAKE3" {
-		t.Errorf("BLAKE3 suite ID: want Pulsar-BLAKE3, got %q", bl3.ID())
+	if bl3.ID() != "Corona-BLAKE3" {
+		t.Errorf("BLAKE3 suite ID: want Corona-BLAKE3, got %q", bl3.ID())
 	}
 	if sha3.ID() == bl3.ID() {
 		t.Error("SHA3 and BLAKE3 suites must declare distinct IDs")
@@ -31,7 +31,7 @@ func TestSuiteIDs(t *testing.T) {
 
 // TestDefaultIsSHA3 — production default must be SHA3.
 func TestDefaultIsSHA3(t *testing.T) {
-	if Default().ID() != "Pulsar-SHA3" {
+	if Default().ID() != "Corona-SHA3" {
 		t.Fatalf("production default must be SHA3; got %q", Default().ID())
 	}
 }
@@ -41,7 +41,7 @@ func TestResolveNil(t *testing.T) {
 	if Resolve(nil).ID() != DefaultID {
 		t.Errorf("Resolve(nil) must return the production default")
 	}
-	bl3 := NewPulsarBLAKE3()
+	bl3 := NewCoronaBLAKE3()
 	if Resolve(bl3).ID() != bl3.ID() {
 		t.Errorf("Resolve(suite) must return that suite")
 	}
@@ -50,8 +50,8 @@ func TestResolveNil(t *testing.T) {
 // TestSuitesProduceDifferentBytes — two suites with distinct IDs must
 // produce distinct bytes for the same input.
 func TestSuitesProduceDifferentBytes(t *testing.T) {
-	sha3 := NewPulsarSHA3()
-	bl3 := NewPulsarBLAKE3()
+	sha3 := NewCoronaSHA3()
+	bl3 := NewCoronaBLAKE3()
 
 	t1 := sha3.TranscriptHash([]byte("a"), []byte("b"))
 	t2 := bl3.TranscriptHash([]byte("a"), []byte("b"))
@@ -76,7 +76,7 @@ func TestSuitesProduceDifferentBytes(t *testing.T) {
 // TestPRFAndMACDifferByCustomization — same suite, same key, same
 // message, but PRF and MAC must produce distinct bytes.
 func TestPRFAndMACDifferByCustomization(t *testing.T) {
-	for _, s := range []HashSuite{NewPulsarSHA3(), NewPulsarBLAKE3()} {
+	for _, s := range []HashSuite{NewCoronaSHA3(), NewCoronaBLAKE3()} {
 		key := []byte("00000000000000000000000000000000") // 32 bytes
 		msg := []byte("same-message")
 		prf := s.PRF(key, msg, 32)
@@ -90,7 +90,7 @@ func TestPRFAndMACDifferByCustomization(t *testing.T) {
 // TestHcAndHuDifferByCustomization — same suite, same input, different
 // tags → different bytes.
 func TestHcAndHuDifferByCustomization(t *testing.T) {
-	for _, s := range []HashSuite{NewPulsarSHA3(), NewPulsarBLAKE3()} {
+	for _, s := range []HashSuite{NewCoronaSHA3(), NewCoronaBLAKE3()} {
 		hc := s.Hc([]byte("transcript"))
 		hu := s.Hu([]byte("transcript"), 32)
 		if bytes.Equal(hc, hu) {
@@ -102,7 +102,7 @@ func TestHcAndHuDifferByCustomization(t *testing.T) {
 // TestTranscriptHashAvoidsConcatenationCollisions — TupleHash framing
 // must reject two distinct lists whose naive concatenation is identical.
 func TestTranscriptHashAvoidsConcatenationCollisions(t *testing.T) {
-	for _, s := range []HashSuite{NewPulsarSHA3(), NewPulsarBLAKE3()} {
+	for _, s := range []HashSuite{NewCoronaSHA3(), NewCoronaBLAKE3()} {
 		a := s.TranscriptHash([]byte("abc"), []byte(""))
 		b := s.TranscriptHash([]byte("a"), []byte("bc"))
 		if a == b {
@@ -118,7 +118,7 @@ func TestTranscriptHashAvoidsConcatenationCollisions(t *testing.T) {
 // TestPairwiseCanonicalOrdering — DerivePairwise must produce the same
 // bytes for (i, j) and (j, i).
 func TestPairwiseCanonicalOrdering(t *testing.T) {
-	for _, s := range []HashSuite{NewPulsarSHA3(), NewPulsarBLAKE3()} {
+	for _, s := range []HashSuite{NewCoronaSHA3(), NewCoronaBLAKE3()} {
 		kex := []byte("0123456789abcdef0123456789abcdef")
 		ab := s.DerivePairwise(kex, []byte("chain"), []byte("group"), 7, 3, 2, 5, 32)
 		ba := s.DerivePairwise(kex, []byte("chain"), []byte("group"), 7, 3, 5, 2, 32)
@@ -131,7 +131,7 @@ func TestPairwiseCanonicalOrdering(t *testing.T) {
 // TestPairwiseDistinctEras — different (era, generation) MUST yield
 // different pairwise material.
 func TestPairwiseDistinctEras(t *testing.T) {
-	for _, s := range []HashSuite{NewPulsarSHA3(), NewPulsarBLAKE3()} {
+	for _, s := range []HashSuite{NewCoronaSHA3(), NewCoronaBLAKE3()} {
 		kex := []byte("0123456789abcdef0123456789abcdef")
 		base := s.DerivePairwise(kex, []byte("chain"), []byte("group"), 7, 3, 2, 5, 32)
 		era2 := s.DerivePairwise(kex, []byte("chain"), []byte("group"), 8, 3, 2, 5, 32)
@@ -221,7 +221,7 @@ func TestTupleHash256NISTVector(t *testing.T) {
 
 // TestSuiteDeterminism — same input, two calls, identical bytes.
 func TestSuiteDeterminism(t *testing.T) {
-	for _, s := range []HashSuite{NewPulsarSHA3(), NewPulsarBLAKE3()} {
+	for _, s := range []HashSuite{NewCoronaSHA3(), NewCoronaBLAKE3()} {
 		a := s.TranscriptHash([]byte("a"), []byte("b"))
 		b := s.TranscriptHash([]byte("a"), []byte("b"))
 		if a != b {

@@ -515,7 +515,7 @@ func TestReshareWithSignGenShares(t *testing.T) {
 
 	secret := pickSecret(r, "primitives-bridge", testNVec)
 
-	// Use the pulsar primitives' standard Shamir variant.
+	// Use the corona primitives' standard Shamir variant.
 	tOld, nOld := 3, 5
 	primSharesMap := primitives.ShamirSecretSharingGeneral(
 		r, secret, tOld, nOld,

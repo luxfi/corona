@@ -31,7 +31,7 @@ func TestActivationMessageSignableBytesStable(t *testing.T) {
 		t.Fatal("SignableBytes non-deterministic")
 	}
 	// Format: 25-byte personalization prefix + 32 + 32 = 89 bytes.
-	const wantLen = len("QUASAR-PULSAR-ACTIVATE-v1") + 32 + 32
+	const wantLen = len("QUASAR-CORONA-ACTIVATE-v1") + 32 + 32
 	if len(b1) != wantLen {
 		t.Fatalf("unexpected SignableBytes length: %d (want %d)", len(b1), wantLen)
 	}

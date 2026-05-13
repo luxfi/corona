@@ -2,7 +2,7 @@
 // See the file LICENSE for licensing terms.
 
 // Package reshare implements two distinct proactive secret-sharing
-// primitives for Pulsar lattice threshold signatures over the ring
+// primitives for Corona lattice threshold signatures over the ring
 // R_q = Z_q[X]/(X^N+1):
 //
 //  1. Refresh — same-committee zero-polynomial proactive update
@@ -39,7 +39,7 @@
 //     boundaries (`protocol/quasar/epoch.go: ReshareEpoch`).
 //
 // Both primitives leave the public key b = A·s + e (and its rounded
-// form b̃) UNCHANGED. The genesis values (A, b, e) — and Pulsar's
+// form b̃) UNCHANGED. The genesis values (A, b, e) — and Corona's
 // `bTilde` and Corona's `GroupKey` — are persistent for the entire
 // group lineage. Only the share distribution changes. This is the
 // fundamental property that lets Quasar avoid running a full DKG on
@@ -71,7 +71,7 @@
 //     quorum logic, deterministic disqualification of
 //     misbehaving senders.
 //   - keyshare.go     — Wraps reshared SkShare values into complete
-//     Corona/Pulsar `KeyShare` instances by
+//     Corona/Corona `KeyShare` instances by
 //     regenerating Lambda, Seeds, MACKeys, and
 //     attaching the unchanged GroupKey pointer.
 //   - pairwise.go     — Authenticated pairwise KEX (X25519 / ML-KEM
@@ -160,7 +160,7 @@ type Share = structs.Vector[ring.Poly]
 //
 // Reshare is deterministic given a deterministic randSource, which lets
 // the cmd/reshare_oracle/main.go KAT path reproduce results across
-// implementations (Go and luxcpp/crypto/pulsar/reshare).
+// implementations (Go and luxcpp/crypto/corona/reshare).
 func Reshare(
 	r *ring.Ring,
 	oldShares map[int]Share,
@@ -428,7 +428,7 @@ func Refresh(
 	// within each c_{i,d} we draw the nVec polynomials in 0..nVec-1
 	// order, and within each polynomial we draw the N coefficients in
 	// 0..N-1 order. This iteration order is locked by the Go reference
-	// and the C++ port at luxcpp/crypto/pulsar/reshare/.
+	// and the C++ port at luxcpp/crypto/corona/reshare/.
 	for _, i := range parties {
 		_ = i
 		// z_i has degree (t-1) and constant term 0. We store

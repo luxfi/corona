@@ -136,11 +136,11 @@ type Complaint struct {
 //
 // Format:
 //
-//	"pulsar.reshare.complaint.v1" || transcript || sender_id_be32 ||
+//	"corona.reshare.complaint.v1" || transcript || sender_id_be32 ||
 //	complainer_id_be32 || reason_u8 || evidence_len_be32 || evidence
 func (c *Complaint) Bytes() []byte {
 	var buf bytes.Buffer
-	buf.WriteString("pulsar.reshare.complaint.v1")
+	buf.WriteString("corona.reshare.complaint.v1")
 	buf.Write(c.TranscriptHash[:])
 	var b4 [4]byte
 	binary.BigEndian.PutUint32(b4[:], uint32(c.SenderID))
@@ -184,7 +184,7 @@ func (c *Complaint) Verify() error {
 // final disqualification result.
 func ComplaintHash(c *Complaint) [32]byte {
 	h := blake3.New()
-	_, _ = h.Write([]byte("pulsar.reshare.complaint-hash.v1"))
+	_, _ = h.Write([]byte("corona.reshare.complaint-hash.v1"))
 	_, _ = h.Write(c.Bytes())
 	_, _ = h.Write(c.Signature)
 	var out [32]byte
