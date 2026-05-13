@@ -87,8 +87,8 @@ func TestDKG2_DeterministicMatrices(t *testing.T) {
 // the hash exchanged in Round 1.5 to defeat the cross-party-inconsistency
 // attack (Finding 2 of RED-DKG-REVIEW.md).
 //
-// Runs against both supported hash suites (Pulsar-SHA3 default and
-// Pulsar-BLAKE3 legacy) so neither the signature surface nor the byte
+// Runs against both supported hash suites (Corona-SHA3 default and
+// Corona-BLAKE3 legacy) so neither the signature surface nor the byte
 // stability silently regresses across the cutover.
 func TestDKG2_CommitDigestConsistency(t *testing.T) {
 	params, err := NewParams()
@@ -101,8 +101,8 @@ func TestDKG2_CommitDigestConsistency(t *testing.T) {
 		s    hash.HashSuite
 	}{
 		{"default", nil},
-		{"sha3", hash.NewPulsarSHA3()},
-		{"blake3", hash.NewPulsarBLAKE3()},
+		{"sha3", hash.NewCoronaSHA3()},
+		{"blake3", hash.NewCoronaBLAKE3()},
 	}
 
 	for _, sc := range suites {
@@ -160,7 +160,7 @@ func TestDKG2_HashSuiteCrossProfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewParams: %v", err)
 	}
-	sess, err := NewDKGSession(params, 0, 3, 2, hash.NewPulsarSHA3())
+	sess, err := NewDKGSession(params, 0, 3, 2, hash.NewCoronaSHA3())
 	if err != nil {
 		t.Fatalf("NewDKGSession: %v", err)
 	}
@@ -172,11 +172,11 @@ func TestDKG2_HashSuiteCrossProfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Round1: %v", err)
 	}
-	dSHA3, err := out.CommitDigest(hash.NewPulsarSHA3())
+	dSHA3, err := out.CommitDigest(hash.NewCoronaSHA3())
 	if err != nil {
 		t.Fatalf("CommitDigest sha3: %v", err)
 	}
-	dBLAKE3, err := out.CommitDigest(hash.NewPulsarBLAKE3())
+	dBLAKE3, err := out.CommitDigest(hash.NewCoronaBLAKE3())
 	if err != nil {
 		t.Fatalf("CommitDigest blake3: %v", err)
 	}
@@ -679,7 +679,7 @@ func TestDKG2_FilterQualifiedQuorum(t *testing.T) {
 //
 //	A · NTT(s) + B · NTT(t_master) ?= Σ_i C_{i,0}    (mod q)
 //
-// where s = Σ_j λ_j · s_j is the reconstructed Pulsar secret and
+// where s = Σ_j λ_j · s_j is the reconstructed Corona secret and
 // t_master = Σ_j λ_j · u_j is the reconstructed blinding scalar (Lagrange
 // recombination over an arbitrary t-subset T).
 //
@@ -869,23 +869,23 @@ func TestDKG2_VerifyShareAgainstCommits_Pure(t *testing.T) {
 }
 
 // TestDKG2_SignIntegration_PathC — closes the loop from DKG2 output to a
-// Pulsar Sign-compatible public key via the recommended path (c) of
+// Corona Sign-compatible public key via the recommended path (c) of
 // papers/lp-073-pulsar/sections/08a-pedersen-dkg.tex.
 //
 // Path (c) in production: run dkg2, recombine s = Σ_j λ_j s_j over a
 // t-subset, sample fresh Gaussian e, build b = A·s + e, round to bTilde,
-// then run Pulsar Sign as normal under bTilde. This test mechanises the
-// "DKG-output → Pulsar-shaped pk" leg and confirms (i) recombined s has
+// then run Corona Sign as normal under bTilde. This test mechanises the
+// "DKG-output → Corona-shaped pk" leg and confirms (i) recombined s has
 // the expected dimension and lattice shape, (ii) the b = A·s + e
-// construction yields a Pulsar-shaped bTilde of the right shape, and
+// construction yields a Corona-shaped bTilde of the right shape, and
 // (iii) the round-trip RestoreVector(RoundVector(b)) deviates from b by
-// at most the Xi rounding tolerance — i.e., Pulsar Sign Verify's
+// at most the Xi rounding tolerance — i.e., Corona Sign Verify's
 // L2-norm check would accept a signature produced under (A, bTilde).
 //
 // The full Sign1/Sign2/Combine path uses sign.Gen which generates s
 // internally; injecting an externally-supplied DKG s into Sign requires
 // the small refactor of sign.Gen to accept an external secret. That
-// refactor is independent of dkg2 and tracked in pulsar/sign; the
+// refactor is independent of dkg2 and tracked in corona/sign; the
 // algebraic compatibility this test confirms is the binding contract
 // between dkg2 and Sign.
 func TestDKG2_SignIntegration_PathC(t *testing.T) {
@@ -953,9 +953,9 @@ func TestDKG2_SignIntegration_PathC(t *testing.T) {
 	utils.MatrixVectorMul(r, A, sNTT, asN)
 	utils.ConvertVectorFromNTT(r, asN)
 
-	// Sample fresh small e — uses the same parameters Pulsar Sign Gen
+	// Sample fresh small e — uses the same parameters Corona Sign Gen
 	// uses (sign.go:66), so the resulting (A, b) pair is statistically
-	// identical to a trusted-dealer Pulsar setup.
+	// identical to a trusted-dealer Corona setup.
 	eSeed := make([]byte, sign.KeySize)
 	for i := range eSeed {
 		eSeed[i] = byte(0xE5 ^ i)
@@ -974,7 +974,7 @@ func TestDKG2_SignIntegration_PathC(t *testing.T) {
 	}
 
 	// Round and restore — the deviation must be within the Xi rounding
-	// tolerance. The Pulsar Sign verify path does exactly this round-trip
+	// tolerance. The Corona Sign verify path does exactly this round-trip
 	// (sign/sign.go:284-285).
 	bTilde := utils.RoundVector(r, params.RXi, b, sign.Xi)
 	bRestored := utils.RestoreVector(r, params.RXi, bTilde, sign.Xi)
@@ -1033,7 +1033,7 @@ func TestDKG2_KAT(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CommitDigestBLAKE3: %v", err)
 	}
-	dSHA3, err := out.CommitDigest(hash.NewPulsarSHA3())
+	dSHA3, err := out.CommitDigest(hash.NewCoronaSHA3())
 	if err != nil {
 		t.Fatalf("CommitDigest sha3: %v", err)
 	}
@@ -1048,7 +1048,7 @@ func TestDKG2_KAT(t *testing.T) {
 		t.Fatalf("Round1WithSeed (2): %v", err)
 	}
 	dBLAKE3b, _ := out2.CommitDigestBLAKE3()
-	dSHA3b, _ := out2.CommitDigest(hash.NewPulsarSHA3())
+	dSHA3b, _ := out2.CommitDigest(hash.NewCoronaSHA3())
 	if dBLAKE3 != dBLAKE3b {
 		t.Fatal("CommitDigestBLAKE3 not stable across sessions")
 	}

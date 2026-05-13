@@ -26,12 +26,12 @@ import (
 // fuzzMaxRawSize bounds the input handed to the lattigo decoder so
 // the unpatched-upstream-lattigo DoS path (luxfi/lattice#2) is
 // neutralized by the recover boundary in <1ms. See
-// pulsar/threshold/fuzz_round_test.go for the rationale.
+// corona/threshold/fuzz_round_test.go for the rationale.
 const fuzzMaxRawSize = 1024
 
 // decodeVectorWithRecover decodes a Vector[Poly] from raw bytes with
 // the same defense-in-depth stack as
-// pulsar/threshold/fuzz_round_test.go: hard byte cap + recover.
+// corona/threshold/fuzz_round_test.go: hard byte cap + recover.
 func decodeVectorWithRecover(raw []byte) (err error) {
 	if len(raw) > fuzzMaxRawSize {
 		return fmt.Errorf("input exceeds fuzzMaxRawSize")

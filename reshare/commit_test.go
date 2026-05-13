@@ -33,7 +33,7 @@ func TestCommitToPolyAndVerify(t *testing.T) {
 	const tThr = 3
 
 	// Sample (c_k, r_k) for k = 0..t-1 from a Gaussian PRNG. We use
-	// the same Gaussian as Pulsar secrets.
+	// the same Gaussian as Corona secrets.
 	prng, _ := sampling.NewKeyedPRNG([]byte("commit-test-prng"))
 	gauss := ring.NewGaussianSampler(prng, params.R,
 		ring.DiscreteGaussian{Sigma: sign.SigmaE, Bound: sign.BoundE}, false)

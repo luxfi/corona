@@ -17,7 +17,7 @@ import (
 
 // TestSignProtocolRoundTripUnderBothSuites runs Gen → SignRound1 →
 // SignRound2Preprocess → SignRound2 → SignFinalize → Verify under each
-// available HashSuite (Pulsar-SHA3 and Pulsar-BLAKE3) and asserts the
+// available HashSuite (Corona-SHA3 and Corona-BLAKE3) and asserts the
 // resulting signature verifies. The Sign and Verify paths must thread the
 // same suite end-to-end; mixing suites must fail verification.
 func TestSignProtocolRoundTripUnderBothSuites(t *testing.T) {
@@ -31,8 +31,8 @@ func TestSignProtocolRoundTripUnderBothSuites(t *testing.T) {
 		name  string
 		suite hash.HashSuite
 	}{
-		{"Pulsar-SHA3", hash.NewPulsarSHA3()},
-		{"Pulsar-BLAKE3", hash.NewPulsarBLAKE3()},
+		{"Corona-SHA3", hash.NewCoronaSHA3()},
+		{"Corona-BLAKE3", hash.NewCoronaBLAKE3()},
 	}
 
 	for _, sc := range suites {
@@ -44,13 +44,13 @@ func TestSignProtocolRoundTripUnderBothSuites(t *testing.T) {
 
 	// Cross-suite mixing: Sign under SHA3, Verify under BLAKE3 → must fail.
 	t.Run("CrossSuiteMixingRejected", func(t *testing.T) {
-		sig, A, mu, b, c, delta, r, rXi, rNu := signOnly(t, hash.NewPulsarSHA3())
+		sig, A, mu, b, c, delta, r, rXi, rNu := signOnly(t, hash.NewCoronaSHA3())
 		// Same suite → ok.
-		if !VerifyWithSuite(hash.NewPulsarSHA3(), r, rXi, rNu, sig, A, mu, b, c, delta) {
+		if !VerifyWithSuite(hash.NewCoronaSHA3(), r, rXi, rNu, sig, A, mu, b, c, delta) {
 			t.Fatal("SHA3 self-verify must succeed")
 		}
 		// Different suite → must reject.
-		if VerifyWithSuite(hash.NewPulsarBLAKE3(), r, rXi, rNu, sig, A, mu, b, c, delta) {
+		if VerifyWithSuite(hash.NewCoronaBLAKE3(), r, rXi, rNu, sig, A, mu, b, c, delta) {
 			t.Fatal("cross-suite verify (SHA3 sign / BLAKE3 verify) must reject — F22 separation violated")
 		}
 	})

@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package keyera is the lifecycle wrapper for a Pulsar group lineage.
+// Package keyera is the lifecycle wrapper for a Corona group lineage.
 //
 // One KeyEra is opened by Bootstrap (a one-time foundation MPC ceremony
 // at chain genesis or governance-gated Reanchor). The trust is confined
@@ -18,7 +18,7 @@
 //
 //	BLS lane:    each validator has its OWN keypair.
 //	ML-DSA lane: each validator has its OWN keypair.
-//	Pulsar lane:  each validator has a SHARE of one group key.
+//	Corona lane:  each validator has a SHARE of one group key.
 //
 // Within a key era:
 //
@@ -60,17 +60,17 @@ var (
 	ErrMissingShare     = errors.New("keyera: share missing for validator")
 )
 
-// PulsarKeyEraID is a monotonically increasing identifier for a key era.
+// CoronaKeyEraID is a monotonically increasing identifier for a key era.
 // Bumped only on Reanchor (rare governance event). All resharings
 // within an era keep the same era ID.
-type PulsarKeyEraID uint64
+type CoronaKeyEraID uint64
 
-// PulsarGroupID identifies one Pulsar group for grouped Quasar setups
+// CoronaGroupID identifies one Corona group for grouped Quasar setups
 // where validator sets are partitioned into smaller groups, each with
 // its own GroupKey lineage. For the single-group case it is zero.
-type PulsarGroupID uint64
+type CoronaGroupID uint64
 
-// KeyEra is one Pulsar group lineage. The GroupKey (A, bTilde) is set at
+// KeyEra is one Corona group lineage. The GroupKey (A, bTilde) is set at
 // Bootstrap and persists across every Reshare within the era. State is
 // the current epoch's share distribution; it rotates each Reshare.
 //
@@ -81,8 +81,8 @@ type PulsarGroupID uint64
 // field is read-only after Bootstrap returns; Reshare propagates it
 // without parameterisation.
 type KeyEra struct {
-	EraID        PulsarKeyEraID
-	GroupID      PulsarGroupID
+	EraID        CoronaKeyEraID
+	GroupID      CoronaGroupID
 	GroupKey     *threshold.GroupKey
 	GenesisEpoch uint64
 	HashSuiteID  string
@@ -96,12 +96,12 @@ type KeyEra struct {
 // Three lineage fields, kept distinct (do not collapse — they mean
 // different things):
 //
-//   - KeyEraID: Pulsar group-key lineage. Bumps only at Reanchor (fresh
+//   - KeyEraID: Corona group-key lineage. Bumps only at Reanchor (fresh
 //     GroupKey).
 //   - Generation: LSS resharing version within this key era. Bumps
 //     every Refresh / Reshare under the same GroupKey. Aligns with
 //     LSS's Generation field; managed by threshold/protocols/lss when
-//     this state is driven through the LSS-Pulsar adapter.
+//     this state is driven through the LSS-Corona adapter.
 //   - RollbackFrom: nonzero only when this state descends from a
 //     Rollback (= the prior Generation that was reverted from). Zero
 //     on ordinary forward transitions.
@@ -136,7 +136,7 @@ type EpochShareState struct {
 //
 // The trust is confined to genesis of the key era: someone (the dealer)
 // momentarily knows the master secret s while constructing the shares.
-// If s is retained, copied, or exfiltrated, the long-lived Pulsar group
+// If s is retained, copied, or exfiltrated, the long-lived Corona group
 // key is compromised. Foundation MUST coordinate Bootstrap as a
 // publicly observable MPC ceremony at chain launch — the entropy MUST
 // come from a verifiable commit-and-reveal among the genesis
@@ -152,10 +152,10 @@ type EpochShareState struct {
 // ceremony source is provided. Tests pass a deterministic source for
 // KAT replay.
 //
-// Bootstrap pins the production HashSuite (Pulsar-SHA3). Use
-// BootstrapWithSuite to open an era under the legacy Pulsar-BLAKE3
+// Bootstrap pins the production HashSuite (Corona-SHA3). Use
+// BootstrapWithSuite to open an era under the legacy Corona-BLAKE3
 // profile (for cross-suite KAT replay only — NOT for production).
-func Bootstrap(t int, validators []string, groupID PulsarGroupID, eraID PulsarKeyEraID, entropy io.Reader) (*KeyEra, error) {
+func Bootstrap(t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, entropy io.Reader) (*KeyEra, error) {
 	return BootstrapWithSuite(hash.Default(), t, validators, groupID, eraID, entropy)
 }
 
@@ -163,8 +163,8 @@ func Bootstrap(t int, validators []string, groupID PulsarGroupID, eraID PulsarKe
 // the hash profile this era will run under. The supplied suite is
 // recorded on the returned KeyEra and propagates unchanged through
 // every Reshare; Reanchor opens a fresh era and MAY pin a different
-// suite. Pass nil to use the production default (Pulsar-SHA3).
-func BootstrapWithSuite(suite hash.HashSuite, t int, validators []string, groupID PulsarGroupID, eraID PulsarKeyEraID, entropy io.Reader) (*KeyEra, error) {
+// suite. Pass nil to use the production default (Corona-SHA3).
+func BootstrapWithSuite(suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, entropy io.Reader) (*KeyEra, error) {
 	if len(validators) == 0 {
 		return nil, ErrEmptyValidators
 	}
@@ -244,7 +244,7 @@ func BootstrapWithSuite(suite hash.HashSuite, t int, validators []string, groupI
 // The bare Shamir kernel runs in-process; for distributed deployments
 // the consensus layer wraps this in the full Verifiable Secret Resharing
 // (VSR) exchange (commits, complaints, activation cert) defined in
-// pulsar/reshare. This kernel exists to (a) drive the cryptographic core,
+// corona/reshare. This kernel exists to (a) drive the cryptographic core,
 // (b) be reused as the trusted-collaborator path for single-process
 // integration tests, and (c) provide a reference against which the
 // distributed protocol can be byte-equality checked.
@@ -342,12 +342,12 @@ func (era *KeyEra) Reshare(newValidators []string, newThreshold int, randSource 
 // is not a routine operation.
 //
 // Reanchor inherits the prior era's HashSuiteID. To migrate to a
-// different suite (e.g. moving from legacy Pulsar-BLAKE3 to production
-// Pulsar-SHA3) call ReanchorWithSuite.
-func Reanchor(prev *KeyEra, t int, validators []string, groupID PulsarGroupID, entropy io.Reader) (*KeyEra, error) {
+// different suite (e.g. moving from legacy Corona-BLAKE3 to production
+// Corona-SHA3) call ReanchorWithSuite.
+func Reanchor(prev *KeyEra, t int, validators []string, groupID CoronaGroupID, entropy io.Reader) (*KeyEra, error) {
 	var suite hash.HashSuite
 	if prev != nil && prev.HashSuiteID == hash.LegacyBLAKE3ID {
-		suite = hash.NewPulsarBLAKE3()
+		suite = hash.NewCoronaBLAKE3()
 	} else {
 		suite = hash.Default()
 	}
@@ -359,8 +359,8 @@ func Reanchor(prev *KeyEra, t int, validators []string, groupID PulsarGroupID, e
 // that may pin a hash profile different from the prior era's
 // (Reshare cannot — that is enforced by Reshare not accepting a suite
 // parameter). nil suite resolves to the production default.
-func ReanchorWithSuite(prev *KeyEra, suite hash.HashSuite, t int, validators []string, groupID PulsarGroupID, entropy io.Reader) (*KeyEra, error) {
-	var nextEraID PulsarKeyEraID
+func ReanchorWithSuite(prev *KeyEra, suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, entropy io.Reader) (*KeyEra, error) {
+	var nextEraID CoronaKeyEraID
 	var nextEpoch uint64
 	if prev != nil {
 		nextEraID = prev.EraID + 1
@@ -458,7 +458,7 @@ func computeFullCommitteeLagrange(r *ring.Ring, n int) []ring.Poly {
 //
 // In a single-process simulation the material is freshly drawn from
 // randSource. In a distributed deployment the consensus layer overrides
-// this with authenticated pairwise KEX from pulsar/reshare/pairwise.go,
+// this with authenticated pairwise KEX from corona/reshare/pairwise.go,
 // ensuring both endpoints derive the same value without a shared
 // trusted dealer.
 func derivePairwiseMaterial(K int, randSource io.Reader) (map[int][][]byte, []map[int][]byte) {
