@@ -4,7 +4,7 @@
 // activation_oracle — emits byte-equal KATs for the post-reshare
 // activation circuit-breaker. Drives reshare.ActivationMessage and
 // reshare.ReshareTranscript through their canonical SignableBytes /
-// Hash routines under the production Pulsar-SHA3 suite.
+// Hash routines under the production Corona-SHA3 suite.
 //
 // Wire format (per entry):
 //
@@ -30,8 +30,8 @@
 // Output: <luxcpp/crypto>/pulsar/test/kat/activation_kat.json
 //
 // Algorithm references:
-//   - pulsar/reshare/activation.go (canonical Go)
-//   - luxcpp/crypto/pulsar/reshare/activation.hpp (C++ port)
+//   - corona/reshare/activation.go (canonical Go)
+//   - luxcpp/crypto/corona/reshare/activation.hpp (C++ port)
 package main
 
 import (
@@ -78,7 +78,7 @@ type Output struct {
 // ComplaintHashes so the KAT is reproducible without any RNG state.
 func counterDigest(label string, idx int) [32]byte {
 	h := sha256.New()
-	_, _ = io.WriteString(h, "pulsar.activation.kat.v1:")
+	_, _ = io.WriteString(h, "corona.activation.kat.v1:")
 	_, _ = io.WriteString(h, label)
 	var b [8]byte
 	for i := 0; i < 8; i++ {
@@ -156,7 +156,7 @@ func entry(
 
 func main() {
 	out := Output{
-		Suite:   "Pulsar-SHA3",
+		Suite:   "Corona-SHA3",
 		Version: "v1",
 	}
 	out.Entries = append(out.Entries,
@@ -173,12 +173,12 @@ func main() {
 	)
 
 	// Default output: canonical luxcpp KAT directory; allow override via
-	// PULSAR_ACTIVATION_KAT_PATH env or a positional arg.
+	// CORONA_ACTIVATION_KAT_PATH env or a positional arg.
 	outPath := filepath.Join(
 		os.Getenv("HOME"), "work", "luxcpp", "crypto", "pulsar",
 		"test", "kat", "activation_kat.json",
 	)
-	if env := os.Getenv("PULSAR_ACTIVATION_KAT_PATH"); env != "" {
+	if env := os.Getenv("CORONA_ACTIVATION_KAT_PATH"); env != "" {
 		outPath = env
 	}
 	if len(os.Args) >= 2 {

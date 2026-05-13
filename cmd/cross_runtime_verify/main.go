@@ -1,8 +1,8 @@
-// Package main is the Go-side verifier for the Pulsar cross-runtime
+// Package main is the Go-side verifier for the Corona cross-runtime
 // KAT gate (C++ → Go direction).
 //
 // Reads a C++-emitted manifest produced by
-// luxcpp/crypto/pulsar/cmd/cross_runtime_oracle and confirms that each
+// luxcpp/crypto/corona/cmd/cross_runtime_oracle and confirms that each
 // SHA-256 digest in the manifest matches the bytes Go observes for the
 // same file path. Mismatch → non-zero exit code.
 //
@@ -11,8 +11,8 @@
 //	cross_runtime_verify --manifest <path/to/cross_runtime_kat_cpp.json>
 //
 // This is the reverse leg of the cross-runtime gate. The forward leg
-// (Go → C++) lives in luxcpp/crypto/pulsar/test/cross_runtime_test.cpp;
-// CTest target `pulsar_cross_runtime_kat` exercises both directions.
+// (Go → C++) lives in luxcpp/crypto/corona/test/cross_runtime_test.cpp;
+// CTest target `corona_cross_runtime_kat` exercises both directions.
 package main
 
 import (

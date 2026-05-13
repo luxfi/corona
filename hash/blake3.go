@@ -3,9 +3,9 @@
 
 package hash
 
-// PulsarBLAKE3 is a NON-NORMATIVE legacy suite kept for byte-equality
-// checks against transcripts produced before the Pulsar-SHA3 profile
-// was pinned as canonical. NEW deployments MUST use Pulsar-SHA3.
+// CoronaBLAKE3 is a NON-NORMATIVE legacy suite kept for byte-equality
+// checks against transcripts produced before the Corona-SHA3 profile
+// was pinned as canonical. NEW deployments MUST use Corona-SHA3.
 
 import (
 	"encoding/binary"
@@ -13,22 +13,22 @@ import (
 	"github.com/zeebo/blake3"
 )
 
-// pulsarBLAKE3 implements HashSuite using BLAKE3 primitives.
-type pulsarBLAKE3 struct{}
+// coronaBLAKE3 implements HashSuite using BLAKE3 primitives.
+type coronaBLAKE3 struct{}
 
-// NewPulsarBLAKE3 returns the legacy BLAKE3 suite. NOT for production.
-func NewPulsarBLAKE3() HashSuite { return pulsarBLAKE3{} }
+// NewCoronaBLAKE3 returns the legacy BLAKE3 suite. NOT for production.
+func NewCoronaBLAKE3() HashSuite { return coronaBLAKE3{} }
 
-func (pulsarBLAKE3) ID() string { return "Pulsar-BLAKE3" }
+func (coronaBLAKE3) ID() string { return "Corona-BLAKE3" }
 
-func (pulsarBLAKE3) Hc(transcript []byte) []byte {
+func (coronaBLAKE3) Hc(transcript []byte) []byte {
 	h := blake3.New()
 	_, _ = h.Write([]byte(tagHC))
 	_, _ = h.Write(transcript)
 	return h.Sum(nil)[:32]
 }
 
-func (pulsarBLAKE3) Hu(transcript []byte, outLen int) []byte {
+func (coronaBLAKE3) Hu(transcript []byte, outLen int) []byte {
 	h := blake3.New()
 	_, _ = h.Write([]byte(tagHU))
 	_, _ = h.Write(transcript)
@@ -37,7 +37,7 @@ func (pulsarBLAKE3) Hu(transcript []byte, outLen int) []byte {
 	return out
 }
 
-func (pulsarBLAKE3) TranscriptHash(parts ...[]byte) [32]byte {
+func (coronaBLAKE3) TranscriptHash(parts ...[]byte) [32]byte {
 	h := blake3.New()
 	_, _ = h.Write([]byte(tagTranscript))
 	for _, p := range parts {
@@ -51,7 +51,7 @@ func (pulsarBLAKE3) TranscriptHash(parts ...[]byte) [32]byte {
 	return out
 }
 
-func (pulsarBLAKE3) PRF(key, msg []byte, outLen int) []byte {
+func (coronaBLAKE3) PRF(key, msg []byte, outLen int) []byte {
 	keyArr := blake3SizedKey(key)
 	h, _ := blake3.NewKeyed(keyArr[:])
 	_, _ = h.Write([]byte(tagPRF))
@@ -61,7 +61,7 @@ func (pulsarBLAKE3) PRF(key, msg []byte, outLen int) []byte {
 	return out
 }
 
-func (pulsarBLAKE3) MAC(key, msg []byte, outLen int) []byte {
+func (coronaBLAKE3) MAC(key, msg []byte, outLen int) []byte {
 	keyArr := blake3SizedKey(key)
 	h, _ := blake3.NewKeyed(keyArr[:])
 	_, _ = h.Write([]byte(tagMAC))
@@ -71,7 +71,7 @@ func (pulsarBLAKE3) MAC(key, msg []byte, outLen int) []byte {
 	return out
 }
 
-func (pulsarBLAKE3) DerivePairwise(
+func (coronaBLAKE3) DerivePairwise(
 	kex []byte,
 	chainID, groupID []byte,
 	eraID, generation uint64,
@@ -111,7 +111,7 @@ func blake3SizedKey(kex []byte) [32]byte {
 		return out
 	}
 	h := blake3.New()
-	_, _ = h.Write([]byte("PULSAR-KDF-KEY-v1"))
+	_, _ = h.Write([]byte("CORONA-KDF-KEY-v1"))
 	_, _ = h.Write(kex)
 	var out [32]byte
 	copy(out[:], h.Sum(nil)[:32])

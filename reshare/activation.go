@@ -16,7 +16,7 @@ package reshare
 // Activation message canonical bytes (signed by the new committee
 // under the UNCHANGED GroupKey):
 //
-//	"QUASAR-PULSAR-ACTIVATE-v1" ||
+//	"QUASAR-CORONA-ACTIVATE-v1" ||
 //	    transcript_hash         (32 bytes; from TranscriptInputs.Hash)
 //	    reshare_transcript_hash (32 bytes; from ReshareTranscript.Hash)
 
@@ -61,7 +61,7 @@ func buildExchangeTranscriptParts(rt *ReshareTranscript) [][]byte {
 		return b[:]
 	}
 	parts := [][]byte{
-		[]byte("pulsar.reshare.exchange-transcript.v1"),
+		[]byte("corona.reshare.exchange-transcript.v1"),
 	}
 
 	commitParties := make([]int, 0, len(rt.CommitDigests))
@@ -101,7 +101,7 @@ func buildExchangeTranscriptParts(rt *ReshareTranscript) [][]byte {
 // threshold-signs to produce an activation cert.
 func (a *ActivationMessage) SignableBytes(suite hash.HashSuite) []byte {
 	var buf bytes.Buffer
-	buf.WriteString("QUASAR-PULSAR-ACTIVATE-v1")
+	buf.WriteString("QUASAR-CORONA-ACTIVATE-v1")
 	t := a.Transcript.Hash(suite)
 	buf.Write(t[:])
 	rth := a.ReshareTranscript.Hash(suite)
@@ -123,7 +123,7 @@ var (
 )
 
 // VerifyActivation runs the chain-level activation check.
-// suite=nil resolves to the production default (Pulsar-SHA3).
+// suite=nil resolves to the production default (Corona-SHA3).
 func VerifyActivation(
 	cert *ActivationCert,
 	localTranscriptHash [32]byte,

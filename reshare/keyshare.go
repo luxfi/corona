@@ -3,7 +3,7 @@
 
 package reshare
 
-// KeyShare regeneration for Corona / Pulsar integration.
+// KeyShare regeneration for Corona / Corona integration.
 //
 // The Reshare and Refresh kernels operate on bare Shamir shares — the
 // SkShare field of the production-grade
@@ -19,13 +19,13 @@ package reshare
 //	    GroupKey *GroupKey
 //	}
 //
-// All KDF derivations use the canonical Pulsar HashSuite (KMAC256
-// under Pulsar-SHA3, keyed BLAKE3 under the legacy suite). Domain-
+// All KDF derivations use the canonical Corona HashSuite (KMAC256
+// under Corona-SHA3, keyed BLAKE3 under the legacy suite). Domain-
 // separation tags:
 //
-//	"pulsar.reshare.prf-seed.v1"   — for Seeds
-//	"pulsar.reshare.mac-key.v1"    — for MACKeys
-//	"pulsar.reshare.lambda-bind.v1" — bound into Lambda derivation when
+//	"corona.reshare.prf-seed.v1"   — for Seeds
+//	"corona.reshare.mac-key.v1"    — for MACKeys
+//	"corona.reshare.lambda-bind.v1" — bound into Lambda derivation when
 //	                                  the committee computes Lambdas
 //	                                  from a shared transcript hash.
 
@@ -41,7 +41,7 @@ import (
 	"github.com/luxfi/lattice/v7/utils/structs"
 )
 
-// PartyKeyShare is the Pulsar-internal mirror of
+// PartyKeyShare is the Corona-internal mirror of
 // corona/threshold.KeyShare.
 type PartyKeyShare struct {
 	Index    int
@@ -120,7 +120,7 @@ func PartyKeyShareFromShare(
 
 // KDFOutput derives a fixed-length output from a keying material under
 // the supplied HashSuite's pairwise KDF. suite=nil resolves to the
-// production default (Pulsar-SHA3).
+// production default (Corona-SHA3).
 //
 // The tag is folded into the chainID label with a `|` separator so two
 // callers with distinct tags but the same remaining inputs always
