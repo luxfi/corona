@@ -1,10 +1,100 @@
 # corona CHANGELOG
 
 Notable changes to the `corona` module. Pre-release; semantic versioning
-applied per PHILOSOPHY.md (patch only — never minor/major without explicit
+applied per PHILOSOPHY.md (patch only -- never minor/major without explicit
 approval).
 
-## v0.5.0 (planned — NIST MPTC submission package scaffolding)
+## v0.7.0 (Tier A full closure -- EC + Lean + Jasmin + dudect scaffolding)
+
+This revision lands the Tier A formal-methods scaffolding for Corona,
+mirroring Pulsar's structure exactly. Closes GATE-1 / GATE-2 / GATE-3a
+from the v0.6.0 sign-off.
+
+### EasyCrypt theories (13 files; admit budget 0/0)
+
+- `proofs/easycrypt/Corona_N1.ec` -- master byte-equality theorem
+  (`corona_n1_byte_equality`).
+- `proofs/easycrypt/Corona_N4.ec` -- reshare public-key preservation
+  (`corona_n4_pk_preservation_honest`).
+- `proofs/easycrypt/Corona_N1_Memory.ec` -- byte-memory model + frame laws.
+- `proofs/easycrypt/Corona_N1_Signature_Codec.ec` -- signature codec.
+- `proofs/easycrypt/Corona_N1_Combine_Layout.ec` -- Combine byte layout.
+- `proofs/easycrypt/Corona_N1_Sign_Layout.ec` -- Sign byte layout.
+- `proofs/easycrypt/Corona_N1_Combine_Refinement.ec` -- 3 byte-walk +
+  memory-separation + layout-frame axioms.
+- `proofs/easycrypt/Corona_N1_Sign_Refinement.ec` -- 3 byte-walk axioms.
+- `proofs/easycrypt/Corona_N1_Combine_Wrapper.ec` -- wrapper bridge.
+- `proofs/easycrypt/Corona_N1_Sign_Wrapper.ec` -- wrapper bridge.
+- `proofs/easycrypt/Corona_N1_Extracted.ec` -- IMPLEMENTATION-BACKED
+  end-to-end theorem.
+- `proofs/easycrypt/lemmas/RLWE_Functional.ec` -- in-house EC
+  mechanization of Boschini ePrint 2024/1113 §3 Sign + Verify.
+- `proofs/easycrypt/lemmas/Corona_CT.ec` -- constant-time obligations.
+- `proofs/easycrypt/README.md` -- file map + admit budget.
+
+### Lean <-> EC bridge (5 axioms)
+
+- `proofs/lean-easycrypt-bridge.md` -- 5-axiom Lean <-> EC bridge:
+  `lagrange_inverse_eval`, `threshold_partial_response_identity`,
+  `add_share_zeroR`, `reconstruct_linear`, `shamir_correct`.
+- `~/work/lux/proofs/lean/Crypto/Corona/Shamir.lean` -- Lagrange-over-
+  polynomial-ring algebraic core.
+- `~/work/lux/proofs/lean/Crypto/Corona/OutputInterchange.lean` --
+  Class N1 verifier-compatibility.
+- `~/work/lux/proofs/lean/Crypto/Corona/Unforgeability.lean` --
+  EUF-CMA reduction to Ring-LWE.
+- `~/work/lux/proofs/lean/Crypto/Corona/dkg2.lean` -- Pedersen-VSS DKG.
+
+### Jasmin sources
+
+- `jasmin/lib/corona_params.jinc` -- parameter set.
+- `jasmin/lib/seed.jinc` -- per-round PRNG seed derivation.
+- `jasmin/lib/transcript.jinc` -- transcript-hash binder.
+- `jasmin/lib/mac.jinc` -- per-peer MAC primitive.
+- `jasmin/lib/lagrange.jinc` -- Lagrange-coefficient computation.
+- `jasmin/threshold/round1.jazz` -- per-party Round-1 commit (#ct).
+- `jasmin/threshold/round2.jazz` -- per-party Round-2 response (#ct).
+- `jasmin/threshold/combine.jazz` -- Combine aggregation (#ct).
+- `jasmin/rlwe/sign.jazz` -- centralized Boschini Sign reference.
+- `jasmin/README.md` -- layout + refinement-target table.
+
+### dudect harness
+
+- `ct/dudect/verify_ct.go` + `dudect_verify.c` -- Verify harness.
+- `ct/dudect/combine_ct.go` + `dudect_combine.c` -- Combine harness.
+- `ct/dudect/dudect_compat.h` -- AArch64 cycle-counter compat shim.
+- `ct/dudect/Makefile` + `fetch.sh` + `run-submission.sh`.
+
+### CI orchestrator (7 gates)
+
+- `scripts/check-high-assurance.sh` -- mirrors Pulsar's structure
+  exactly. Sequences jasmin + ec-admits + ec-regressions +
+  ec-refinement-scaffold + lean-bridge + extraction + ec-compile.
+- `scripts/checks/ec-admits.sh` -- admit-budget 0/0 static guard.
+- `scripts/checks/ec-regressions.sh` -- retired-axiom regression guard.
+- `scripts/checks/ec-refinement-scaffold.sh` -- declare-axiom hygiene.
+- `scripts/checks/ec-compile.sh` -- EC compile gate.
+- `scripts/checks/jasmin.sh` -- jasmin type-check + jasmin-ct gate.
+- `scripts/checks/extraction.sh` -- Jasmin -> EC extraction sanity.
+- `scripts/check-lean-bridge.sh` -- 5-axiom Lean <-> EC bridge guard.
+
+### Tests
+
+- `threshold/e2e_threshold_variants_test.go` -- (3,2), (5,3), (7,4),
+  (10,7) committee-size e2e variants + KAT replay determinism.
+- `threshold/fuzz_verify_test.go` -- `FuzzVerifyParseSignature` +
+  `FuzzVerifyRandomBytes`.
+
+### Documentation updates
+
+- `AXIOM-INVENTORY.md` -- v0.7.0 EC residual axiom inventory (admit
+  budget 0/0; 5 Lean-bridged + N codec + construction-level axioms).
+- `PROOF-CLAIMS.md` -- §3.1 and §3.7 updated to reflect the EC + Lean
+  + Jasmin scaffold landing.
+- `CRYPTOGRAPHER-SIGN-OFF.md` -- v0.2; closes GATE-1, GATE-2, GATE-3a;
+  opens GATE-3b, GATE-4, GATE-5 as v0.8.0 audit-grade targets.
+
+## v0.5.0 (NIST MPTC submission package scaffolding)
 
 ### Submission documentation added (no code changes)
 

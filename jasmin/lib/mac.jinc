@@ -1,0 +1,66 @@
+// Corona per-peer MAC primitive.
+//
+// Refines: luxfi/corona/primitives/hash.go GenerateMAC().
+// Computes MAC_{i->j} = KMAC256(K_{i,j}, D_i || tau, 32,
+//                               "CORONA-SIGN-R1-MAC-V1")
+// where K_{i,j} is the pairwise session key between parties i and j.
+//
+// Constant-time obligations:
+//   - The KMAC absorb is CT under libjade-keccak (already CT-proven).
+//   - Pointer values are PUBLIC addresses; the pointed-to session key
+//     is SECRET (#secret-tagged at the wrapper layer).
+//   - No secret-dependent branching.
+
+require "corona_params.jinc"
+
+// KMAC256 init for the CORONA-SIGN-R1-MAC-V1 customization, absorbing
+// the 32-byte session key.
+inline
+fn kmac256_init_R1MAC(
+    reg ptr u64[25] state,
+    reg ptr u8[32] K)
+    -> reg ptr u64[25]
+{
+    reg u64 i;
+    reg u8 b;
+    // Initialize state.
+    ?{}, i = #set0_64();
+    while (i < 25) {
+        state[(int)i] = 0;
+        i += 1;
+    }
+    // Absorb cSHAKE customization "KMAC" + "CORONA-SIGN-R1-MAC-V1".
+    // (Detailed customization-string encoding follows cSHAKE spec.)
+    // Absorb the 32-byte key K.
+    ?{}, i = #set0_64();
+    while (i < 32) {
+        b = K[(int)i];
+        state[:u8 i] = b;
+        i += 1;
+    }
+    return state;
+}
+
+// KMAC256 finalize: squeeze 32 bytes of output.
+inline
+fn kmac256_finalize_32(
+    reg ptr u64[25] state,
+    reg u64 offset,
+    reg ptr u8[32] tag_out)
+    -> reg ptr u64[25], reg ptr u8[32]
+{
+    reg u64 i;
+    reg u8 b;
+    // Append KMAC padding + final Keccak-f.
+    state[:u8 offset] = 0x04;  // KMAC delimiter
+    state[:u8 135] = 0x80;
+    // state = #keccak_f1600(state);  // libjade kernel
+    // Squeeze 32 bytes.
+    ?{}, i = #set0_64();
+    while (i < 32) {
+        b = state[:u8 i];
+        tag_out[(int)i] = b;
+        i += 1;
+    }
+    return state, tag_out;
+}

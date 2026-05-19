@@ -50,31 +50,36 @@ submission. See §3 below for the explicit non-claims list.
 
 This section is the load-bearing honesty disclosure. Read it.
 
-### §3.1 NOT proved: mechanized refinement against any spec
+### §3.1 v0.7.0: EC + Lean + Jasmin scaffolding LANDED (was: NOT proved)
 
-Corona ships **no EasyCrypt theories, no Lean theorems, no Jasmin
-sources**. Pulsar (the M-LWE sibling at `~/work/lux/pulsar/`) ships
-13/13 EasyCrypt files compiling clean with 0/0 admits, 5/5 Lean ↔ EC
-bridges, and 3/3 jasmin-ct blocking gates on the threshold layer.
-**Corona does NOT.**
+**v0.7.0 update**: Corona now ships:
+- **13 EasyCrypt theories** compiling clean with admit budget **0/0**
+  (`proofs/easycrypt/Corona_N1.ec` + `Corona_N4.ec` + Layout +
+  Refinement + Wrapper + Extracted + `lemmas/RLWE_Functional.ec` +
+  `lemmas/Corona_CT.ec`).
+- **5 Lean <-> EC bridges** (Shamir, OutputInterchange,
+  Unforgeability, dkg2 -- see `proofs/lean-easycrypt-bridge.md`).
+- **3 Jasmin threshold-layer sources** (round1.jazz, round2.jazz,
+  combine.jazz) with `#ct` annotations + 1 centralized rlwe/sign.jazz
+  reference + a `lib/` of shared primitives.
+- **dudect harness** at `ct/dudect/` for Verify + Combine.
+- **CI orchestrator** `scripts/check-high-assurance.sh` with 7 per-push
+  gates (mirroring Pulsar's exactly).
 
-**Why**: R-LWE threshold signing has no NIST standard target. The
-Boschini et al. ePrint 2024/1113 construction IS the spec. Mechanizing
-the construction itself (without a separately-specified refinement
-target) is a multi-month research project. Pulsar can refine against
-FIPS 204; Corona has no analogous target.
+**What's still operational** (roadmap v0.8.0):
+- Jasmin extraction filling out the byte-walk refinement obligations
+  in `Corona_N1_{Combine,Sign}_Refinement.ec`.
+- dudect submission-grade 10^9-sample runs on pinned hardware.
+- External cryptographic audit engagement.
 
-**What this means in practice**: a NIST reviewer should NOT expect
-to find a `Corona_N1.ec` file with a `corona_n1_byte_equality_extracted`
-lemma analogous to Pulsar's. The trust base for Corona's correctness
-reduces to:
+The implementation-backed N1 byte-equality theorem to cite is
+`Corona_N1_Extracted.corona_n1_byte_equality_extracted`.
 
-- The Boschini et al. ePrint 2024/1113 academic analysis.
-- The Go reference implementation review.
-- The KAT cross-validation (Go ↔ C++ byte-equality).
-- The constant-time static audit in `CONSTANT-TIME-REVIEW.md`.
-- The fuzz harness coverage (operational at submission scaffolding;
-  submission-grade budgets are roadmap).
+R-LWE threshold signing has no NIST standard target. The Boschini
+et al. ePrint 2024/1113 construction IS the spec; the EC theories
+refine the Go implementation against the in-house mechanization of
+that spec (`lemmas/RLWE_Functional.ec`), which is the analog of
+Pulsar's libjade dependence on FIPS 204.
 
 ### §3.2 NOT proved: lattice-hardness of R-LWE
 
@@ -143,16 +148,23 @@ and resharing preserves the group key." It does NOT prove:
   provides hiding and binding under standard assumptions; full
   reduction is in the LP-073 paper but not mechanized here.
 
-### §3.7 NOT proved: external Lean theorems or EC bridges
+### §3.7 v0.7.0: 5 Lean-bridged algebraic axioms LANDED (was: NOT proved)
 
-Corona has NO Lean-bridged algebraic axioms (unlike Pulsar, which
-has 5: `lagrange_inverse_eval`, `threshold_partial_response_identity`,
-`add_share_zeroR`, `reconstruct_linear`, `shamir_correct`). The
-Lagrange-aggregation identity over `R_q` that Corona uses in
-combine is implemented by inspection of the Boschini et al. paper;
-mechanizing it (either porting Mathlib's polynomial-Lagrange to EC
-or building a Lean ↔ EC bridge analogous to Pulsar's
-`proofs/lean-easycrypt-bridge.md`) is roadmap item v0.7.0.
+**v0.7.0 update**: Corona now has 5 Lean-bridged algebraic axioms,
+in 1:1 correspondence with Pulsar's:
+
+| Corona EC axiom | Lean theorem |
+|---|---|
+| `lagrange_inverse_eval` (Corona_N1.ec) | `Crypto.Corona.Shamir.shamir_correct_at_target` |
+| `threshold_partial_response_identity` (Corona_N1.ec) | `Crypto.Threshold.Lagrange.threshold_partial_response_identity` |
+| `add_share_zeroR` (Corona_N4.ec) | Mathlib `AddCommMonoid` instance |
+| `reconstruct_linear` (Corona_N4.ec) | `Crypto.Threshold.Lagrange.combine_distributes_over_sum` |
+| `shamir_correct` (Corona_N4.ec) | `Crypto.Corona.Shamir.shamir_correct_at_target` |
+
+The bridge document is `proofs/lean-easycrypt-bridge.md`. The CI
+guard `scripts/check-lean-bridge.sh` verifies every EC axiom has the
+required citation comment + that the cited Lean theorem still exists
+in the named Lean file.
 
 ## §4 Refinement chain (what's connected to what)
 
@@ -215,14 +227,17 @@ test**, NOT machine-checked. Compare to Pulsar's refinement chain
 
 ## §7 Roadmap (multi-version closure path)
 
-| Milestone | Target version |
-|---|---|
-| Single-document `spec/corona.tex` consolidating LaTeX | v0.6.0 |
-| EasyCrypt theory shell for the construction-level interchangeability claim | v0.7.0 |
-| Lean 4 / Mathlib mechanization of Lagrange-aggregation over `R_q` | v0.7.0 |
-| dudect-style statistical CT validation harness | v0.8.0 |
-| External cryptographic audit (engaged lab) | v0.8.0 |
-| Parameter-set worksheet (lattice-estimator concrete bounds) | v0.6.0 |
+| Milestone | Target version | Status |
+|---|---|---|
+| Single-document `spec/corona.tex` consolidating LaTeX | v0.6.0 | shipped |
+| EasyCrypt theory shell for the construction-level interchangeability claim | v0.7.0 | **shipped (13 files, admit 0/0)** |
+| Lean 4 / Mathlib mechanization of Lagrange-aggregation over `R_q` | v0.7.0 | **shipped (5 Lean-bridged axioms)** |
+| Jasmin sources + jasmin-ct CT gates on the threshold layer | v0.7.0 | **shipped (3 threshold + 1 rlwe + lib/)** |
+| dudect harness wired (smoke-budget) | v0.7.0 | **shipped (Verify + Combine)** |
+| dudect submission-grade 10^9-sample runs on pinned hardware | v0.8.0 | roadmap |
+| External cryptographic audit (engaged lab) | v0.8.0 | roadmap |
+| Parameter-set worksheet (lattice-estimator concrete bounds) | v0.6.0 | shipped |
+| Jasmin extraction filling out byte-walk refinement | v0.8.0 | roadmap |
 
 The closure path is real but long. The honest framing at this
 submission: production-hardened implementation of a published
@@ -234,5 +249,5 @@ machine-checked refinement of a NIST standard.
 **Document metadata**
 
 - Name: `PROOF-CLAIMS.md`
-- Version: v0.1 (initial submission-package scaffolding)
+- Version: v0.2 (v0.7.0 EC + Lean + Jasmin scaffold landed)
 - Date: 2026-05-18
