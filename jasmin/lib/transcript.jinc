@@ -1,0 +1,158 @@
+// Corona transcript-hash binder (KMAC256 over cSHAKE).
+//
+// Refines: luxfi/corona/primitives/hash.go Hash() function.
+// The Corona transcript_hash binds:
+//   transcript_hash = KMAC256(K_dom, "CORONA-TRANSCRIPT-V1",
+//                             encode(A) || encode(b) || encode(D_aggregate)
+//                             || encode(sid) || encode(T))
+// where:
+//   K_dom is a per-domain key (Corona-SHA3 production profile)
+//   T is the active signer set
+//
+// The transcript_hash is broadcast at the start of Round-2 and is the
+// FIPS-204-style mu binder for the rest of the round (LowNormHash takes
+// it as input).
+//
+// Constant-time obligations:
+//   - The absorb loop touches the public inputs A, b, D, sid, T --
+//     the only secret on this path is K_dom (the production hash
+//     suite's domain-separation key, which is a constant byte string
+//     baked into the binary, not a per-party secret).
+//   - No secret-dependent branching or memory access.
+
+require "corona_params.jinc"
+
+// cSHAKE256 absorb prelude with the Corona-V1 customization string.
+// State layout: 25 u64 words (Keccak state).
+inline
+fn cshake256_absorb_prelude_corona_v1(
+    reg ptr u64[25] state)
+    -> reg ptr u64[25], reg u64
+{
+    reg u64 offset;
+    // Initialize state to zero.
+    reg u64 i;
+    ?{}, i = #set0_64();
+    while (i < 25) {
+        state[(int)i] = 0;
+        i += 1;
+    }
+    // Absorb cSHAKE customization string: "CORONA-TRANSCRIPT-V1" (20 bytes)
+    // padded per cSHAKE encoding rules.
+    // Offset position after absorbing the customization prelude.
+    ?{}, offset = #set0_64();
+    offset = 24; // placeholder; concrete value determined by cSHAKE pad
+    return state, offset;
+}
+
+// Absorb a single byte into the state, updating offset.
+inline
+fn absorb_one_byte(
+    reg ptr u64[25] state,
+    reg u64 offset,
+    reg u8 b)
+    -> reg ptr u64[25], reg u64
+{
+    // Place the byte at offset within the state's byte view.
+    state[:u8 offset] = b;
+    offset += 1;
+    // Rate boundary check (1088 bits = 136 bytes for SHAKE256).
+    // If offset hits the rate, apply Keccak-f.
+    if (offset == 136) {
+        // state = #keccak_f1600(state);  // placeholder; libjade kernel
+        ?{}, offset = #set0_64();
+    }
+    return state, offset;
+}
+
+// Absorb a 16-byte array.
+inline
+fn absorb_array16(
+    reg ptr u64[25] state,
+    reg u64 offset,
+    reg ptr u8[16] data)
+    -> reg ptr u64[25], reg u64
+{
+    reg u64 i;
+    reg u8 b;
+    ?{}, i = #set0_64();
+    while (i < 16) {
+        b = data[(int)i];
+        state, offset = absorb_one_byte(state, offset, b);
+        i += 1;
+    }
+    return state, offset;
+}
+
+// Absorb a 32-byte array.
+inline
+fn absorb_array32(
+    reg ptr u64[25] state,
+    reg u64 offset,
+    reg ptr u8[32] data)
+    -> reg ptr u64[25], reg u64
+{
+    reg u64 i;
+    reg u8 b;
+    ?{}, i = #set0_64();
+    while (i < 32) {
+        b = data[(int)i];
+        state, offset = absorb_one_byte(state, offset, b);
+        i += 1;
+    }
+    return state, offset;
+}
+
+// Absorb a 64-byte array.
+inline
+fn absorb_array64(
+    reg ptr u64[25] state,
+    reg u64 offset,
+    reg ptr u8[64] data)
+    -> reg ptr u64[25], reg u64
+{
+    reg u64 i;
+    reg u8 b;
+    ?{}, i = #set0_64();
+    while (i < 64) {
+        b = data[(int)i];
+        state, offset = absorb_one_byte(state, offset, b);
+        i += 1;
+    }
+    return state, offset;
+}
+
+// Absorb a u32 in big-endian.
+inline
+fn absorb_u32_be(
+    reg ptr u64[25] state,
+    reg u64 offset,
+    reg u32 v)
+    -> reg ptr u64[25], reg u64
+{
+    reg u8 b;
+    b = (8u)((v >> 24) & 0xFF);
+    state, offset = absorb_one_byte(state, offset, b);
+    b = (8u)((v >> 16) & 0xFF);
+    state, offset = absorb_one_byte(state, offset, b);
+    b = (8u)((v >>  8) & 0xFF);
+    state, offset = absorb_one_byte(state, offset, b);
+    b = (8u)((v >>  0) & 0xFF);
+    state, offset = absorb_one_byte(state, offset, b);
+    return state, offset;
+}
+
+// Finalize cSHAKE absorb (apply padding + final Keccak-f).
+inline
+fn cshake256_finalize(
+    reg ptr u64[25] state,
+    reg u64 offset)
+    -> reg ptr u64[25]
+{
+    // Append cSHAKE delimiter (0x1F) + padding.
+    state[:u8 offset] = 0x1F;
+    // Place 0x80 at the rate boundary (offset 135 for SHAKE256).
+    state[:u8 135] = 0x80;
+    // state = #keccak_f1600(state);  // placeholder; libjade kernel
+    return state;
+}

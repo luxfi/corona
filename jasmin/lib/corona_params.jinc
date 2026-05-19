@@ -1,0 +1,56 @@
+// Corona parameter set -- mirrors luxfi/corona/sign/config.go.
+//
+// Used by all Corona Jasmin sources (rlwe/, threshold/, lib/).
+// Constants are PUBLIC; no #public-marker needed for compile-time
+// values.
+
+// -----------------------------------------------------------------------------
+// Ring + modulus
+// -----------------------------------------------------------------------------
+param int CORONA_LOGN     = 8;
+param int CORONA_N_POLY   = 256;       // ring degree = 2^LogN
+param int CORONA_Q        = 0x1000000004A01;  // 48-bit NTT-friendly prime
+
+// Rounding rings.
+param int CORONA_Q_XI     = 0x40000;
+param int CORONA_Q_NU     = 0x80000;
+param int CORONA_XI       = 30;
+param int CORONA_NU       = 29;
+
+// Threshold structure.
+param int CORONA_M_DIM    = 8;          // matrix rows (b dimension)
+param int CORONA_N_DIM    = 7;          // matrix cols (sk_share dimension)
+param int CORONA_DBAR     = 48;         // R matrix width
+param int CORONA_KAPPA    = 23;         // sample-in-ball Hamming weight
+
+// Keys + randomness.
+param int CORONA_KEY_SIZE = 32;
+param int CORONA_TAG_SIZE = 32;
+
+// -----------------------------------------------------------------------------
+// Wire-format constants
+// -----------------------------------------------------------------------------
+
+// Per-poly coefficient packing: 8 bytes per uint64 coefficient.
+param int CORONA_POLY_BYTES   = 256 * 8;     // 2048 bytes per poly
+
+// vec_N (sk_share, z) bytes.
+param int CORONA_VEC_N_BYTES  = 7 * 2048;    // 14336 bytes
+
+// vec_M (b vector) bytes.
+param int CORONA_VEC_M_BYTES  = 8 * 2048;    // 16384 bytes
+
+// Round-1 D matrix (M x (Dbar+1) polys) bytes.
+param int CORONA_D_BYTES      = 8 * 49 * 2048; // 802816 bytes
+
+// Round-1 commit bytes per party = D_bytes + per-peer-MAC region.
+// MAC region: up to N parties * 32 bytes each.
+param int CORONA_R1_MAC_REGION = 64 * 32;    // 2048 bytes (over-provisioned)
+param int CORONA_R1_COMMIT_BYTES = CORONA_D_BYTES + CORONA_R1_MAC_REGION;
+
+// Round-2 z share bytes per party.
+param int CORONA_R2_Z_BYTES   = CORONA_VEC_N_BYTES;
+
+// Signature bytes (variable; per-instance length).
+// Upper bound captured at the wrapper layer.
+param int CORONA_SIG_BYTES_MAX = 35000;
