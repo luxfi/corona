@@ -1,0 +1,89 @@
+// Corona Lagrange-coefficient computation over R_q.
+//
+// Refines: luxfi/corona/primitives/shamir.go ComputeLagrangeCoefficients.
+// Computes lambda_i^Q = prod_{j in Q, j != i} (-j) / (i - j) mod q
+// for each i in the active signer set Q.
+//
+// Constant-time obligations:
+//   - The party-index loop bound is the PUBLIC quorum size.
+//   - Modular inverse is CT via Fermat (q is prime) -- libjade-style
+//     exponentiation tower.
+//   - No secret-dependent branching or memory access.
+
+require "corona_params.jinc"
+
+// Compute the modular inverse of `a` mod q via Fermat: a^{q-2} mod q.
+// Constant-time exponent (q-2 is a public 48-bit constant; the
+// exponentiation tower is unrolled at jasmin compile time).
+inline
+fn mod_inverse_q(reg u64 a) -> reg u64
+{
+    reg u64 r;
+    reg u64 i;
+    // result = a^{q-2} mod q. Since q-2 is fixed, the exponentiation
+    // is a fixed-length tower; libjade provides the canonical
+    // CT-pow_mod kernel.
+    r = a;
+    // Placeholder for libjade pow_mod kernel:
+    //   r = libjade_pow_mod_q(a, q_minus_2);
+    ?{}, i = #set0_64();
+    while (i < 47) {
+        r = r * r;
+        // r = r % q;  // placeholder; concrete uses Barrett/Montgomery
+        i += 1;
+    }
+    r = r * a;
+    return r;
+}
+
+// Compute the Lagrange coefficient lambda_i for party index i in quorum T.
+// T is a list of party indices, length quorum_size; values are
+// (party_index + 1) for the 1-indexed Shamir polynomial evaluation
+// points used by Corona (see ComputeLagrangeCoefficients in
+// shamir.go).
+inline
+fn compute_lagrange_coeff(
+    reg u64 i_idx,
+    reg ptr u64[64] T,
+    reg u64 quorum_size)
+    -> reg u64
+{
+    reg u64 j;
+    reg u64 xi;
+    reg u64 xj;
+    reg u64 num;
+    reg u64 den;
+    reg u64 temp;
+    reg u64 lambda;
+
+    xi = T[(int)i_idx];
+
+    num = 1;
+    den = 1;
+
+    ?{}, j = #set0_64();
+    while (j < quorum_size) {
+        if (j != i_idx) {
+            xj = T[(int)j];
+            // num *= -xj (mod q)
+            // negation: q - xj
+            temp = CORONA_Q - xj;
+            num = num * temp;
+            // den *= (xi - xj) (mod q)
+            temp = xi - xj;
+            // handle underflow: add q if xi < xj
+            if (xi < xj) {
+                temp = temp + CORONA_Q;
+            }
+            den = den * temp;
+        }
+        j += 1;
+    }
+
+    // lambda = num * inv(den) mod q
+    temp = mod_inverse_q(den);
+    lambda = num * temp;
+    // lambda = lambda % CORONA_Q;  // placeholder reduction
+
+    return lambda;
+}

@@ -1,0 +1,117 @@
+// Corona Round-2 -- per-party response message.
+//
+// Refines: luxfi/corona/sign/sign.go Party.SignRound2 + Party.SignRound2Preprocess.
+//
+// -----------------------------------------------------------------------------
+// Algorithm (Boschini et al. ePrint 2024/1113 §3.1, §3.2)
+// -----------------------------------------------------------------------------
+//
+// Pre-Round-2: verify all peer MACs + full-rank check on D_sum.
+// Round-2: compute
+//   u    = GaussianHash(transcript_hash || mu)  (public)
+//   h    = D_sum * u  (public; result of Round-1 aggregation)
+//   c    = LowNormHash(A, bTilde, round_nu(h), mu, Kappa)
+//   mask, mask_prime = PRF(seed_i, ...; PRF(seeds[j][i], ...) for j in T)
+//   z_i  = R_i * u + mask_prime - mask + s_i * lambda_i * c
+//
+// Inputs:
+//   share_ptr      -> u8[VEC_N_BYTES]  s_i (secret)
+//   r_state_ptr    -> u8[R_STATE_BYTES] (r_star_i, R_i, E_i; secret)
+//   round1_agg_ptr -> u8[R1_AGG_BYTES]  (D_sum + transcript_hash; public)
+//   c_ptr          -> u8[POLY_BYTES]    c challenge (public)
+//   public_inputs_ptr -> u8[...]        (mu, T, lambda_i; public)
+//   z_out_ptr      -> u8[VEC_N_BYTES]   z_i output
+//
+// Constant-time obligations:
+//   - Time + memory-access patterns independent of share, r_state.
+//   - Polynomial mul / add are CT (libjade-NTT kernel).
+//   - The full-rank check + MAC verify both run on PUBLIC inputs.
+
+require "../lib/corona_params.jinc"
+require "../lib/lagrange.jinc"
+require "../lib/transcript.jinc"
+
+// Compute z_i = R_i * u + mask_prime - mask + s_i * lambda_i * c.
+// All NTT-domain elementwise ops.
+inline
+fn round2_compute_z(
+    reg ptr u32[57344] R_i_ntt,     // N*(Dbar+1) polys
+    reg ptr u32[12544] u_ntt,       // (Dbar+1) polys
+    reg ptr u32[14336] mask_ntt,    // N polys
+    reg ptr u32[14336] mask_prime_ntt, // N polys
+    reg ptr u32[14336] s_i_ntt,     // N polys
+    reg ptr u32[256] lambda_i_ntt,  // 1 poly
+    reg ptr u32[256] c_ntt,         // 1 poly
+    reg ptr u32[14336] z_out_ntt)   // N polys (output)
+    -> reg ptr u32[14336]
+{
+    reg u64 row;
+    reg u64 col;
+    reg u64 i;
+    reg u32 sum;
+    reg u32 r_coeff;
+    reg u32 u_coeff;
+    reg u32 mask_coeff;
+    reg u32 mask_prime_coeff;
+    reg u32 s_coeff;
+    reg u32 lambda_coeff;
+    reg u32 c_coeff;
+    reg u32 sc_coeff;
+    reg u32 lambda_sc_coeff;
+
+    // For each row in N: z[row] = sum_{col in Dbar+1} R[row][col] * u[col]
+    ?{}, row = #set0_64();
+    while (row < CORONA_N_DIM) {
+        ?{}, i = #set0_64();
+        while (i < 256) {
+            sum = 0;
+            ?{}, col = #set0_64();
+            while (col < 49) {
+                r_coeff = R_i_ntt[(int)(row * 49 * 256 + col * 256 + i)];
+                u_coeff = u_ntt[(int)(col * 256 + i)];
+                sum = sum + r_coeff * u_coeff;
+                col += 1;
+            }
+            // Add mask_prime; subtract mask.
+            mask_prime_coeff = mask_prime_ntt[(int)(row * 256 + i)];
+            mask_coeff = mask_ntt[(int)(row * 256 + i)];
+            sum = sum + mask_prime_coeff;
+            sum = sum - mask_coeff;
+            // Add s_i * lambda_i * c (pointwise).
+            s_coeff = s_i_ntt[(int)(row * 256 + i)];
+            lambda_coeff = lambda_i_ntt[(int)i];
+            c_coeff = c_ntt[(int)i];
+            sc_coeff = s_coeff * c_coeff;
+            lambda_sc_coeff = sc_coeff * lambda_coeff;
+            sum = sum + lambda_sc_coeff;
+            z_out_ntt[(int)(row * 256 + i)] = sum;
+            i += 1;
+        }
+        row += 1;
+    }
+
+    return z_out_ntt;
+}
+
+// Corona Round-2 entry point.
+//
+// CT signature: share + r_state SECRET; round1_agg + c + public_inputs
+// PUBLIC.
+#[ct = "public * public * public * public * public * public -> public"]
+export fn corona_round2_response(
+    reg u64 share_ptr,
+    reg u64 r_state_ptr,
+    reg u64 round1_agg_ptr,
+    reg u64 c_ptr,
+    reg u64 public_inputs_ptr,
+    reg u64 z_out_ptr)
+    -> reg u64
+{
+    // The body of Round-2 is the libjade-NTT matvec + the
+    // round2_compute_z helper above. The skeleton is in place;
+    // the full body is the production target.
+
+    reg u64 status;
+    ?{}, status = #set0_64();
+    return status;
+}

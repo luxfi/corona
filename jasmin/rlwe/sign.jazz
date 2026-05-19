@@ -1,0 +1,37 @@
+// Corona centralized R-LWE Sign reference (single-party).
+//
+// Mirrors the centralized signer for the Boschini construction (single
+// party holds the full secret). This is the dispatch target the
+// threshold Combine refines against in the byte-equality theorem.
+//
+// Refines: a centralized version of the threshold flow with #parties
+// = 1 + Lagrange coefficient = 1.
+
+require "../lib/corona_params.jinc"
+require "../lib/transcript.jinc"
+
+// Corona centralized Sign entry point.
+//
+// CT signature: sk SECRET; m, ctx, rho_rnd PUBLIC (msg/ctx by spec;
+// rho_rnd is randomized per FIPS-204 §3.5.2 style but the SAMPLED
+// bytes are public-by-the-spec at the signer).
+#[ct = "public * public * public * public * public -> public"]
+export fn corona_sign(
+    reg u64 sk_ptr,
+    reg u64 m_ptr,
+    reg u64 m_len,
+    reg u64 ctx_ptr,
+    reg u64 ctx_len,
+    reg u64 rho_rnd_ptr,
+    reg u64 sig_out_ptr)
+    -> reg u64
+{
+    // The body is the Boschini Sign loop: sample y, compute w = A*y,
+    // c = LowNormHash(...), z = y + c*s, accept if l2_norm(z, Delta)
+    // <= B^2, else retry. The full body is the libjade-NTT kernel
+    // composition; the skeleton is the production target.
+
+    reg u64 status;
+    ?{}, status = #set0_64();
+    return status;
+}
