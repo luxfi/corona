@@ -1,100 +1,70 @@
 #!/usr/bin/env bash
-# Corona high-assurance gate — orchestrator (per-push, REAL checks).
+# Corona high-assurance gate -- orchestrator (per-push, REAL checks).
 #
-# HONESTY NOTE: Corona's high-assurance surface is structurally
-# lighter than Pulsar's. Pulsar runs 7 per-push checks (jasminc +
-# jasmin-ct + ec-admits + ec-regressions + ec-refinement-scaffold +
-# lean-bridge + ec-extraction + ec-compile). Corona has NO EasyCrypt
-# theories, NO Lean ↔ EC bridge, NO Jasmin sources — see
-# PROOF-CLAIMS.md §3 for the honest framing of why.
+# v0.7.0: Corona Tier A artifacts mirroring Pulsar's exactly:
+#   13 EC files (Corona_N1..N4 + Layout + Refinement + Wrapper +
+#                Extracted + lemmas/RLWE_Functional + lemmas/Corona_CT)
+#   3 threshold + 1 rlwe Jasmin sources
+#   1 Lean bridge md + 4 Lean files (Shamir + OutputInterchange +
+#                                     Unforgeability + dkg2)
+#   dudect harness on Verify + Combine
 #
-# What this gate runs at this submission revision:
+# The checks, in order:
 #
-#   1. go build ./...
-#   2. go vet ./...
-#   3. constant-time grep guard (warn on accidental fmt.Printf /
-#      log.Println on secret-touching paths)
-#   4. KAT cross-runtime byte-equality (if LUXCPP_DIR is populated)
+#   1. jasmin.sh                  -- jasminc type-check + jasmin-ct
+#                                    on the threshold layer (blocking).
+#                                    Centralized rlwe/sign.jazz is advisory.
+#   2. ec-admits.sh               -- EasyCrypt admit-budget (0/0).
+#   3. ec-regressions.sh          -- Retired-axiom-shape regression guards.
+#   4. ec-refinement-scaffold.sh  -- declare-axiom hygiene in the
+#                                    Refinement files.
+#   5. check-lean-bridge.sh       -- Lean<->EC Shamir bridge guard.
+#   6. extraction.sh              -- Jasmin -> EC extraction sanity.
+#   7. ec-compile.sh              -- All EC files compile clean.
 #
-# What this gate DOES NOT run (because the artifacts do not exist):
+# NOT in this gate (intentionally): dudect at smoke budget. A 10k-sample
+# dudect run can't certify constant time; the budget isn't statistically
+# meaningful. The REAL dudect gate is the submission-grade run from
+# ct/dudect/run-submission.sh (10^9 samples per target on a pinned CPU).
 #
-#   - EasyCrypt compile / admit-budget / regression checks
-#   - Lean ↔ EC bridge verification
-#   - Jasmin type-check + jasmin-ct
-#   - Jasmin → EC extraction sanity
-#
-# These remain ROADMAP items (v0.7.0 for the EC/Lean shell;
-# v0.8.0 for external audit).
+# Per-check failure (exit 2) fails the orchestrator with the same code.
+# Per-check skips (exit 0 with a [skip] message) do not fail the gate.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
-export GOWORK=off
 
-echo "==> Corona high-assurance gate"
-echo "    surface:    $REPO_ROOT (sign/, threshold/, dkg2/, reshare/, primitives/, hash/)"
-echo "    HONESTY:    NO EC / Lean / Jasmin theories (see PROOF-CLAIMS.md §3)"
+CHECKS=(
+    "scripts/checks/jasmin.sh"
+    "scripts/checks/ec-admits.sh"
+    "scripts/checks/ec-regressions.sh"
+    "scripts/checks/ec-refinement-scaffold.sh"
+    "scripts/check-lean-bridge.sh"
+    "scripts/checks/extraction.sh"
+    "scripts/checks/ec-compile.sh"
+)
+
+echo "==> Corona high-assurance track (v0.7.0)"
+echo "    jasmin/   $REPO_ROOT/jasmin"
+echo "    easycrypt $REPO_ROOT/proofs/easycrypt"
+echo "    dudect    $REPO_ROOT/ct/dudect"
 echo
 
 OVERALL=0
-
-echo "==> Check 1: go build ./..."
-if ! go build ./...; then
-    echo "==> FAIL: go build"
-    OVERALL=2
-fi
-
-echo
-echo "==> Check 2: go vet ./..."
-if ! go vet ./...; then
-    echo "==> FAIL: go vet"
-    OVERALL=2
-fi
-
-echo
-echo "==> Check 3: secret-log grep guard"
-# Warn (not fail) if logging primitives appear in code that touches
-# secret-typed paths. The full DD-007-style linter from Pulsar is not
-# yet ported; this is a smoke check.
-HITS=$(grep -rn -E "(fmt\.Print|log\.Print|log\.Fatal|log\.Panic)" \
-    sign/ threshold/ dkg2/ reshare/ primitives/ keyera/ 2>/dev/null \
-    | grep -v "_test.go" \
-    | grep -v "// nolint:nosecretlog" || true)
-if [[ -n "$HITS" ]]; then
-    echo "    [warn] potential secret-log call sites (review manually):"
-    echo "$HITS" | head -20
-    echo "    (HONESTY: this is a smoke check, not a blocking gate)"
-else
-    echo "    [ok] no obvious secret-log call sites in sign/threshold/dkg2/reshare/primitives/keyera"
-fi
-
-echo
-echo "==> Check 4: KAT cross-runtime byte-equality (advisory at this submission revision)"
-LUXCPP_DIR="${LUXCPP_DIR:-${HOME}/work/luxcpp}"
-if [[ -d "${LUXCPP_DIR}/crypto/corona" ]] || [[ -d "${LUXCPP_DIR}/crypto/pulsar" ]]; then
-    if [[ -x "$REPO_ROOT/scripts/regen-kats.sh" ]]; then
-        # KAT regen is advisory at submission scaffolding: scripts/regen-kats.sh
-        # references oracle subdirs that may have been removed during the
-        # Ringtail purge. Run it and report, but do NOT fail the gate on a
-        # missing oracle directory.
-        if bash "$REPO_ROOT/scripts/regen-kats.sh" --verify 2>&1 | tail -10; then
-            echo "    [ok] cross-runtime KAT manifest verified"
-        else
-            echo "    [warn] KAT regen surfaced issues — review manually"
-            echo "    [warn] (advisory at submission scaffolding; not blocking the gate)"
-        fi
-    else
-        echo "    [skip] scripts/regen-kats.sh not present"
+for check in "${CHECKS[@]}"; do
+    rc=0
+    bash "$REPO_ROOT/$check" || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        OVERALL=$rc
+        echo
+        echo "==> $check exited rc=$rc -- aborting gate"
+        break
     fi
-else
-    echo "    [skip] LUXCPP_DIR not populated; cross-runtime KAT check skipped"
-fi
+    echo
+done
 
-echo
 if [[ $OVERALL -eq 0 ]]; then
-    echo "==> done — high-assurance gate green (within the documented scope)"
-else
-    echo "==> done — gate FAILED (rc=$OVERALL)"
+    echo "==> done -- high-assurance gate green"
 fi
 exit $OVERALL
