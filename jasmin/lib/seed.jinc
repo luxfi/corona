@@ -1,0 +1,71 @@
+// Corona per-party PRNG seed derivation.
+//
+// Refines: luxfi/corona/primitives/hash.go PRNGKeyForRound.
+// Per CRIT-1 fix (sign.go line 116-122), the per-party seed mixes
+// the secret share with the session id:
+//   seed_i = KMAC256(sk_share_i, "CORONA-SIGN-PRNG-V1", sid_be32)
+// so multi-Sign calls on the same sk_share don't reuse R / E / D.
+
+require "corona_params.jinc"
+
+// Derive the per-round PRNG seed.
+//
+// Inputs:
+//   sk_share_ptr -> u8[VEC_N_BYTES]  (SECRET)
+//   sid          -> u32              (PUBLIC; per CRIT-1, this is
+//                                     the per-block sid = block height)
+// Output:
+//   seed_out     -> u8[KEY_SIZE]     (SECRET; CT-derived from sk_share)
+inline
+fn derive_per_round_seed(
+    reg u64 sk_share_ptr,
+    reg u32 sid,
+    reg ptr u8[32] seed_out)
+    -> reg ptr u8[32]
+{
+    stack u64[25] state;
+    reg ptr u64[25] state_rsp;
+    reg u64 i;
+    reg u8 b;
+
+    state_rsp = state;
+
+    // Initialize.
+    ?{}, i = #set0_64();
+    while (i < 25) {
+        state_rsp[(int)i] = 0;
+        i += 1;
+    }
+
+    // Absorb cSHAKE customization "CORONA-SIGN-PRNG-V1" (placeholder).
+
+    // Absorb sk_share bytes (VEC_N_BYTES = 14336).
+    ?{}, i = #set0_64();
+    while (i < CORONA_VEC_N_BYTES) {
+        b = [:u8 sk_share_ptr + i];
+        state_rsp[:u8 i] = b;
+        // Real Jasmin would interleave keccak-f calls at the rate
+        // boundary; this is a structural sketch.
+        i += 1;
+    }
+
+    // Absorb sid as 4 big-endian bytes.
+    b = (8u)((sid >> 24) & 0xFF);
+    state_rsp[:u8 0] = b;
+    b = (8u)((sid >> 16) & 0xFF);
+    state_rsp[:u8 1] = b;
+    b = (8u)((sid >>  8) & 0xFF);
+    state_rsp[:u8 2] = b;
+    b = (8u)((sid >>  0) & 0xFF);
+    state_rsp[:u8 3] = b;
+
+    // Finalize + squeeze 32 bytes.
+    ?{}, i = #set0_64();
+    while (i < 32) {
+        b = state_rsp[:u8 i];
+        seed_out[(int)i] = b;
+        i += 1;
+    }
+
+    return seed_out;
+}

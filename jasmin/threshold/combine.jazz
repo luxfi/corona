@@ -1,0 +1,148 @@
+// Corona Combine -- aggregate z_i shares into the final signature.
+//
+// Refines: luxfi/corona/sign/sign.go Party.SignFinalize.
+//
+// -----------------------------------------------------------------------------
+// Algorithm (Boschini et al. ePrint 2024/1113 §3.2)
+// -----------------------------------------------------------------------------
+//
+// Inputs:
+//   group_pk_ptr -> u8[GROUP_PK_BYTES]   (A, bTilde) public.
+//   z_shares_ptr -> u8[N_parties * VEC_N_BYTES]  z_i list, public.
+//   c_ptr        -> u8[POLY_BYTES]        c challenge, public.
+//   mu_ptr       -> u8[MU_BYTES]          message binder, public.
+//   sig_out_ptr  -> u8[CORONA_SIG_BYTES_MAX]
+//
+// Outputs:
+//   sig_out: packed (c || z_sum || Delta) signature bytes.
+//
+// Constant-time obligations:
+//   - No secret inputs (every input is broadcast on the wire). Combine
+//     is trivially CT.
+//   - Sanity: any CT requirement is on the public-population variant.
+
+require "../lib/corona_params.jinc"
+
+// Sum the z_i shares (elementwise add over R_q^N).
+inline
+fn combine_aggregate_z(
+    reg u64 z_shares_ptr,
+    reg u64 num_signers,
+    reg ptr u32[14336] z_sum_out)
+    -> reg ptr u32[14336]
+{
+    reg u64 i;
+    reg u64 j;
+    reg u32 coeff;
+    reg u32 acc;
+
+    // Initialize z_sum to zero.
+    ?{}, i = #set0_64();
+    while (i < CORONA_N_DIM * 256) {
+        z_sum_out[(int)i] = 0;
+        i += 1;
+    }
+
+    // Sum across all signers.
+    ?{}, j = #set0_64();
+    while (j < num_signers) {
+        ?{}, i = #set0_64();
+        while (i < CORONA_N_DIM * 256) {
+            // z_shares[j][i] is at offset j*VEC_N_BYTES + i*4 (u32 LE).
+            // The full byte-load is the libjade unpack kernel; this is
+            // a structural sketch.
+            acc = z_sum_out[(int)i];
+            // coeff = [:u32 z_shares_ptr + j * VEC_N_BYTES + i*4];
+            coeff = 0;  // placeholder
+            acc = acc + coeff;
+            z_sum_out[(int)i] = acc;
+            i += 1;
+        }
+        j += 1;
+    }
+
+    return z_sum_out;
+}
+
+// Compute Delta = h - round_nu(A * z_sum - bTilde * c).
+inline
+fn combine_compute_delta(
+    reg u64 group_pk_ptr,
+    reg ptr u32[14336] z_sum,
+    reg u64 c_ptr,
+    reg ptr u32[16384] delta_out)
+    -> reg ptr u32[16384]
+{
+    // Compute Az = A * z_sum.
+    // Compute bc = b * c (using b = restore_xi(bTilde)).
+    // Az_bc = Az - bc.
+    // Delta = round_nu(Az_bc).
+    //
+    // This is the libjade-NTT matvec + restore + round kernel chain.
+    // The skeleton is in place; the full body is the production target.
+
+    reg u64 i;
+    ?{}, i = #set0_64();
+    while (i < 16384) {
+        delta_out[(int)i] = 0;
+        i += 1;
+    }
+    return delta_out;
+}
+
+// Corona Combine entry point.
+//
+// CT signature: all inputs PUBLIC. The function is trivially CT.
+#[ct = "public * public * public * public * public * public -> public"]
+export fn corona_combine(
+    reg u64 group_pk_ptr,
+    reg u64 z_shares_ptr,
+    reg u64 num_signers,
+    reg u64 c_ptr,
+    reg u64 mu_ptr,
+    reg u64 sig_out_ptr)
+    -> reg u64
+{
+    stack u32[14336] z_sum;
+    stack u32[16384] delta;
+    reg ptr u32[14336] z_sum_rsp;
+    reg ptr u32[16384] delta_rsp;
+    reg u64 i;
+    reg u8 c;
+    reg u32 c32;
+
+    // ---- 1. Aggregate z_i -> z_sum ----
+    z_sum_rsp = z_sum;
+    z_sum_rsp = combine_aggregate_z(z_shares_ptr, num_signers, z_sum_rsp);
+    z_sum = z_sum_rsp;
+
+    // ---- 2. Compute Delta ----
+    delta_rsp = delta;
+    delta_rsp = combine_compute_delta(group_pk_ptr, z_sum_rsp, c_ptr, delta_rsp);
+    delta = delta_rsp;
+
+    // ---- 3. Pack (c || z_sum || Delta) into sig_out ----
+    //
+    // c: POLY_BYTES (read from c_ptr).
+    ?{}, i = #set0_64();
+    while (i < CORONA_POLY_BYTES) {
+        c = [:u8 c_ptr + i];
+        [:u8 sig_out_ptr + i] = c;
+        i += 1;
+    }
+    // z_sum: VEC_N_BYTES (u32 coeffs LE-packed).
+    ?{}, i = #set0_64();
+    while (i < CORONA_N_DIM * 256) {
+        c32 = z_sum[(int)i];
+        [:u8 sig_out_ptr + CORONA_POLY_BYTES + i*4 + 0] = (8u)(c32 >>  0);
+        [:u8 sig_out_ptr + CORONA_POLY_BYTES + i*4 + 1] = (8u)(c32 >>  8);
+        [:u8 sig_out_ptr + CORONA_POLY_BYTES + i*4 + 2] = (8u)(c32 >> 16);
+        [:u8 sig_out_ptr + CORONA_POLY_BYTES + i*4 + 3] = (8u)(c32 >> 24);
+        i += 1;
+    }
+    // Delta: VEC_M_BYTES (similar packing).
+
+    reg u64 status;
+    ?{}, status = #set0_64();
+    return status;
+}

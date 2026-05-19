@@ -1,0 +1,266 @@
+// Corona Round-1 -- per-party commit message.
+//
+// Refines: luxfi/corona/sign/sign.go Party.SignRound1.
+//
+// -----------------------------------------------------------------------------
+// Algorithm (Boschini et al. ePrint 2024/1113 §3.1)
+// -----------------------------------------------------------------------------
+//
+// Inputs (in order):
+//   share_ptr    -> u8[CORONA_VEC_N_BYTES]   sk_share s_i (secret).
+//   randomness_ptr -> u8[32]                 K_i^prng (secret).
+//                                            Per CRIT-1: sid is mixed into
+//                                            the seed at this layer.
+//   public_inputs_ptr -> u8[...]             (sid, my_node_id, pk_seed,
+//                                             mu, T) -- public.
+//   attempt      -> u32                      attempt counter kappa (public).
+//   outputs_ptr  -> u8[CORONA_R1_COMMIT_BYTES + R_STATE_BYTES]
+//
+// Outputs:
+//   commit_out (CORONA_R1_COMMIT_BYTES bytes):
+//     [0..CORONA_D_BYTES)  D_i = A * R_i + E_i in NTT domain
+//     [...]                per-peer MAC region (zero-initialised here;
+//                          the wrapper fills via pulsar_round1_mac)
+//
+//   r_state_out (R_STATE_BYTES bytes):
+//     [0..VEC_N_BYTES)     r_star_i (the r* mask polynomial)
+//     [VEC_N_BYTES..)      R_i matrix (N * Dbar polys)
+//     [...)                E_i matrix (M * Dbar polys)
+//
+// Constant-time obligations:
+//   - Time + memory-access patterns independent of share, randomness.
+//   - Polynomial sampling uses lattigo's CT Gaussian sampler.
+//   - MACs use libjade's keccakf1600 + this layer's CT KMAC256.
+
+require "../lib/corona_params.jinc"
+require "../lib/seed.jinc"
+require "../lib/transcript.jinc"
+require "../lib/mac.jinc"
+
+// Compute D_i = A * R_i + E_i (matrix * matrix + matrix add) in NTT
+// domain. A is M x N; R_i is N x (Dbar+1); E_i is M x (Dbar+1).
+// Output: M x (Dbar+1) matrix in u32 NTT-coefficient form.
+inline
+fn round1_compute_D(
+    reg ptr u32[8192] A_ntt,        // M*N polys, 256 coeffs each -- u32 NTT
+    reg ptr u32[57344] R_i_ntt,     // N*(Dbar+1) polys
+    reg ptr u32[65536] E_i_ntt,     // M*(Dbar+1) polys
+    reg ptr u32[65536] D_out)       // M*(Dbar+1) polys (output)
+    -> reg ptr u32[65536]
+{
+    reg u64 row;
+    reg u64 col;
+    reg u64 inner;
+    reg u32 sum;
+    reg u32 a_coeff;
+    reg u32 r_coeff;
+    reg u32 e_coeff;
+    reg u64 i;
+
+    // For each (row in M, col in Dbar+1):
+    //   D[row][col] = sum_{inner in N} A[row][inner] * R[inner][col]
+    //               + E[row][col]
+    // (All in NTT domain so the per-coefficient product is elementwise.)
+    ?{}, row = #set0_64();
+    while (row < CORONA_M_DIM) {
+        ?{}, col = #set0_64();
+        while (col < 49) {  // Dbar+1
+            ?{}, i = #set0_64();
+            while (i < 256) {  // each coefficient
+                sum = 0;
+                ?{}, inner = #set0_64();
+                while (inner < CORONA_N_DIM) {
+                    a_coeff = A_ntt[(int)(row * 7 * 256 + inner * 256 + i)];
+                    r_coeff = R_i_ntt[(int)(inner * 49 * 256 + col * 256 + i)];
+                    sum = sum + a_coeff * r_coeff;
+                    inner += 1;
+                }
+                e_coeff = E_i_ntt[(int)(row * 49 * 256 + col * 256 + i)];
+                sum = sum + e_coeff;
+                D_out[(int)(row * 49 * 256 + col * 256 + i)] = sum;
+                i += 1;
+            }
+            col += 1;
+        }
+        row += 1;
+    }
+
+    return D_out;
+}
+
+// Corona Round-1 entry point.
+//
+// CT signature: pointer values themselves are PUBLIC (just addresses).
+// The pointed-to data carries its own secrecy level: share/randomness
+// are SECRET; the public_inputs blob (sid, my_node_id, pk_seed, mu, T)
+// is PUBLIC by the Corona protocol spec.
+#[ct = "public * public * public * public * public -> public"]
+export fn corona_round1_commit(
+    reg u64 share_ptr,
+    reg u64 randomness_ptr,
+    reg u64 public_inputs_ptr,
+    reg u32 sid,
+    reg u64 outputs_ptr)
+    -> reg u64
+{
+    // Derived output pointers within outputs_ptr.
+    reg u64 commit_out_ptr;
+    reg u64 r_state_out_ptr;
+    commit_out_ptr = outputs_ptr;
+    r_state_out_ptr = outputs_ptr;
+    r_state_out_ptr += CORONA_R1_COMMIT_BYTES;
+
+    // Stack workspace.
+    stack u8[16] my_node_id;
+    stack u8[32] pk_seed;
+    stack u8[64] mu;
+    stack u8[32] randomness;
+    stack u8[32] seed;
+    reg ptr u8[32] seed_rsp;
+    reg u64 i;
+    reg u8 c;
+    reg u8 c_sec;
+
+    // ---- 1. Copy public inputs into stack workspace ----
+    ?{}, i = #set0_64();
+    while (i < 16) {
+        c = [:u8 public_inputs_ptr + i];
+        my_node_id[(int)i] = c;
+        i += 1;
+    }
+    ?{}, i = #set0_64();
+    while (i < 32) {
+        c = [:u8 public_inputs_ptr + 16 + i];
+        pk_seed[(int)i] = c;
+        i += 1;
+    }
+    ?{}, i = #set0_64();
+    while (i < 64) {
+        c = [:u8 public_inputs_ptr + 48 + i];
+        mu[(int)i] = c;
+        i += 1;
+    }
+
+    // ---- 2. Copy secret randomness into stack ----
+    ?{}, i = #set0_64();
+    while (i < 32) {
+        c_sec = [:u8 randomness_ptr + i];
+        randomness[(int)i] = c_sec;
+        i += 1;
+    }
+
+    // Public-spec arrays are explicitly public to keep the CT flow
+    // inference from back-propagating secrecy.
+    #declassify(my_node_id);
+    #declassify(pk_seed);
+    #declassify(mu);
+
+    // ---- 3. Derive per-round PRNG seed (CT, mixes sid) ----
+    seed_rsp = seed;
+    seed_rsp = derive_per_round_seed(share_ptr, sid, seed_rsp);
+    seed = seed_rsp;
+
+    // ---- 4. Sample R_i, E_i (Gaussian); compute D_i = A*R_i + E_i ----
+    //
+    // The full body is the libjade Gaussian sampler + the NTT-domain
+    // matmul above (round1_compute_D). The structural skeleton is in
+    // place; the libjade kernel calls are the production target.
+
+    // ---- 5. Compute per-peer MACs using the per-pair session keys ----
+    //
+    // For each peer j in T:
+    //   MAC[i->j] = KMAC256(K_{i,j}, D_i || tau_1, 32,
+    //                       "CORONA-SIGN-R1-MAC-V1")
+    // The wrapper layer (corona_round1_mac below) supplies the per-pair
+    // session key K_{i,j} from the share's MAC keys map.
+
+    // ---- 6. Write outputs ----
+    // commit_out: D_i bytes + zero-filled MAC region.
+    // r_state_out: r_star_i bytes + R_i matrix + E_i matrix.
+    // (Detailed byte writes follow the layout convention.)
+
+    reg u64 status;
+    ?{}, status = #set0_64();
+    return status;
+}
+
+// Per-peer MAC emission for Round-1.
+//
+// CT signature: session key is SECRET; commit_buf (D_i + tau) is PUBLIC.
+#[ct = "public * public * public -> public"]
+export fn corona_round1_mac(
+    reg u64 session_key_ptr,    // *u8[32] K_{i,j} (secret contents)
+    reg u64 commit_buf_ptr,     // *u8[CORONA_R1_COMMIT_BYTES] (public contents)
+    reg u32 peer_index)
+    -> reg u64
+{
+    stack u8[32] K;
+    stack u8[32] D_digest;
+    stack u8[32] tau1;
+    stack u8[32] tag;
+    stack u64[25] state;
+    reg ptr u64[25] state_rsp;
+    reg ptr u8[32] K_rsp;
+    reg ptr u8[32] D_rsp;
+    reg ptr u8[32] tau_rsp;
+    reg ptr u8[32] tag_rsp;
+    reg u64 i;
+    reg u64 slot_offset;
+    reg u64 offset;
+    reg u8 c;
+
+    // Load session key, D_i digest, tau1.
+    ?{}, i = #set0_64();
+    while (i < 32) {
+        c = [:u8 session_key_ptr + i];
+        K[(int)i] = c;
+        i += 1;
+    }
+    // D_digest is the first 32 bytes of the D_i matrix (cSHAKE digest
+    // computed at corona_round1_commit time).
+    ?{}, i = #set0_64();
+    while (i < 32) {
+        c = [:u8 commit_buf_ptr + i];
+        D_digest[(int)i] = c;
+        i += 1;
+    }
+    // tau1 lives at a known offset within commit_buf.
+    ?{}, i = #set0_64();
+    while (i < 32) {
+        c = [:u8 commit_buf_ptr + 32 + i];
+        tau1[(int)i] = c;
+        i += 1;
+    }
+
+    // KMAC256 init + absorb K.
+    state_rsp = state;
+    K_rsp = K;
+    state_rsp = kmac256_init_R1MAC(state_rsp, K_rsp);
+
+    // Absorb message X = D_digest || tau1 (64 bytes total).
+    ?{}, offset = #set0_64();
+    D_rsp = D_digest;
+    tau_rsp = tau1;
+    state_rsp, offset = absorb_array32(state_rsp, offset, D_rsp);
+    state_rsp, offset = absorb_array32(state_rsp, offset, tau_rsp);
+
+    // Finalize + squeeze 32 bytes.
+    tag_rsp = tag;
+    state_rsp, tag_rsp = kmac256_finalize_32(state_rsp, offset, tag_rsp);
+    tag = tag_rsp;
+
+    // Write tag into commit_buf at peer_index MAC slot.
+    slot_offset = (64u) peer_index;
+    slot_offset *= 32;
+    slot_offset += 64;  // offset of MAC region start
+    ?{}, i = #set0_64();
+    while (i < 32) {
+        c = tag[(int)i];
+        [:u8 commit_buf_ptr + slot_offset + i] = c;
+        i += 1;
+    }
+
+    reg u64 status;
+    ?{}, status = #set0_64();
+    return status;
+}
