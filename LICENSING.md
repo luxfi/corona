@@ -1,10 +1,22 @@
 # Licensing
 
-This repository is licensed under the **Apache-2.0** (see [LICENSE](LICENSE)). It belongs to the **public** tier of the Lux three-tier IP strategy: anyone may use, fork, or redistribute it, including for commercial purposes, subject to the Apache-2.0 terms.
+This repository is licensed under the **Lux Ecosystem License v1.2**
+(see [LICENSE](LICENSE)). It belongs to the **patent-protected** tier
+of the Lux three-tier IP strategy.
 
-For the canonical Lux IP and licensing strategy, see:
+- Free for **Authorized Networks** (Lux Primary NetID=1, EVM 96369;
+  official testnets/devnets; Descending Chains).
+- Free for **Research Use** (academic, education, evaluation).
+- **Commercial use outside Authorized Networks requires a paid
+  commercial license**.
+
+For the canonical Lux IP and licensing strategy and the precise
+definitions of "Authorized Network", "Descending Chain", and "Research
+Use", see:
 <https://github.com/luxfi/.github/blob/main/profile/README.md>
 
-For commercial inquiries that go beyond the public tier (e.g. private moat acceleration kernels, Eco-tier patent-protected primitives outside Authorized Networks), contact `licensing@lux.network`.
+For commercial licensing inquiries, contact `licensing@lux.network`.
 
-For patent posture specific to the Corona construction (royalty-free grant to FIPS-compatible / NIST-MPTC-submission implementations + defensive termination), see [PATENTS.md](PATENTS.md).
+For patent posture specific to the Corona construction (royalty-free
+grant to NIST-MPTC-submission implementations + defensive termination),
+see [PATENTS.md](PATENTS.md).
