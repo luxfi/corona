@@ -20,6 +20,7 @@ import (
 	"io"
 	"math/big"
 
+	cgpu "github.com/luxfi/corona/gpu"
 	"github.com/luxfi/corona/primitives"
 	"github.com/luxfi/corona/sign"
 	"github.com/luxfi/corona/utils"
@@ -44,12 +45,16 @@ type Params struct {
 }
 
 // NewParams creates ring parameters for DKG.
+//
+// If corona/gpu has been opted into via UseAccelerator(), the main ring
+// is registered with the lattice GPU NTT dispatcher; no-op otherwise.
 func NewParams() (*Params, error) {
 	r, err := ring.NewRing(1<<sign.LogN, []uint64{sign.Q})
 	if err != nil {
 		return nil, err
 	}
 	rXi, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.QXi})
+	cgpu.MaybeRegister(r)
 	return &Params{R: r, RXi: rXi}, nil
 }
 

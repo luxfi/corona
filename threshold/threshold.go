@@ -17,6 +17,7 @@ import (
 	"io"
 	"math/big"
 
+	"github.com/luxfi/corona/gpu"
 	"github.com/luxfi/corona/primitives"
 	"github.com/luxfi/corona/sign"
 
@@ -42,6 +43,11 @@ type Params struct {
 }
 
 // NewParams creates ring parameters.
+//
+// If corona/gpu has been opted into via UseAccelerator(), each created
+// ring is registered with the lattice/gpu per-SubRing dispatcher so
+// subsequent r.NTT / r.INTT calls inside the 2-round signing protocol
+// transparently route through the GPU. Output bytes are unchanged.
 func NewParams() (*Params, error) {
 	r, err := ring.NewRing(1<<sign.LogN, []uint64{sign.Q})
 	if err != nil {
@@ -50,6 +56,9 @@ func NewParams() (*Params, error) {
 	// QXi and QNu are powers of 2 for rounding, ignore ring errors
 	rXi, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.QXi})
 	rNu, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.QNu})
+	// Best-effort GPU registration for the main Q ring. RXi / RNu are
+	// power-of-two moduli so the NTT path is not taken on them.
+	gpu.MaybeRegister(r)
 	return &Params{R: r, RXi: rXi, RNu: rNu}, nil
 }
 
