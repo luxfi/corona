@@ -297,7 +297,7 @@ func main() {
 		}
 	}
 
-	outPath := filepath.Join("/Users/z/work/lux/cpp/crypto/corona/test/kat", "shamir_tk.json")
+	outPath := filepath.Join(luxcppDir(), "crypto", "corona", "test", "kat", "shamir_tk.json")
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -315,4 +315,13 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Fprintf(os.Stderr, "wrote shamir_tk.json (%d entries)\n", len(out.Entries))
+}
+
+// luxcppDir returns the luxcpp source root. LUXCPP_DIR overrides the default
+// of $HOME/work/luxcpp.
+func luxcppDir() string {
+	if d := os.Getenv("LUXCPP_DIR"); d != "" {
+		return d
+	}
+	return os.ExpandEnv("$HOME/work/luxcpp")
 }
