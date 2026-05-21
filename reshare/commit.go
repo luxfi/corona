@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"math/big"
 
+	cgpu "github.com/luxfi/corona/gpu"
 	"github.com/luxfi/corona/hash"
 	"github.com/luxfi/corona/sign"
 	"github.com/luxfi/corona/utils"
@@ -65,6 +66,7 @@ func NewCommitParams(suite hash.HashSuite) (*CommitParams, error) {
 		return nil, err
 	}
 	rXi, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.QXi})
+	cgpu.MaybeRegister(r)
 
 	derive := func(tag []byte) structs.Matrix[ring.Poly] {
 		seed := s.Hu(tag, sign.KeySize)

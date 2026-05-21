@@ -94,6 +94,7 @@ import (
 	"io"
 	"math/big"
 
+	cgpu "github.com/luxfi/corona/gpu"
 	"github.com/luxfi/corona/hash"
 	"github.com/luxfi/corona/sign"
 	"github.com/luxfi/corona/utils"
@@ -160,6 +161,9 @@ func NewParams() (*Params, error) {
 		return nil, err
 	}
 	rXi, _ := ring.NewRing(1<<sign.LogN, []uint64{sign.QXi})
+	// Best-effort GPU NTT registration when corona/gpu has been opted
+	// into. No-op when disabled or on non-GPU builds; identical bytes.
+	cgpu.MaybeRegister(r)
 	return &Params{R: r, RXi: rXi}, nil
 }
 
@@ -407,34 +411,22 @@ func (d *DKGSession) Round1WithSeed(seed []byte) (*Round1Output, error) {
 	}
 
 	// Step 4: build Pedersen commits C_k = A·NTT(c_k) + B·NTT(r_k).
-	commits := make([]structs.Vector[ring.Poly], d.t)
-	for k := 0; k < d.t; k++ {
-		// NTT-form copies of the secret coefficients.
-		cNTT := make(structs.Vector[ring.Poly], sign.N)
-		rNTT := make(structs.Vector[ring.Poly], sign.N)
-		for i := 0; i < sign.N; i++ {
-			cNTT[i] = *d.cCoeffs[k][i].CopyNew()
-			r.NTT(cNTT[i], cNTT[i])
-			rNTT[i] = *d.rCoeffs[k][i].CopyNew()
-			r.NTT(rNTT[i], rNTT[i])
-		}
-		ac := utils.InitializeVector(r, sign.M)
-		utils.MatrixVectorMul(r, d.A, cNTT, ac)
-		br := utils.InitializeVector(r, sign.M)
-		utils.MatrixVectorMul(r, d.B, rNTT, br)
-		commits[k] = utils.InitializeVector(r, sign.M)
-		utils.VectorAdd(r, ac, br, commits[k])
-	}
+	//
+	// Routed through the backend-dispatched path (dkg2_gpu.go). The CPU
+	// leg is byte-identical to the historical inline loop; the parallel
+	// leg fans out independent k iterations across runtime.GOMAXPROCS
+	// workers. Output bytes are unchanged because the ring routines are
+	// deterministic per (input, output) pair and there are no shared
+	// writes across goroutines (each worker owns its commits[k] cell).
+	commits := computePedersenCommits(r, d.A, d.B, d.cCoeffs, d.rCoeffs)
 
 	// Step 5: build shares and blinds via Horner over (j+1) for each j.
 	q := new(big.Int).SetUint64(sign.Q)
-	shares := make(map[int]structs.Vector[ring.Poly], d.n)
-	blinds := make(map[int]structs.Vector[ring.Poly], d.n)
-	for j := 0; j < d.n; j++ {
-		x := big.NewInt(int64(j + 1))
-		shares[j] = hornerEval(r, d.cCoeffs, x, q)
-		blinds[j] = hornerEval(r, d.rCoeffs, x, q)
-	}
+	shares, blinds := computeHornerShares(r, d.cCoeffs, d.rCoeffs, d.n,
+		func(rr *ring.Ring, coeffs []structs.Vector[ring.Poly], j int) structs.Vector[ring.Poly] {
+			x := big.NewInt(int64(j + 1))
+			return hornerEval(rr, coeffs, x, q)
+		})
 
 	return &Round1Output{
 		Commits: commits,
