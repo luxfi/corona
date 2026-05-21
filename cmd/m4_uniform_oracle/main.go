@@ -111,7 +111,7 @@ func main() {
 		})
 	}
 
-	outPath := filepath.Join("/Users/z/work/luxcpp/crypto/corona/test/kat", "uniform_sampler.json")
+	outPath := filepath.Join(luxcppDir(), "crypto", "corona", "test", "kat", "uniform_sampler.json")
 	f, err := os.Create(outPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -125,4 +125,13 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Fprintln(os.Stderr, "wrote uniform_sampler.json")
+}
+
+// luxcppDir returns the luxcpp source root. LUXCPP_DIR overrides the default
+// of $HOME/work/luxcpp.
+func luxcppDir() string {
+	if d := os.Getenv("LUXCPP_DIR"); d != "" {
+		return d
+	}
+	return os.ExpandEnv("$HOME/work/luxcpp")
 }
