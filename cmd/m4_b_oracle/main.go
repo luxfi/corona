@@ -14,8 +14,9 @@
 // Bsquare = 184960669042442604975662780477 (~98-bit, fits in __uint128_t).
 //
 // Output:
-//   <luxcpp/crypto>/corona/test/kat/l2_norm.json
-//   <luxcpp/crypto>/corona/test/kat/full_rank_check.json
+//   $LUXCPP_DIR/crypto/corona/test/kat/l2_norm.json
+//   $LUXCPP_DIR/crypto/corona/test/kat/full_rank_check.json
+// (LUXCPP_DIR defaults to $HOME/work/luxcpp)
 
 package main
 
@@ -318,7 +319,7 @@ func writeJSON(path string, v any) error {
 }
 
 func main() {
-	outDir := "/Users/z/work/luxcpp/crypto/corona/test/kat"
+	outDir := filepath.Join(luxcppDir(), "crypto/corona/test/kat")
 	if err := emitL2Norm(outDir); err != nil {
 		fmt.Fprintln(os.Stderr, "l2:", err)
 		os.Exit(1)
@@ -329,4 +330,13 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Fprintln(os.Stderr, "wrote full_rank_check.json")
+}
+
+// luxcppDir returns the luxcpp source root. LUXCPP_DIR overrides the default
+// of $HOME/work/luxcpp.
+func luxcppDir() string {
+	if d := os.Getenv("LUXCPP_DIR"); d != "" {
+		return d
+	}
+	return os.ExpandEnv("$HOME/work/luxcpp")
 }

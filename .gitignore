@@ -56,3 +56,13 @@ CLAUDE.md
 GEMINI.md
 GROK.md
 QWEN.md
+
+# Stray oracle dev-tool binaries (built ad-hoc)
+/m4_*_oracle
+/cross_runtime_oracle
+/cross_runtime_verify
+/dkg_oracle
+/dkg2_oracle
+/activation_oracle
+/corona_oracle_v2
+/shamir_general_oracle
