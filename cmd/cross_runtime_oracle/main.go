@@ -77,8 +77,8 @@ func main() {
 	// hardcoded locations in luxcpp/crypto. For the cross-runtime gate
 	// we hash the canonical paths.
 	signPath := filepath.Join(*out, "sign_kat.json")
-	resharePath := "/Users/z/work/luxcpp/crypto/corona/test/kat/reshare_kat.json"
-	dkg2Path := "/Users/z/work/luxcpp/crypto/corona/dkg2/test/kat/dkg2_kat.json"
+	resharePath := filepath.Join(luxcppDir(), "crypto/corona/test/kat/reshare_kat.json")
+	dkg2Path := filepath.Join(luxcppDir(), "crypto/corona/dkg2/test/kat/dkg2_kat.json")
 
 	files := []struct {
 		name string
@@ -119,4 +119,13 @@ func main() {
 	}
 
 	fmt.Printf("wrote %s (%d entries)\n", mPath, len(m.Files))
+}
+
+// luxcppDir returns the luxcpp source root. LUXCPP_DIR overrides the default
+// of $HOME/work/luxcpp.
+func luxcppDir() string {
+	if d := os.Getenv("LUXCPP_DIR"); d != "" {
+		return d
+	}
+	return os.ExpandEnv("$HOME/work/luxcpp")
 }
