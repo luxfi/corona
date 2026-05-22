@@ -4,6 +4,84 @@ Notable changes to the `corona` module. Pre-release; semantic versioning
 applied per PHILOSOPHY.md (patch only -- never minor/major without explicit
 approval).
 
+## v0.7.3 (public-BFT Bootstrap via dkg2 Pedersen-DKG + Path (a) noise flooding)
+
+Closes the last trusted-dealer caveat in `keyera.Bootstrap` for any
+deployment that cannot vouch for a single dealer's host platform. The
+trusted-dealer path is retained (under a renamed alias) for genesis
+ceremonies where a non-distributed trust root is acceptable by policy.
+
+### New public surface (`keyera/bootstrap_pedersen.go`)
+
+- `keyera.BootstrapPedersen(suite, t, validators, groupID, eraID, entropy)
+  (*KeyEra, *BootstrapTranscript, error)` -- public-BFT-safe bootstrap.
+  Routes the keygen ceremony through `dkg2/` (Pedersen-DKG over `R_q`) +
+  Path (a) noise flooding so no single party ever holds the master
+  secret `s` at any point in the ceremony.
+
+- `keyera.FinishBootstrapPedersen(suite, t, validators, ..., dkgParams,
+  sessions, round1) (*KeyEra, *BootstrapTranscript, error)` -- kernel
+  entrypoint that drives Rounds 1.5 + 2 + Path (a) on a pre-computed
+  set of Round 1 outputs. Tests use this to inject deliberately
+  dishonest contributions and exercise the identifiable-abort path.
+
+- `keyera.BootstrapTrustedDealer` / `keyera.BootstrapTrustedDealerWithSuite`
+  -- renamed aliases for the legacy single-dealer path. Retained for
+  genesis ceremonies where the foundation explicitly chooses a
+  non-distributed trust root (see `DEPLOYMENT-RUNBOOK.md
+  §Bootstrap-Trust` decision matrix).
+
+- `keyera.BootstrapTranscript` -- public, byte-stable record produced
+  by every Pedersen bootstrap run. Honest validators that observe the
+  same cohort messages compute identical transcript bytes; the chain
+  commits to `TranscriptHash` to ratify the era.
+
+- `keyera.AbortEvidence` + `keyera.ExtractAbortEvidence(err)` -- public
+  surface for identifiable-abort consumption. A non-nil `AbortEvidence`
+  carries the disqualified set and signed `dkg2.Complaint`s ready for
+  the slashing pipeline.
+
+### Tests (`keyera/bootstrap_pedersen_test.go`)
+
+All green via `GOWORK=off go test -count=1 -short ./keyera/`:
+
+- `TestBootstrapPedersen_RoundTrip` -- 5-party Pedersen-DKG with `t=3`;
+  transcript determinism across replays; bTilde / digest stability.
+- `TestBootstrapPedersen_DishonestDealer` -- tampered share-to-recipient-0
+  triggers `ErrBootstrapPedersenAbort` naming sender 2; `AbortEvidence`
+  carries a re-checkable `ComplaintBadDelivery`.
+- `TestBootstrapPedersen_FollowedBySign` -- Pedersen bootstrap → standard
+  2-round threshold sign → `threshold.Verify` PASS. The noise-flooded
+  GroupKey is structurally identical to a trusted-dealer Corona setup.
+- `TestBootstrapPedersen_NoMasterSecretInMemory` -- structural assertion
+  that `dkg2.DKGSession` exposes no master-secret field, and that no two
+  parties' SkShares / Lambdas collide.
+- `TestBootstrapPedersen_ParameterValidation` -- bounds checking.
+- `TestBootstrapPedersen_DefaultSuite` -- `nil` resolves to Corona-SHA3.
+- `TestBootstrapTrustedDealer_LegacyAlias` -- legacy alias is byte-
+  equivalent to historical `Bootstrap`.
+
+### Documentation
+
+- `AUDIT-2026-05.md` -- read-only SOTA refresh covering threshold lattice
+  DKG / signing literature 2024-2026. Verdict: Boschini-Takahashi-Tibouchi
+  2024/1113 remains canonical; 2025 follow-ups (del Pino, Doerner-Kondi,
+  Hofheinz, Beimel-Eitan) are complementary or non-blocking; no SOTA
+  refresh blocks this revision.
+- `DEPLOYMENT-RUNBOOK.md` -- new `§Bootstrap-Trust` decision matrix
+  documenting Option A (`BootstrapPedersen`, recommended) vs Option B
+  (`BootstrapTrustedDealer`, ceremony-only) trade-off.
+- `keyera/keyera.go` -- inline trust-model documentation pointing at
+  `BootstrapPedersen` as the public-BFT-safe alternative.
+
+### Cross-runtime byte equality
+
+- KAT manifest preserved (`scripts/regen-kats.manifest.sha256`); existing
+  trusted-dealer KATs continue to byte-match `~/work/luxcpp/crypto/corona/`.
+- `BootstrapPedersen` adds new ceremony bytes (deterministic given
+  entropy); a future cross-runtime port can pin them via the public
+  `BootstrapTranscript.TranscriptHash`.
+
 ## v0.7.0 (Tier A full closure -- EC + Lean + Jasmin + dudect scaffolding)
 
 This revision lands the Tier A formal-methods scaffolding for Corona,
