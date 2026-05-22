@@ -39,7 +39,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 
 | SHA | Tag | Impact |
 |-----|-----|--------|
-| `pending` | v0.7.3 | keyera: BootstrapPedersen — Pedersen-DKG over R_q + Path (a) noise flooding; closes trusted-dealer caveat |
+| `e412c7e` | v0.7.3 | keyera: BootstrapPedersen — Pedersen-DKG over R_q + Path (a) noise flooding; closes trusted-dealer caveat |
 | `920195e` | v0.7.2 | gpu: opt corona threshold signing into lattice/ring GPU NTT dispatch |
 | `4f54c28` | v0.7.1 | remove detailed patent-claims docs (relocated to lux-private/patents) |
 | `6f905a0` | v0.7.0 | Tier A full closure: EC theories admit 0/0 + Lean bridges + Jasmin CT + dudect harness + e2e/fuzz |
