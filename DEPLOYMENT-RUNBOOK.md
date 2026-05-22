@@ -30,15 +30,22 @@ responses, not the shares themselves.
 
 **However**, two distinct trust-model caveats apply:
 
-1. **DKG bootstrap is a one-time trusted-setup event.** At chain
-   genesis (or at Reanchor), the foundation MPC ceremony runs
-   `keyera.Bootstrap` which generates the master secret `s` and
-   distributes shares. Whoever participates in the Bootstrap MPC
-   ceremony has, at some point in the ceremony's execution, machinery
-   that touches `s`. The dealer-side `s` is zeroed in place after
-   sharing (`keyera/keyera.go:228-238`), but the ceremony must be
-   conducted under verifiably-public conditions (commit-and-reveal
-   from genesis validators) with toxic-waste assumptions tracked.
+1. **DKG bootstrap path is operator-chosen.** As of v0.7.5, the
+   unqualified `keyera.Bootstrap` / `keyera.BootstrapWithSuite`
+   defaults route through `BootstrapPedersen` (Pedersen-DKG over
+   `R_q` + Path (a) noise flooding) so no single party ever holds
+   the master secret `s` at any point in the ceremony. The legacy
+   trusted-dealer ceremony path (where a single dealer instantiates
+   `s` and Shamir-shares it to the committee, zeroing the in-memory
+   copy before returning) is retained ONLY behind the explicit
+   `keyera.BootstrapTrustedDealer` /
+   `keyera.BootstrapTrustedDealerWithSuite` names for HSM/TEE
+   ceremonies where the foundation explicitly chooses a non-
+   distributed trust root. The latter path is acceptable for chain-
+   launch ceremonies where the foundation's ceremony posture is
+   audited and attested; it is NOT acceptable for permissionless
+   re-anchoring, routine rotations, or any context where the
+   dealer is not a publicly-attested entity.
 
 2. **The aggregator process is in the trusted computing base.** An
    adversary who fully compromises the aggregator host
@@ -58,17 +65,21 @@ satisfy at least items 1–4):
 2. **Memory isolation**: the aggregator process runs with locked
    pages (`mlock`), core-dumps disabled (`setrlimit RLIMIT_CORE=0`),
    ptrace disabled (`prctl PR_SET_DUMPABLE 0`).
-3. **Bootstrap MPC ceremony hardening**: foundation MPC ceremony at
-   chain genesis uses commit-and-reveal entropy from genesis
-   validators; dealer state is zeroed in place via
-   `keyera/keyera.go:Bootstrap`. Ceremony participants are bound by
-   the foundation's toxic-waste protocol.
+3. **Bootstrap MPC ceremony hardening** (applies only to operators
+   choosing the explicit `BootstrapTrustedDealer` path): foundation
+   MPC ceremony at chain genesis uses commit-and-reveal entropy from
+   genesis validators; dealer state is zeroed in place via
+   `keyera/bootstrap_pedersen.go:bootstrapTrustedDealerImpl`.
+   Ceremony participants are bound by the foundation's toxic-waste
+   protocol. Operators on the default `BootstrapPedersen` path do
+   NOT need this control because no party ever holds the master
+   secret.
 4. **Operational scope limits**: aggregator role is a single-purpose
    process; no network listener beyond the consensus message bus;
    no shell access; no debugger attachment in production.
 5. **TEE attestation (recommended)**: aggregator runs inside SGX,
    SEV-SNP, or TDX with remote attestation pinned to the
-   reproducible build of `luxfi/corona v0.7.4`.
+   reproducible build of `luxfi/corona v0.7.5`.
 6. **Defense-in-depth**: validator-set rotation via Reshare (not
    Reanchor) is the routine path; Reanchor (new key era) is a rare
    governance event reserved for security-incident response.
@@ -140,20 +151,30 @@ era for security-event response). Resharing within an era is
 
 | Scenario | Recommended entrypoint |
 |---|---|
-| New mainnet chain launch (public BFT) | `BootstrapPedersen` (foundation acts as one of n) |
+| New mainnet chain launch (public BFT) | `Bootstrap` / `BootstrapPedersen` (foundation acts as one of n) |
 | Foundation-audited HSM ceremony at chain genesis | `BootstrapTrustedDealer` (acceptable; document trust attestation) |
-| Reanchor due to security incident, public BFT validator set | `ReanchorPedersen` / `Reanchor` (no single party should be retrusted) |
+| Reanchor due to security incident, public BFT validator set | `Reanchor` / `ReanchorPedersen` (no single party should be retrusted) |
 | Reanchor via HSM/TEE ceremony with audited trust posture | `ReanchorTrustedDealer` (acceptable only when the new dealer is publicly attested) |
 | Routine validator-set rotation | Use `Reshare` (preserves GroupKey; no bootstrap, no decision) |
 | Test / KAT replay | Either, with deterministic entropy |
 
-**Default routing in code**: as of v0.7.4, the unqualified
-`Reanchor` / `ReanchorWithSuite` entries route through
-`ReanchorPedersen`. To use the legacy single-dealer path you MUST
-name `ReanchorTrustedDealer` / `ReanchorTrustedDealerWithSuite`
-explicitly. The same pattern as v0.7.3 `Bootstrap` /
-`BootstrapTrustedDealer`: the safe default is unqualified; the
-ceremony path requires an explicit name.
+**Default routing in code**: as of v0.7.5, **both** unqualified
+`Bootstrap` / `BootstrapWithSuite` **and** `Reanchor` /
+`ReanchorWithSuite` entrypoints route through Pedersen-DKG by
+default. To use the legacy single-dealer path you MUST name
+`BootstrapTrustedDealer` / `BootstrapTrustedDealerWithSuite` (or the
+analogous Reanchor variant) explicitly. The safe default is
+unqualified; the ceremony path requires an explicit name. This is
+the **loud-name invariant**: any deployment that cannot tolerate the
+dealer's trust boundary cannot accidentally inherit it; the explicit
+opt-in is enforced at the call site.
+
+**Structural constraint**: the public-BFT-safe path requires
+`n >= 2 && t < n` (strictly less than). Deployments that need every
+validator to sign (`t == n`) must select `BootstrapTrustedDealer`
+explicitly; the unqualified `Bootstrap` will fail with
+`ErrBootstrapPedersenShape` on `t == n`, surfacing the decision at
+the call site rather than silently routing to the dealer path.
 
 The decision is recorded in the era's genesis transcript via the
 `HashSuiteID` and the Bootstrap mode tag; downstream auditors can
@@ -320,7 +341,10 @@ In the interim, the honest cryptographic posture is:
 **Document metadata**
 
 - Name: `DEPLOYMENT-RUNBOOK.md`
-- Version: v0.3 (matches Corona v0.7.4; Reanchor-Trust two-entrypoint
-  disclosure added; default routing pinned to Pedersen-DKG for both
-  Bootstrap and Reanchor)
+- Version: v0.4 (matches Corona v0.7.5; the unqualified
+  `keyera.Bootstrap` and `keyera.BootstrapWithSuite` defaults are
+  now routed through `BootstrapPedersen` for symmetry with the
+  v0.7.4 Reanchor flip; the legacy trusted-dealer ceremony path is
+  reachable only via the explicit `BootstrapTrustedDealer*` /
+  `ReanchorTrustedDealer*` names)
 - Date: 2026-05-21

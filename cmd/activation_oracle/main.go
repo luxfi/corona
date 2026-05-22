@@ -27,7 +27,7 @@
 // disqualified_senders, qualified_quorum) and must produce the exact
 // transcript_hash_hex, exchange_hash_hex and signable_bytes_hex.
 //
-// Output: <luxcpp/crypto>/pulsar/test/kat/activation_kat.json
+// Output: <luxcpp/crypto>/corona/test/kat/activation_kat.json
 //
 // Algorithm references:
 //   - corona/reshare/activation.go (canonical Go)
@@ -175,11 +175,16 @@ func main() {
 	// Default output: canonical luxcpp KAT directory; allow override via
 	// CORONA_ACTIVATION_KAT_PATH env or a positional arg.
 	outPath := filepath.Join(
-		os.Getenv("HOME"), "work", "luxcpp", "crypto", "pulsar",
+		os.Getenv("HOME"), "work", "luxcpp", "crypto", "corona",
 		"test", "kat", "activation_kat.json",
 	)
 	if env := os.Getenv("CORONA_ACTIVATION_KAT_PATH"); env != "" {
 		outPath = env
+	}
+	if env := os.Getenv("PULSAR_ACTIVATION_KAT_PATH"); env != "" {
+		if os.Getenv("CORONA_ACTIVATION_KAT_PATH") == "" {
+			outPath = env
+		}
 	}
 	if len(os.Args) >= 2 {
 		outPath = os.Args[1]

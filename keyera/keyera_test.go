@@ -14,14 +14,15 @@ import (
 
 // TestBootstrapBuildsAndSigns confirms that Bootstrap returns a complete
 // KeyShare set that can produce a verifying signature under the produced
-// GroupKey. We exercise t = n (every validator in the active signing
-// set) here; corona's signing protocol assumes the full committee
-// participates in each Sign invocation.
+// GroupKey. The public-BFT-safe Bootstrap routes through Pedersen-DKG
+// which requires t < n (strict) for identifiable-abort detection, so
+// we exercise the threshold setup (t = n-1, signing committee = full
+// validator set).
 func TestBootstrapBuildsAndSigns(t *testing.T) {
-	const tThr, n = 3, 3
+	const tThr, n = 2, 3
 	validators := []string{"validator-A", "validator-B", "validator-C"}
 
-	era, err := Bootstrap(tThr, validators, 0, 0, deterministicRand("bootstrap-genesis"))
+	era, _, err := Bootstrap(tThr, validators, 0, 0, deterministicRand("bootstrap-genesis"))
 	if err != nil {
 		t.Fatalf("Bootstrap: %v", err)
 	}
@@ -45,10 +46,10 @@ func TestBootstrapBuildsAndSigns(t *testing.T) {
 // is unchanged after Reshare, and the new shares produce a signature
 // that verifies under the unchanged GroupKey.
 func TestReshareSameSetPreservesGroupKey(t *testing.T) {
-	const tThr = 3
+	const tThr = 2
 	validators := []string{"v1", "v2", "v3"}
 
-	era, err := Bootstrap(tThr, validators, 0, 0, deterministicRand("genesis-A"))
+	era, _, err := Bootstrap(tThr, validators, 0, 0, deterministicRand("genesis-A"))
 	if err != nil {
 		t.Fatalf("Bootstrap: %v", err)
 	}
@@ -74,12 +75,12 @@ func TestReshareSameSetPreservesGroupKey(t *testing.T) {
 // validator set with a different threshold. The new committee's shares
 // produce a signature that verifies under the unchanged GroupKey.
 func TestReshareNewCommitteePreservesGroupKey(t *testing.T) {
-	const tOld = 3
-	const tNew = 5
+	const tOld = 2
+	const tNew = 4
 	oldSet := []string{"v1", "v2", "v3"}
 	newSet := []string{"v4", "v5", "v6", "v7", "v8"}
 
-	era, err := Bootstrap(tOld, oldSet, 0, 0, deterministicRand("genesis-B"))
+	era, _, err := Bootstrap(tOld, oldSet, 0, 0, deterministicRand("genesis-B"))
 	if err != nil {
 		t.Fatalf("Bootstrap: %v", err)
 	}
@@ -107,16 +108,16 @@ func TestReshareNewCommitteePreservesGroupKey(t *testing.T) {
 // TestReanchorOpensNewEra verifies Reanchor produces a fresh GroupKey
 // while monotonically advancing the epoch and bumping the EraID.
 //
-// The new committee uses t=2, n=3 because the v0.7.4 Reanchor routes
-// through Pedersen-DKG which requires t < n (strictly less than) for
-// identifiable-abort detection. The legacy t == n behaviour remains
-// available via ReanchorTrustedDealer.
+// The public-BFT-safe lifecycle (Bootstrap → Reshare → Reanchor) all
+// route through Pedersen-DKG which requires t < n (strictly less
+// than) for identifiable-abort detection. The legacy t == n behaviour
+// remains available via BootstrapTrustedDealer / ReanchorTrustedDealer.
 func TestReanchorOpensNewEra(t *testing.T) {
-	era, err := Bootstrap(3, []string{"a", "b", "c"}, 0, 1, deterministicRand("era-1"))
+	era, _, err := Bootstrap(2, []string{"a", "b", "c"}, 0, 1, deterministicRand("era-1"))
 	if err != nil {
 		t.Fatalf("Bootstrap: %v", err)
 	}
-	if _, err := era.Reshare([]string{"a", "b", "c"}, 3, deterministicRand("reshare-x")); err != nil {
+	if _, err := era.Reshare([]string{"a", "b", "c"}, 2, deterministicRand("reshare-x")); err != nil {
 		t.Fatalf("Reshare: %v", err)
 	}
 	prevEpoch := era.State.Epoch
@@ -146,7 +147,7 @@ func TestReanchorOpensNewEra(t *testing.T) {
 
 // TestReshareErrors covers the input-validation surface.
 func TestReshareErrors(t *testing.T) {
-	era, err := Bootstrap(3, []string{"a", "b", "c"}, 0, 0, deterministicRand("err"))
+	era, _, err := Bootstrap(2, []string{"a", "b", "c"}, 0, 0, deterministicRand("err"))
 	if err != nil {
 		t.Fatalf("Bootstrap: %v", err)
 	}
