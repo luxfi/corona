@@ -3,13 +3,14 @@
 
 // Package keyera is the lifecycle wrapper for a Corona group lineage.
 //
-// One KeyEra is opened by Bootstrap (a one-time foundation MPC ceremony
-// at chain genesis or governance-gated Reanchor). The trust is confined
-// to genesis of that key era. Subsequent validator-set rotations call
-// Reshare, which preserves the GroupKey (A, bTilde) and rotates only
-// the share distribution; no trusted dealer is needed for resharing.
-// Reanchor opens a new era with a fresh GroupKey for security-event
-// response (rare, governance-gated).
+// One KeyEra is opened by Bootstrap (legacy trusted dealer) or by
+// BootstrapPedersen (public-BFT-safe, recommended). Subsequent
+// validator-set rotations call Reshare, which preserves the GroupKey
+// (A, bTilde) and rotates only the share distribution; no trusted
+// dealer is needed for resharing. Reanchor opens a new era with a
+// fresh GroupKey for security-event response (rare, governance-gated)
+// and routes through Pedersen-DKG by default. ReanchorTrustedDealer
+// is retained as an explicit opt-in alias for HSM/TEE ceremonies.
 //
 // The single source of truth for the lifecycle is
 // `~/work/lux/pulsar/DESIGN.md`.
@@ -343,30 +344,76 @@ func (era *KeyEra) Reshare(newValidators []string, newThreshold int, randSource 
 	return nextState, nil
 }
 
-// Reanchor opens a new key era with a fresh GroupKey. Use ONLY for
-// security-event response — long-tail share leakage, suspected master-
-// secret compromise, etc. The chain governance MUST authorize this; it
-// is not a routine operation.
+// Reanchor opens a new key era with a fresh GroupKey via Pedersen-DKG
+// + Path (a) noise flooding. Use ONLY for security-event response —
+// long-tail share leakage, suspected master-secret compromise, etc.
+// The chain governance MUST authorize this; it is not a routine
+// operation. For ordinary validator-set rotation use Reshare, which
+// preserves the GroupKey.
 //
 // Reanchor inherits the prior era's HashSuiteID. To migrate to a
 // different suite (e.g. moving from legacy Corona-BLAKE3 to production
 // Corona-SHA3) call ReanchorWithSuite.
-func Reanchor(prev *KeyEra, t int, validators []string, groupID CoronaGroupID, entropy io.Reader) (*KeyEra, error) {
+//
+// TRUST MODEL — PUBLIC-BFT-SAFE.
+// This function routes through dkg2/ (Pedersen-DKG over R_q) so no
+// party ever holds the master secret s for the new era at any point
+// in the rotation. The dealer that previously held s for the prior
+// era is NOT re-trusted; every validator runs dkg2.Round1
+// independently and Path (a) noise flooding aggregates the result.
+//
+// LEGACY ALTERNATIVE: use ReanchorTrustedDealer, which runs the
+// single-dealer Shamir share-out (byte-equivalent to the v0.7.3 and
+// earlier Reanchor behavior). Retained for HSM / TEE / publicly-
+// observable foundation ceremonies where a non-distributed trust root
+// is acceptable by policy. See DEPLOYMENT-RUNBOOK.md §Bootstrap-Trust.
+//
+// Returns the new *KeyEra (EraID = prev.EraID+1, GenesisEpoch =
+// prev.State.Epoch+1), the public *BootstrapTranscript for chain
+// commit, and nil on success. On identifiable abort returns
+// (nil, nil, err wrapping ErrBootstrapPedersenAbort); extract via
+// ExtractAbortEvidence.
+func Reanchor(prev *KeyEra, t int, validators []string, groupID CoronaGroupID, entropy io.Reader) (*KeyEra, *BootstrapTranscript, error) {
+	return ReanchorPedersen(prev, t, validators, groupID, entropy)
+}
+
+// ReanchorWithSuite opens a new key era with a fresh GroupKey under
+// the supplied HashSuite via Pedersen-DKG + Path (a) noise flooding.
+// Reanchor is the ONLY lifecycle entrypoint that may pin a hash
+// profile different from the prior era's (Reshare cannot — that is
+// enforced by Reshare not accepting a suite parameter). nil suite
+// resolves to the production default (Corona-SHA3).
+//
+// See Reanchor for the trust-model disclosure; ReanchorWithSuite is
+// the suite-explicit form and shares the same public-BFT-safe routing.
+func ReanchorWithSuite(prev *KeyEra, suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, entropy io.Reader) (*KeyEra, *BootstrapTranscript, error) {
+	return ReanchorPedersenWithSuite(prev, suite, t, validators, groupID, entropy)
+}
+
+// ReanchorTrustedDealer is the legacy single-trusted-party reanchor
+// retained for ceremony scenarios where a non-distributed trust root
+// is acceptable (e.g. publicly observable HSM / TEE ceremony with
+// commit-and-reveal entropy from the new committee). It is byte-
+// equivalent to the historical Reanchor entrypoint (v0.7.3 and earlier).
+//
+// PREFER Reanchor (which routes through Pedersen-DKG) for any
+// deployment where no single party is trusted to discard the new
+// era's master secret. See DEPLOYMENT-RUNBOOK.md §Bootstrap-Trust
+// for the trust-model trade-off documentation.
+func ReanchorTrustedDealer(prev *KeyEra, t int, validators []string, groupID CoronaGroupID, entropy io.Reader) (*KeyEra, error) {
 	var suite hash.HashSuite
 	if prev != nil && prev.HashSuiteID == hash.LegacyBLAKE3ID {
 		suite = hash.NewCoronaBLAKE3()
 	} else {
 		suite = hash.Default()
 	}
-	return ReanchorWithSuite(prev, suite, t, validators, groupID, entropy)
+	return ReanchorTrustedDealerWithSuite(prev, suite, t, validators, groupID, entropy)
 }
 
-// ReanchorWithSuite opens a new key era with a fresh GroupKey under
-// the supplied HashSuite. Reanchor is the ONLY lifecycle entrypoint
-// that may pin a hash profile different from the prior era's
-// (Reshare cannot — that is enforced by Reshare not accepting a suite
-// parameter). nil suite resolves to the production default.
-func ReanchorWithSuite(prev *KeyEra, suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, entropy io.Reader) (*KeyEra, error) {
+// ReanchorTrustedDealerWithSuite is the suite-explicit form of
+// ReanchorTrustedDealer. See its docstring for the trust-model
+// disclosure.
+func ReanchorTrustedDealerWithSuite(prev *KeyEra, suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, entropy io.Reader) (*KeyEra, error) {
 	var nextEraID CoronaKeyEraID
 	var nextEpoch uint64
 	if prev != nil {
