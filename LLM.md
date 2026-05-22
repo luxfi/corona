@@ -1,8 +1,8 @@
 # Corona -- Agent Knowledge Base
 
 **Repository**: github.com/luxfi/corona
-**Latest Tag**: v0.4.1 (next: v0.5.0 — NIST MPTC submission package scaffolding)
-**Status**: Production (consensus path); NIST MPTC submission package scaffolding in this revision. Sibling submission `luxfi/pulsar` is the M-LWE byte-equal FIPS 204 path.
+**Latest Tag**: v0.7.2 (next: v0.7.3 — public-BFT BootstrapPedersen closes trusted-dealer caveat)
+**Status**: Production (consensus path); NIST MPTC submission package included. Sibling submission `luxfi/pulsar` is the M-LWE byte-equal FIPS 204 path.
 
 ## Purpose (one-liner)
 
@@ -39,6 +39,10 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 
 | SHA | Tag | Impact |
 |-----|-----|--------|
+| `pending` | v0.7.3 | keyera: BootstrapPedersen — Pedersen-DKG over R_q + Path (a) noise flooding; closes trusted-dealer caveat |
+| `920195e` | v0.7.2 | gpu: opt corona threshold signing into lattice/ring GPU NTT dispatch |
+| `4f54c28` | v0.7.1 | remove detailed patent-claims docs (relocated to lux-private/patents) |
+| `6f905a0` | v0.7.0 | Tier A full closure: EC theories admit 0/0 + Lean bridges + Jasmin CT + dudect harness + e2e/fuzz |
 | `1726e36` | v0.4.1 | threshold: add parallel VerifyBatch — N-signature throughput for consensus |
 | `2d910dc` | v0.4.x | corona: don't mix — QUASAR-PULSAR-* prefixes -> QUASAR-CORONA-* in Corona's table |
 | `13e1cd8` | v0.4.x | corona: doc drift cleanup — CHANGELOG references match renamed Go code |
@@ -48,7 +52,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 | `43e7d88` | v0.4.x | corona/papers: ringtail2025 cite → boschini2024corona; ringtailThreshold → coronaThreshold in TeX |
 
 ### Active versions
-- Repo: `v0.4.1` (next: `v0.5.0` accompanying the NIST submission package scaffolding).
+- Repo: `v0.7.2` (next: `v0.7.3` adds `keyera.BootstrapPedersen` — public-BFT-safe bootstrap routing through `dkg2/`).
 - Pinned by: `luxfi/consensus v1.23.6+` (R-LWE path is consensus-only).
 
 ### Canonical params
@@ -86,8 +90,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 
 ## Rules
 
-1. Patch-bump only (`v0.4.x → v0.4.y`). Minor bumps require explicit approval.
-   The v0.5.0 bump for submission scaffolding is the documented exception.
+1. Patch-bump only (`v0.7.x → v0.7.y`). Minor bumps require explicit approval.
 2. HashSuite is the only acceptable hash plumbing (F22 closure); never
    hardcode SHAKE / KMAC outside `hash/sp800_185.go`.
 3. Param changes require a new key-era boundary; never edit in place.
