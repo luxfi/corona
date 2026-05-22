@@ -172,6 +172,11 @@ func TestReshareAPIHasNoHashSuiteParameter(t *testing.T) {
 // TestReanchorMayChangeSuite — Gate 3C: ReanchorWithSuite from a
 // Corona-SHA3 era to a Corona-BLAKE3 era yields era_2.HashSuiteID ==
 // "Corona-BLAKE3", and era_1 is unchanged.
+//
+// The new committee uses t=2, n=3 because the v0.7.4 Reanchor routes
+// through Pedersen-DKG which requires t < n (strictly less than) for
+// identifiable-abort detection. The legacy t == n equivalence stays
+// available under ReanchorTrustedDealer for HSM-ceremony scenarios.
 func TestReanchorMayChangeSuite(t *testing.T) {
 	era1, err := BootstrapWithSuite(
 		hash.NewCoronaSHA3(),
@@ -187,16 +192,19 @@ func TestReanchorMayChangeSuite(t *testing.T) {
 		t.Fatalf("era1.HashSuiteID: want %q got %q", hash.DefaultID, era1.HashSuiteID)
 	}
 
-	era2, err := ReanchorWithSuite(
+	era2, transcript, err := ReanchorWithSuite(
 		era1,
 		hash.NewCoronaBLAKE3(),
-		3,
+		2,
 		[]string{"d", "e", "f"},
 		0,
 		deterministicRand("reanchor-era-2"),
 	)
 	if err != nil {
 		t.Fatalf("ReanchorWithSuite: %v", err)
+	}
+	if transcript == nil {
+		t.Fatal("ReanchorWithSuite returned nil transcript")
 	}
 	if era2.HashSuiteID != hash.LegacyBLAKE3ID {
 		t.Fatalf("era2.HashSuiteID: want %q got %q", hash.LegacyBLAKE3ID, era2.HashSuiteID)
