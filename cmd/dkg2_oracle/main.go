@@ -301,6 +301,11 @@ func main() {
 	if env := os.Getenv("CORONA_DKG2_KAT_PATH"); env != "" {
 		outPath = env
 	}
+	if env := os.Getenv("PULSAR_DKG2_KAT_PATH"); env != "" {
+		if os.Getenv("CORONA_DKG2_KAT_PATH") == "" {
+			outPath = env
+		}
+	}
 	if len(os.Args) >= 2 {
 		outPath = os.Args[1]
 	}

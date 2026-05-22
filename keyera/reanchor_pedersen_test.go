@@ -264,10 +264,13 @@ func TestReanchorPedersen_DishonestParty(t *testing.T) {
 // identical Shamir kernel, so bTilde MUST agree.
 func TestReanchorTrustedDealer_LegacyAlias(t *testing.T) {
 	const thr, n = 3, 3
-	era1, err := Bootstrap(thr, []string{"a", "b", "c"}, 0, 1,
+	// era1 uses BootstrapTrustedDealer because we exercise the t == n
+	// trusted-dealer ceremony path; the public-BFT Bootstrap (Pedersen-
+	// DKG) structurally requires t < n.
+	era1, err := BootstrapTrustedDealer(thr, []string{"a", "b", "c"}, 0, 1,
 		deterministicRand("reanchor-td-era1"))
 	if err != nil {
-		t.Fatalf("Bootstrap: %v", err)
+		t.Fatalf("BootstrapTrustedDealer: %v", err)
 	}
 	prevEpoch := era1.State.Epoch
 	prevGK := era1.GroupKey
