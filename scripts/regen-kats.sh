@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # regen-kats.sh — deterministic regeneration + verification of every
-# Pulsar KAT consumed by the C++ / GPU ports.
+# Corona KAT consumed by the C++ / GPU ports.
 #
-# Outputs (paths match what luxcpp/crypto/pulsar/test/kat/ expects):
-#   <luxcpp>/crypto/pulsar/test/kat/reshare_kat.json
-#   <luxcpp>/crypto/pulsar/dkg2/test/kat/dkg2_kat.json
-#   <luxcpp>/crypto/pulsar/test/kat/activation_kat.json
-#   <luxcpp>/crypto/pulsar/test/kat/ringtail_oracle_v2/{prng_blake2_xof,
+# Outputs (paths match what luxcpp/crypto/corona/test/kat/ expects):
+#   <luxcpp>/crypto/corona/test/kat/reshare_kat.json
+#   <luxcpp>/crypto/corona/dkg2/test/kat/dkg2_kat.json
+#   <luxcpp>/crypto/corona/test/kat/activation_kat.json
+#   <luxcpp>/crypto/corona/test/kat/corona_oracle_v2/{prng_blake2_xof,
 #       discrete_gaussian, montgomery_ntt, structs_matrix_wire,
 #       transcript_hash, shamir_share, sign_verify_e2e}.json
 #
@@ -18,27 +18,27 @@
 
 set -euo pipefail
 
-PULSAR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CORONA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LUXCPP_DIR="${LUXCPP_DIR:-${HOME}/work/luxcpp}"
-KAT_BASE="${LUXCPP_DIR}/crypto/pulsar"
+KAT_BASE="${LUXCPP_DIR}/crypto/corona"
 
 RESHARE_OUT="${KAT_BASE}/test/kat/reshare_kat.json"
 DKG2_OUT="${KAT_BASE}/dkg2/test/kat/dkg2_kat.json"
 ACTIVATION_OUT="${KAT_BASE}/test/kat/activation_kat.json"
-RINGTAIL_DIR="${KAT_BASE}/test/kat/ringtail_oracle_v2"
+CORONA_V2_DIR="${KAT_BASE}/test/kat/corona_oracle_v2"
 
-MANIFEST="${PULSAR_DIR}/scripts/regen-kats.manifest.sha256"
+MANIFEST="${CORONA_DIR}/scripts/regen-kats.manifest.sha256"
 
 VERIFY=0
 if [[ "${1:-}" == "--verify" ]]; then
   VERIFY=1
 fi
 
-cd "${PULSAR_DIR}"
+cd "${CORONA_DIR}"
 
-# Pulsar oracles are indifferent to LUXCPP location through env vars and
+# Corona oracles are indifferent to LUXCPP location through env vars and
 # positional args. Run each, write to the canonical luxcpp path.
-mkdir -p "$(dirname "${RESHARE_OUT}")" "$(dirname "${DKG2_OUT}")" "${RINGTAIL_DIR}"
+mkdir -p "$(dirname "${RESHARE_OUT}")" "$(dirname "${DKG2_OUT}")" "${CORONA_V2_DIR}"
 
 echo "[1/5] reshare_oracle → ${RESHARE_OUT}"
 PULSAR_RESHARE_KAT_PATH="${RESHARE_OUT}" go run ./cmd/reshare_oracle >/dev/null
@@ -56,11 +56,11 @@ PULSAR_DKG2_KAT_PATH="${DKG2_OUT}" go run ./cmd/dkg2_oracle >/dev/null
 echo "[3/5] activation_oracle → ${ACTIVATION_OUT}"
 PULSAR_ACTIVATION_KAT_PATH="${ACTIVATION_OUT}" go run ./cmd/activation_oracle >/dev/null
 
-echo "[4/5] ringtail_oracle_v2 emit --out ${RINGTAIL_DIR}"
-go run ./cmd/ringtail_oracle_v2 emit --out "${RINGTAIL_DIR}" >/dev/null
+echo "[4/5] corona_oracle_v2 emit --out ${CORONA_V2_DIR}"
+go run ./cmd/corona_oracle_v2 emit --out "${CORONA_V2_DIR}" >/dev/null
 
-echo "[4b/5] ringtail_oracle_v2 byte-equality test"
-go test -count=1 -run "TestEmitDeterministic|TestSignVerifyEntries|TestShamirRoundTrip" ./cmd/ringtail_oracle_v2 >/dev/null
+echo "[4b/5] corona_oracle_v2 byte-equality test"
+go test -count=1 -run "TestEmitDeterministic|TestSignVerifyEntries|TestShamirRoundTrip" ./cmd/corona_oracle_v2 >/dev/null
 
 echo "[5/5] hash NIST KAT verification"
 go test -count=1 -run "TestKMAC256NISTVector|TestTupleHash256NISTVector" ./hash >/dev/null
@@ -74,7 +74,7 @@ manifest_files=(
   "${DKG2_OUT}"
   "${ACTIVATION_OUT}"
 )
-for f in "${RINGTAIL_DIR}"/*.json; do
+for f in "${CORONA_V2_DIR}"/*.json; do
   manifest_files+=("$f")
 done
 
