@@ -4,6 +4,85 @@ Notable changes to the `corona` module. Pre-release; semantic versioning
 applied per PHILOSOPHY.md (patch only -- never minor/major without explicit
 approval).
 
+## v0.7.5 (public-BFT Bootstrap default — symmetry with Reanchor)
+
+Closes the last asymmetry left over from v0.7.3: the unqualified
+`keyera.Bootstrap` and `keyera.BootstrapWithSuite` entrypoints still
+routed through the legacy single-dealer Shamir share-out, so any caller
+who picked the "obvious" name silently inherited the trusted-dealer
+caveat at chain genesis. v0.7.5 flips both defaults to
+`BootstrapPedersen`: no single party ever holds the master secret `s`
+at any point in the ceremony. The mirror move was already made in
+v0.7.4 for `Reanchor`; v0.7.5 completes the symmetry so the API surface
+has **one** safe default for opening a key era and **one** explicit
+opt-in (`BootstrapTrustedDealer` / `ReanchorTrustedDealer`) for
+HSM / TEE ceremonies.
+
+### Signature changes (`keyera/keyera.go`)
+
+- `keyera.Bootstrap(t, validators, groupID, eraID, entropy)` now
+  returns `(*KeyEra, *BootstrapTranscript, error)` (was `(*KeyEra,
+  error)`) and routes through `BootstrapPedersen`. Callers MUST commit
+  the transcript to the chain for the era to ratify.
+- `keyera.BootstrapWithSuite` mirrors the same signature change and
+  routes through `BootstrapPedersen` with the supplied suite.
+
+### Public-BFT-safe path (no functional change vs v0.7.4)
+
+- `BootstrapPedersen` and `ReanchorPedersen` remain the canonical
+  implementations; the v0.7.5 change is a default-routing flip, not a
+  new construction.
+
+### Legacy trusted-dealer aliases (explicit opt-in only)
+
+- `keyera.BootstrapTrustedDealer` /
+  `keyera.BootstrapTrustedDealerWithSuite` continue to expose the
+  legacy single-dealer Shamir share-out (byte-equivalent to the
+  pre-v0.7.5 unqualified Bootstrap). The shared implementation is now
+  the unexported `bootstrapTrustedDealerImpl` so the public-facing
+  aliases cannot drift from each other; `ReanchorTrustedDealerWithSuite`
+  also routes through this helper.
+
+### Structural invariant
+
+- `BootstrapPedersen` requires `n >= 2 && t < n`. The unqualified
+  Bootstrap therefore inherits the same constraint, by construction;
+  callers that need `t == n` (every validator MUST sign) must select
+  the trusted-dealer entrypoint explicitly. This is the "loud name"
+  the cryptographer's audit prompt asks for: any deployment that
+  cannot tolerate the dealer's trust boundary will be caught at the
+  call site, not silently.
+
+### Tests
+
+All green via `GOWORK=off go test -count=1 -short ./...`:
+
+- `keyera_test.go` -- updated to drop `t == n` from the public-BFT
+  cases (now uses `t = n - 1`); `Bootstrap` 3-tuple return propagated.
+- `hashsuite_immut_test.go` -- same threshold adjustment.
+- `bootstrap_pedersen_test.go` -- `TestBootstrapTrustedDealer_Legacy
+  Alias` renamed to `TestBootstrapTrustedDealer_StandalonePath` since
+  the two paths are no longer byte-equivalent; the test pins that the
+  Pedersen `Bootstrap` correctly rejects `t == n`.
+
+### Documentation
+
+- `DEPLOYMENT-RUNBOOK.md` §Bootstrap-Trust decision matrix updated:
+  the unqualified `Bootstrap` now appears in the "public-BFT" row;
+  the trusted-dealer alias is the explicit HSM/TEE-ceremony row.
+- `AUDIT-2026-05.md` §0 v0.7.5 closure note; §8.5 new caveat: chains
+  that historically used `t == n` MUST adopt `t < n` to take the
+  public-BFT path. Otherwise they remain on `BootstrapTrustedDealer`
+  with the dealer caveat explicit at the call site.
+
+### Cross-runtime byte equality
+
+- The unqualified `Bootstrap` bytes diverge from prior runs because
+  the underlying ceremony changed. No deployed KAT pins `Bootstrap`
+  output; the canonical KATs target `BootstrapPedersen` (under its
+  own name) and `BootstrapTrustedDealer` (under its own name). Future
+  cross-runtime ports MUST distinguish the two paths by name.
+
 ## v0.7.4 (public-BFT Reanchor via dkg2 Pedersen-DKG; mathSqrt cleanup)
 
 Closes the Reanchor trusted-dealer regression flagged in v0.7.3 red

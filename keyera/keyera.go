@@ -132,29 +132,34 @@ type EpochShareState struct {
 	Shares     map[string]*threshold.KeyShare
 }
 
-// Bootstrap runs the one-time trusted-dealer ceremony at chain genesis
-// or governance-gated Reanchor.
+// Bootstrap opens a new key era WITHOUT a trusted dealer.
 //
-// TRUST MODEL — TRUSTED DEALER.
-// This function instantiates the master secret s on a single party (the
-// dealer) for the duration of one stack frame. The dealer constructs
-// Shamir shares of s, hands them to the validator set, and zeroes the
-// in-memory copy of s before returning. The chain only holds the public
-// GroupKey and the distributed shares thereafter.
+// TRUST MODEL — PUBLIC-BFT-SAFE (default).
+// This function routes the keygen ceremony through `dkg2/` (Pedersen-
+// DKG over R_q) + Path (a) noise flooding so no single party ever
+// holds the master secret s at any point in the ceremony. Every
+// validator runs `dkg2.Round1` independently; the per-party noise
+// contributions aggregate into a Corona-Sign-shaped public key
+// `bTilde = Round_Xi(A·s + e'')` where each party adds one Gaussian
+// `e_j'` slice under σ'' = κ·σ_E·√n. Identifiable abort: a
+// misbehaving sender is named in a signed `dkg2.Complaint` carrying
+// re-checkable Pedersen evidence; the chain commits the abort
+// transcript and stays at the previous epoch.
 //
-// Foundation MUST coordinate Bootstrap as a publicly observable MPC
-// ceremony at chain launch: entropy from verifiable commit-and-reveal
-// among the genesis validators; dealer state erased before the ceremony
-// closes; HSM-bound execution preferred. Even with these mitigations,
-// the dealer's host platform is in the trust boundary for the duration
-// of the call.
+// On success returns (era, transcript, nil). The transcript is the
+// public, byte-stable record of the ceremony; honest validators that
+// observe the same cohort messages compute identical bytes. The
+// consensus layer commits to `transcript.TranscriptHash` to ratify
+// the era. On identifiable abort returns (nil, nil, err wrapping
+// ErrBootstrapPedersenAbort); extract via ExtractAbortEvidence.
 //
-// PUBLIC-BFT-SAFE ALTERNATIVE: use BootstrapPedersen, which runs
-// dkg2 (Pedersen-DKG over R_q) + Path (a) noise flooding so no party
-// ever holds s. BootstrapPedersen is the recommended entrypoint for any
-// new deployment; Bootstrap (and its BootstrapTrustedDealer alias) is
-// retained for genesis ceremonies where a non-distributed trust root is
-// explicitly chosen. See DEPLOYMENT-RUNBOOK.md §Bootstrap-Trust.
+// LEGACY ALTERNATIVE: use BootstrapTrustedDealer for HSM/TEE
+// ceremonies where the operator explicitly chooses a non-distributed
+// trust root (publicly observable HSM-bound ceremony with commit-
+// and-reveal entropy from genesis validators, dealer state zeroed
+// before ceremony close). The dealer's host platform is in the trust
+// boundary for the duration of the call. See DEPLOYMENT-RUNBOOK.md
+// §Bootstrap-Trust for the trust-model trade-off documentation.
 //
 // Use crypto/rand.Reader for the kernel's randomness when no specific
 // ceremony source is provided. Tests pass a deterministic source for
@@ -163,16 +168,31 @@ type EpochShareState struct {
 // Bootstrap pins the production HashSuite (Corona-SHA3). Use
 // BootstrapWithSuite to open an era under the legacy Corona-BLAKE3
 // profile (for cross-suite KAT replay only — NOT for production).
-func Bootstrap(t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, entropy io.Reader) (*KeyEra, error) {
-	return BootstrapWithSuite(hash.Default(), t, validators, groupID, eraID, entropy)
+func Bootstrap(t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, entropy io.Reader) (*KeyEra, *BootstrapTranscript, error) {
+	return BootstrapPedersen(hash.Default(), t, validators, groupID, eraID, entropy)
 }
 
-// BootstrapWithSuite is the canonical entrypoint that explicitly pins
-// the hash profile this era will run under. The supplied suite is
-// recorded on the returned KeyEra and propagates unchanged through
-// every Reshare; Reanchor opens a fresh era and MAY pin a different
-// suite. Pass nil to use the production default (Corona-SHA3).
-func BootstrapWithSuite(suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, entropy io.Reader) (*KeyEra, error) {
+// BootstrapWithSuite is the suite-explicit form of Bootstrap. It
+// routes through BootstrapPedersen (public-BFT-safe, no trusted
+// dealer) with the supplied HashSuite; pass nil to use the
+// production default (Corona-SHA3). See the Bootstrap docstring for
+// the trust-model disclosure.
+//
+// LEGACY ALTERNATIVE: use BootstrapTrustedDealerWithSuite for HSM/TEE
+// ceremony scenarios where a non-distributed trust root is acceptable
+// by policy.
+func BootstrapWithSuite(suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, entropy io.Reader) (*KeyEra, *BootstrapTranscript, error) {
+	return BootstrapPedersen(suite, t, validators, groupID, eraID, entropy)
+}
+
+// bootstrapTrustedDealerImpl is the historical trusted-dealer
+// implementation, retained as the body of BootstrapTrustedDealer /
+// BootstrapTrustedDealerWithSuite. Single source of truth so the
+// public-facing aliases cannot drift from each other. NO production
+// code path should call this directly; use BootstrapTrustedDealer
+// instead so the name signals the trust-model decision at the call
+// site.
+func bootstrapTrustedDealerImpl(suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, entropy io.Reader) (*KeyEra, error) {
 	if len(validators) == 0 {
 		return nil, ErrEmptyValidators
 	}
@@ -422,7 +442,7 @@ func ReanchorTrustedDealerWithSuite(prev *KeyEra, suite hash.HashSuite, t int, v
 			nextEpoch = prev.State.Epoch + 1
 		}
 	}
-	next, err := BootstrapWithSuite(suite, t, validators, groupID, nextEraID, entropy)
+	next, err := bootstrapTrustedDealerImpl(suite, t, validators, groupID, nextEraID, entropy)
 	if err != nil {
 		return nil, err
 	}
