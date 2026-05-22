@@ -68,10 +68,72 @@ satisfy at least items 1–4):
    no shell access; no debugger attachment in production.
 5. **TEE attestation (recommended)**: aggregator runs inside SGX,
    SEV-SNP, or TDX with remote attestation pinned to the
-   reproducible build of `luxfi/corona v0.4.1`.
+   reproducible build of `luxfi/corona v0.7.3`.
 6. **Defense-in-depth**: validator-set rotation via Reshare (not
    Reanchor) is the routine path; Reanchor (new key era) is a rare
    governance event reserved for security-incident response.
+
+### Bootstrap-Trust: two entrypoints, one decision
+
+As of `v0.7.3`, Corona ships two bootstrap entrypoints. **Operators MUST
+choose one explicitly; the choice is load-bearing for the chain's
+trust model.**
+
+#### Option A — `keyera.BootstrapPedersen` (public-BFT-safe, recommended)
+
+- Routes the keygen ceremony through `dkg2/` (Pedersen-DKG over `R_q`).
+- Every validator runs `dkg2.Round1` independently; no single party
+  ever holds the master secret `s` at any point in the ceremony.
+- Path (a) noise flooding (LP-073 §07 Mapping) produces a Corona-
+  Sign-shaped public key `bTilde = Round_Xi(A·s + e'')` where each
+  party contributes one Gaussian `e_j'` slice.
+- Identifiable abort: a misbehaving sender is named in a signed
+  `dkg2.Complaint` carrying re-checkable Pedersen evidence; the
+  chain commits the abort transcript and stays at the previous epoch.
+- **Use case**: any production deployment where the operator cannot
+  vouch for the secrecy of a single dealer's host platform.
+- **Security assumptions**:
+  - Hiding under decisional MLWE on the wide concatenation `[A|B]`
+    (Pedersen-DKG security; `papers/lp-073-pulsar §07`).
+  - Per-party Gaussian flooding bound `σ'' = κ·σ_E·√n` covers the
+    LWE leakage budget (Path (a) flood-bound, LP-073 §5).
+  - Authenticated pairwise channels between every validator pair
+    (consensus layer; in-process kernel derives material
+    deterministically for KAT replay).
+- **Trade-off**: one extra round versus the trusted-dealer path; an
+  extra `M · n · (φ · log q)` bytes of broadcast (the per-party β_j
+  contributions) bound into the transcript.
+
+#### Option B — `keyera.BootstrapTrustedDealer` (legacy, ceremony-only)
+
+- Single dealer instantiates `s`, runs Shamir share-out, hands shares
+  to the committee, zeroes its in-memory copy of `s`.
+- The dealer's host platform is in the trust boundary for the
+  duration of the call.
+- **Use case**: genesis ceremonies where the foundation explicitly
+  chooses a non-distributed trust root (publicly observable HSM-
+  bound ceremony with commit-and-reveal entropy from genesis
+  validators, dealer state zeroed before ceremony close).
+- **Honest framing**: this is the standard "toxic-waste" assumption
+  common to setup ceremonies. It is acceptable for chain launch
+  ceremonies where the foundation's ceremony posture is audited and
+  attested; it is NOT acceptable for permissionless re-anchoring,
+  routine rotations, or any context where the dealer is not a
+  publicly-attested entity.
+
+#### Decision matrix
+
+| Scenario | Recommended entrypoint |
+|---|---|
+| New mainnet chain launch | `BootstrapPedersen` (foundation acts as one of n) |
+| Foundation-audited HSM ceremony at chain genesis | `BootstrapTrustedDealer` (acceptable; document trust attestation) |
+| Reanchor due to security incident | `BootstrapPedersen` (no single party should be retrusted) |
+| Routine validator-set rotation | Use `Reshare` (preserves GroupKey; no bootstrap) |
+| Test / KAT replay | Either, with deterministic entropy |
+
+The decision is recorded in the era's genesis transcript via the
+`HashSuiteID` and the Bootstrap mode tag; downstream auditors can
+verify which path was taken without re-running the ceremony.
 
 ### What Corona's combine does NOT do
 
@@ -234,5 +296,5 @@ In the interim, the honest cryptographic posture is:
 **Document metadata**
 
 - Name: `DEPLOYMENT-RUNBOOK.md`
-- Version: v0.1 (matches Corona v0.4.1; updated for submission scaffolding)
-- Date: 2026-05-18
+- Version: v0.2 (matches Corona v0.7.3; Bootstrap-Trust two-entrypoint disclosure added)
+- Date: 2026-05-21

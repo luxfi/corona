@@ -134,19 +134,26 @@ type EpochShareState struct {
 // Bootstrap runs the one-time trusted-dealer ceremony at chain genesis
 // or governance-gated Reanchor.
 //
-// The trust is confined to genesis of the key era: someone (the dealer)
-// momentarily knows the master secret s while constructing the shares.
-// If s is retained, copied, or exfiltrated, the long-lived Corona group
-// key is compromised. Foundation MUST coordinate Bootstrap as a
-// publicly observable MPC ceremony at chain launch — the entropy MUST
-// come from a verifiable commit-and-reveal among the genesis
-// validators, and the dealer state MUST be erased before the ceremony
-// closes.
+// TRUST MODEL — TRUSTED DEALER.
+// This function instantiates the master secret s on a single party (the
+// dealer) for the duration of one stack frame. The dealer constructs
+// Shamir shares of s, hands them to the validator set, and zeroes the
+// in-memory copy of s before returning. The chain only holds the public
+// GroupKey and the distributed shares thereafter.
 //
-// After Bootstrap returns, the master secret no longer exists in the
-// dealer's memory. The chain only has the public GroupKey and the
-// distributed shares. Subsequent Reshare calls preserve s without
-// reconstructing it.
+// Foundation MUST coordinate Bootstrap as a publicly observable MPC
+// ceremony at chain launch: entropy from verifiable commit-and-reveal
+// among the genesis validators; dealer state erased before the ceremony
+// closes; HSM-bound execution preferred. Even with these mitigations,
+// the dealer's host platform is in the trust boundary for the duration
+// of the call.
+//
+// PUBLIC-BFT-SAFE ALTERNATIVE: use BootstrapPedersen, which runs
+// dkg2 (Pedersen-DKG over R_q) + Path (a) noise flooding so no party
+// ever holds s. BootstrapPedersen is the recommended entrypoint for any
+// new deployment; Bootstrap (and its BootstrapTrustedDealer alias) is
+// retained for genesis ceremonies where a non-distributed trust root is
+// explicitly chosen. See DEPLOYMENT-RUNBOOK.md §Bootstrap-Trust.
 //
 // Use crypto/rand.Reader for the kernel's randomness when no specific
 // ceremony source is provided. Tests pass a deterministic source for
