@@ -1,7 +1,7 @@
 # Corona -- Agent Knowledge Base
 
 **Repository**: github.com/luxfi/corona
-**Latest Tag**: v0.7.2 (next: v0.7.3 — public-BFT BootstrapPedersen closes trusted-dealer caveat)
+**Latest Tag**: v0.7.3 (next: v0.7.4 — public-BFT ReanchorPedersen closes the Reanchor trusted-dealer regression)
 **Status**: Production (consensus path); NIST MPTC submission package included. Sibling submission `luxfi/pulsar` is the M-LWE byte-equal FIPS 204 path.
 
 ## Purpose (one-liner)
@@ -39,6 +39,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 
 | SHA | Tag | Impact |
 |-----|-----|--------|
+| _pending_ | v0.7.4 | keyera: ReanchorPedersen — closes Reanchor trusted-dealer regression; `mathSqrt` → stdlib `math.Sqrt` |
 | `e412c7e` | v0.7.3 | keyera: BootstrapPedersen — Pedersen-DKG over R_q + Path (a) noise flooding; closes trusted-dealer caveat |
 | `920195e` | v0.7.2 | gpu: opt corona threshold signing into lattice/ring GPU NTT dispatch |
 | `4f54c28` | v0.7.1 | remove detailed patent-claims docs (relocated to lux-private/patents) |
@@ -52,7 +53,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 | `43e7d88` | v0.4.x | corona/papers: ringtail2025 cite → boschini2024corona; ringtailThreshold → coronaThreshold in TeX |
 
 ### Active versions
-- Repo: `v0.7.2` (next: `v0.7.3` adds `keyera.BootstrapPedersen` — public-BFT-safe bootstrap routing through `dkg2/`).
+- Repo: `v0.7.3` (next: `v0.7.4` adds `keyera.ReanchorPedersen` and switches the default `keyera.Reanchor` to route through `dkg2/`; legacy single-dealer behaviour retained behind `keyera.ReanchorTrustedDealer`).
 - Pinned by: `luxfi/consensus v1.23.6+` (R-LWE path is consensus-only).
 
 ### Canonical params

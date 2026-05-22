@@ -106,6 +106,11 @@ func TestReshareNewCommitteePreservesGroupKey(t *testing.T) {
 
 // TestReanchorOpensNewEra verifies Reanchor produces a fresh GroupKey
 // while monotonically advancing the epoch and bumping the EraID.
+//
+// The new committee uses t=2, n=3 because the v0.7.4 Reanchor routes
+// through Pedersen-DKG which requires t < n (strictly less than) for
+// identifiable-abort detection. The legacy t == n behaviour remains
+// available via ReanchorTrustedDealer.
 func TestReanchorOpensNewEra(t *testing.T) {
 	era, err := Bootstrap(3, []string{"a", "b", "c"}, 0, 1, deterministicRand("era-1"))
 	if err != nil {
@@ -118,9 +123,12 @@ func TestReanchorOpensNewEra(t *testing.T) {
 	prevGK := era.GroupKey
 	prevEraID := era.EraID
 
-	era2, err := Reanchor(era, 3, []string{"d", "e", "f"}, 0, deterministicRand("era-2"))
+	era2, transcript, err := Reanchor(era, 2, []string{"d", "e", "f"}, 0, deterministicRand("era-2"))
 	if err != nil {
 		t.Fatalf("Reanchor: %v", err)
+	}
+	if transcript == nil {
+		t.Fatal("Reanchor returned nil transcript; public-BFT Reanchor must commit a transcript")
 	}
 	if era2.GroupKey == prevGK {
 		t.Fatal("Reanchor returned the same GroupKey pointer; expected fresh key")

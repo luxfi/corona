@@ -36,7 +36,7 @@ responses, not the shares themselves.
    distributes shares. Whoever participates in the Bootstrap MPC
    ceremony has, at some point in the ceremony's execution, machinery
    that touches `s`. The dealer-side `s` is zeroed in place after
-   sharing (`keyera/keyera.go:191-198`), but the ceremony must be
+   sharing (`keyera/keyera.go:228-238`), but the ceremony must be
    conducted under verifiably-public conditions (commit-and-reveal
    from genesis validators) with toxic-waste assumptions tracked.
 
@@ -68,16 +68,26 @@ satisfy at least items 1–4):
    no shell access; no debugger attachment in production.
 5. **TEE attestation (recommended)**: aggregator runs inside SGX,
    SEV-SNP, or TDX with remote attestation pinned to the
-   reproducible build of `luxfi/corona v0.7.3`.
+   reproducible build of `luxfi/corona v0.7.4`.
 6. **Defense-in-depth**: validator-set rotation via Reshare (not
    Reanchor) is the routine path; Reanchor (new key era) is a rare
    governance event reserved for security-incident response.
 
-### Bootstrap-Trust: two entrypoints, one decision
+### Bootstrap-Trust: two entrypoints (each), one decision
 
-As of `v0.7.3`, Corona ships two bootstrap entrypoints. **Operators MUST
+As of `v0.7.3`, Corona ships two **bootstrap** entrypoints; as of
+`v0.7.4`, the same split applies to **reanchor**. **Operators MUST
 choose one explicitly; the choice is load-bearing for the chain's
 trust model.**
+
+The same decision criteria apply to both lifecycle events:
+
+- `Bootstrap` / `Reanchor` defaults to the **public-BFT-safe**
+  Pedersen-DKG path (`BootstrapPedersen` / `ReanchorPedersen`). No
+  party ever holds the master secret `s` at any point in the ceremony.
+- `BootstrapTrustedDealer` / `ReanchorTrustedDealer` is the explicit
+  opt-in for **HSM- or TEE-bound ceremonies** where the operator is
+  prepared to vouch for a single dealer's host platform under audit.
 
 #### Option A — `keyera.BootstrapPedersen` (public-BFT-safe, recommended)
 
@@ -123,13 +133,27 @@ trust model.**
 
 #### Decision matrix
 
+The matrix below covers both lifecycle events that open a key era:
+**Bootstrap** (chain genesis) and **Reanchor** (governance-gated new
+era for security-event response). Resharing within an era is
+**always** trustless — no decision needed there.
+
 | Scenario | Recommended entrypoint |
 |---|---|
-| New mainnet chain launch | `BootstrapPedersen` (foundation acts as one of n) |
+| New mainnet chain launch (public BFT) | `BootstrapPedersen` (foundation acts as one of n) |
 | Foundation-audited HSM ceremony at chain genesis | `BootstrapTrustedDealer` (acceptable; document trust attestation) |
-| Reanchor due to security incident | `BootstrapPedersen` (no single party should be retrusted) |
-| Routine validator-set rotation | Use `Reshare` (preserves GroupKey; no bootstrap) |
+| Reanchor due to security incident, public BFT validator set | `ReanchorPedersen` / `Reanchor` (no single party should be retrusted) |
+| Reanchor via HSM/TEE ceremony with audited trust posture | `ReanchorTrustedDealer` (acceptable only when the new dealer is publicly attested) |
+| Routine validator-set rotation | Use `Reshare` (preserves GroupKey; no bootstrap, no decision) |
 | Test / KAT replay | Either, with deterministic entropy |
+
+**Default routing in code**: as of v0.7.4, the unqualified
+`Reanchor` / `ReanchorWithSuite` entries route through
+`ReanchorPedersen`. To use the legacy single-dealer path you MUST
+name `ReanchorTrustedDealer` / `ReanchorTrustedDealerWithSuite`
+explicitly. The same pattern as v0.7.3 `Bootstrap` /
+`BootstrapTrustedDealer`: the safe default is unqualified; the
+ceremony path requires an explicit name.
 
 The decision is recorded in the era's genesis transcript via the
 `HashSuiteID` and the Bootstrap mode tag; downstream auditors can
@@ -296,5 +320,7 @@ In the interim, the honest cryptographic posture is:
 **Document metadata**
 
 - Name: `DEPLOYMENT-RUNBOOK.md`
-- Version: v0.2 (matches Corona v0.7.3; Bootstrap-Trust two-entrypoint disclosure added)
+- Version: v0.3 (matches Corona v0.7.4; Reanchor-Trust two-entrypoint
+  disclosure added; default routing pinned to Pedersen-DKG for both
+  Bootstrap and Reanchor)
 - Date: 2026-05-21
