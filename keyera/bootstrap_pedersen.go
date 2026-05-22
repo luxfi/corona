@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 
 	"github.com/luxfi/corona/dkg2"
@@ -478,24 +479,9 @@ func BootstrapTrustedDealerWithSuite(suite hash.HashSuite, t int, validators []s
 // We bound the rejection-sampler tail at 2σ to match the discrete
 // Gaussian convention used throughout corona/sign/.
 func pathANoiseParameters(n int) (sigma, bound float64) {
-	sigma = float64(sign.Kappa) * sign.SigmaE * mathSqrt(float64(n))
+	sigma = float64(sign.Kappa) * sign.SigmaE * math.Sqrt(float64(n))
 	bound = sigma * 2
 	return
-}
-
-// mathSqrt is math.Sqrt re-stated locally to avoid importing math just
-// for one call (keeps the import surface tight and grep-able). Uses a
-// Newton's-method iteration which is sufficient for the floating-point
-// noise parameter we compute once at bootstrap.
-func mathSqrt(x float64) float64 {
-	if x <= 0 {
-		return 0
-	}
-	z := x
-	for i := 0; i < 12; i++ {
-		z = (z + x/z) / 2
-	}
-	return z
 }
 
 // samplePathANoise draws one party's β_j noise contribution e_j' ~ D(σ).

@@ -4,6 +4,95 @@ Notable changes to the `corona` module. Pre-release; semantic versioning
 applied per PHILOSOPHY.md (patch only -- never minor/major without explicit
 approval).
 
+## v0.7.4 (public-BFT Reanchor via dkg2 Pedersen-DKG; mathSqrt cleanup)
+
+Closes the Reanchor trusted-dealer regression flagged in v0.7.3 red
+review: `keyera.Reanchor` previously called `BootstrapWithSuite` (the
+trusted-dealer path) under the hood, so a governance-driven Reanchor
+re-introduced the dealer caveat at every rotation. v0.7.4 routes
+`Reanchor` through `ReanchorPedersen` by default (Pedersen-DKG over
+`R_q` + Path (a) noise flooding) so no party ever holds the new
+era's master secret `s` at any point in the rotation. The legacy
+trusted-dealer behaviour is retained behind explicit
+`ReanchorTrustedDealer` aliases for HSM / TEE ceremonies.
+
+### New public surface (`keyera/reanchor_pedersen.go`)
+
+- `keyera.ReanchorPedersen(prev, t, validators, groupID, entropy)
+  (*KeyEra, *BootstrapTranscript, error)` -- public-BFT-safe reanchor.
+  Routes through `BootstrapPedersen` with the new era's EraID =
+  prev.EraID+1 and GenesisEpoch = prev.State.Epoch+1.
+- `keyera.ReanchorPedersenWithSuite(prev, suite, t, validators,
+  groupID, entropy) (*KeyEra, *BootstrapTranscript, error)` --
+  suite-explicit variant. Reanchor is the only lifecycle entrypoint
+  that may pin a hash profile different from the prior era's.
+
+### Signature changes (`keyera/keyera.go`)
+
+- `keyera.Reanchor` and `keyera.ReanchorWithSuite` now return
+  `(*KeyEra, *BootstrapTranscript, error)` (was `(*KeyEra, error)`)
+  and route through `ReanchorPedersen`. The transcript MUST be
+  committed to the chain for the new era to ratify.
+- `keyera.ReanchorTrustedDealer` /
+  `keyera.ReanchorTrustedDealerWithSuite` -- new explicit aliases
+  for the legacy single-dealer path. Byte-equivalent to the
+  pre-v0.7.4 trusted-dealer Reanchor behaviour. Use ONLY for
+  ceremony scenarios where a non-distributed trust root is
+  acceptable by policy (see `DEPLOYMENT-RUNBOOK.md §Bootstrap-Trust`).
+
+### Cleanup (`keyera/bootstrap_pedersen.go`)
+
+- `mathSqrt` -- a 12-iteration Newton's-method in-tree
+  implementation -- replaced with stdlib `math.Sqrt`. The "keeps
+  the import surface tight" rationale was false parsimony; the
+  Path (a) noise σ is computed once at bootstrap and stdlib gives
+  the canonical IEEE 754 result without ULP drift.
+
+### Tests (`keyera/reanchor_pedersen_test.go`)
+
+All green via `GOWORK=off go test -count=1 -short ./keyera/`:
+
+- `TestReanchorPedersen_RoundTrip` -- bootstrap → reanchor → sign
+  with new shares → verify under new GroupKey. Asserts EraID
+  increments, GenesisEpoch + State.Epoch advance, HashSuiteID is
+  inherited, transcript is non-nil.
+- `TestReanchorPedersen_NoMasterSecret` -- structural assertions
+  that no `dkg2.DKGSession` field exposes the master secret and
+  no two new-committee shares collide.
+- `TestReanchorPedersen_DishonestParty` -- tampered share triggers
+  `ErrBootstrapPedersenAbort` with a named `ComplaintBadDelivery`.
+- `TestReanchorTrustedDealer_LegacyAlias` -- legacy alias still
+  works; byte-equivalent across `ReanchorTrustedDealer` and
+  `ReanchorTrustedDealerWithSuite(Corona-SHA3)`.
+
+Existing tests updated to the new signature:
+
+- `TestReanchorOpensNewEra` (`keyera/keyera_test.go`) -- now uses
+  `t=2, n=3` because the public-BFT-safe path requires `t < n`.
+- `TestReanchorMayChangeSuite` (`keyera/hashsuite_immut_test.go`)
+  -- same threshold adjustment; same suite-migration assertion.
+
+### Documentation
+
+- `AUDIT-2026-05.md` -- §0 v0.7.4 closure note; §8.3 caveat updated
+  (Reanchor closure); §9 references with verified IACR ePrint IDs
+  for the 2025 citations (2024/959, 2024/1113, 2025/871, 2025/872,
+  2025/1691) and explicit `[citation TBD]` for unverifiable lines
+  rather than fabricated IDs.
+- `DEPLOYMENT-RUNBOOK.md` -- §Bootstrap-Trust decision matrix
+  expanded to cover Reanchor; default routing pinned to
+  Pedersen-DKG for both Bootstrap and Reanchor.
+
+### Cross-runtime byte equality
+
+- KAT manifest preserved (`scripts/regen-kats.manifest.sha256`);
+  no cross-runtime KATs reference BootstrapPedersen transcripts.
+- `math.Sqrt` vs the previous Newton-12-iter implementation diverges
+  by 1 ULP for some n (e.g. n=2, n=10). No deployed KAT pins
+  `pathANoiseParameters` output, so this is harmless within the
+  in-tree replay tests; future cross-runtime ports MUST use
+  `math.Sqrt` (or equivalent IEEE 754 stdlib sqrt) to byte-match.
+
 ## v0.7.3 (public-BFT Bootstrap via dkg2 Pedersen-DKG + Path (a) noise flooding)
 
 Closes the last trusted-dealer caveat in `keyera.Bootstrap` for any
