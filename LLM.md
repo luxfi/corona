@@ -1,7 +1,7 @@
 # Corona -- Agent Knowledge Base
 
 **Repository**: github.com/luxfi/corona
-**Latest Tag**: v0.7.3 (next: v0.7.4 — public-BFT ReanchorPedersen closes the Reanchor trusted-dealer regression)
+**Latest Tag**: v0.7.4 (next: v0.7.5 — public-BFT Bootstrap default closes the last unqualified trusted-dealer dispatch)
 **Status**: Production (consensus path); NIST MPTC submission package included. Sibling submission `luxfi/pulsar` is the M-LWE byte-equal FIPS 204 path.
 
 ## Purpose (one-liner)
@@ -39,6 +39,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 
 | SHA | Tag | Impact |
 |-----|-----|--------|
+| (pending) | v0.7.5 | keyera: Bootstrap default → BootstrapPedersen; trusted-dealer impl moved to unexported helper; loud-name invariant restored across both Bootstrap and Reanchor |
 | `607d71c` | v0.7.4 | keyera: ReanchorPedersen — closes Reanchor trusted-dealer regression; `mathSqrt` → stdlib `math.Sqrt` |
 | `e412c7e` | v0.7.3 | keyera: BootstrapPedersen — Pedersen-DKG over R_q + Path (a) noise flooding; closes trusted-dealer caveat |
 | `920195e` | v0.7.2 | gpu: opt corona threshold signing into lattice/ring GPU NTT dispatch |
@@ -53,7 +54,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 | `43e7d88` | v0.4.x | corona/papers: ringtail2025 cite → boschini2024corona; ringtailThreshold → coronaThreshold in TeX |
 
 ### Active versions
-- Repo: `v0.7.3` (next: `v0.7.4` adds `keyera.ReanchorPedersen` and switches the default `keyera.Reanchor` to route through `dkg2/`; legacy single-dealer behaviour retained behind `keyera.ReanchorTrustedDealer`).
+- Repo: `v0.7.4` (next: `v0.7.5` flips the default `keyera.Bootstrap` / `keyera.BootstrapWithSuite` to route through `BootstrapPedersen`, matching the v0.7.4 Reanchor flip; the legacy trusted-dealer impl is now in the unexported `bootstrapTrustedDealerImpl` and only reachable via the explicit `BootstrapTrustedDealer*` / `ReanchorTrustedDealer*` names).
 - Pinned by: `luxfi/consensus v1.23.6+` (R-LWE path is consensus-only).
 
 ### Canonical params

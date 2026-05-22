@@ -335,28 +335,36 @@ func TestBootstrapPedersen_DefaultSuite(t *testing.T) {
 	}
 }
 
-// TestBootstrapTrustedDealer_LegacyAlias — the renamed legacy alias is
-// byte-equivalent to the original Bootstrap.
-func TestBootstrapTrustedDealer_LegacyAlias(t *testing.T) {
+// TestBootstrapTrustedDealer_StandalonePath — the BootstrapTrustedDealer
+// alias is the only entrypoint that still routes through the legacy
+// single-dealer Shamir share-out (for HSM/TEE ceremony scenarios). Since
+// v0.7.5 the unqualified Bootstrap defaults to Pedersen-DKG, so the two
+// paths are NOT byte-equivalent any more. This test pins that the
+// trusted-dealer alias remains usable (same n, same validator set,
+// same threshold) for the t == n case which the Pedersen path
+// structurally rejects.
+func TestBootstrapTrustedDealer_StandalonePath(t *testing.T) {
 	const thr, n = 3, 3
 	validators := []string{"x", "y", "z"}
 
-	eraA, err := Bootstrap(thr, validators, 0, 0, deterministicRand("legacy-alias"))
-	if err != nil {
-		t.Fatalf("Bootstrap: %v", err)
-	}
-	eraB, err := BootstrapTrustedDealer(thr, validators, 0, 0, deterministicRand("legacy-alias"))
+	era, err := BootstrapTrustedDealer(thr, validators, 0, 0, deterministicRand("trusted-dealer"))
 	if err != nil {
 		t.Fatalf("BootstrapTrustedDealer: %v", err)
 	}
-	// bTilde bytes must match — both paths consume the same entropy
-	// stream and run the same Shamir kernel.
-	if !reflect.DeepEqual(eraA.GroupKey.BTilde, eraB.GroupKey.BTilde) {
-		t.Fatal("BootstrapTrustedDealer diverges from Bootstrap on bTilde — alias broken")
+	if era.GroupKey == nil {
+		t.Fatal("BootstrapTrustedDealer returned nil GroupKey")
 	}
-	// Same set of validators.
-	if !reflect.DeepEqual(eraA.State.Validators, eraB.State.Validators) {
-		t.Fatal("BootstrapTrustedDealer diverges from Bootstrap on validators")
+	if got := len(era.State.Validators); got != n {
+		t.Fatalf("validator count: want %d got %d", n, got)
+	}
+	if got := era.State.Threshold; got != thr {
+		t.Fatalf("threshold: want %d got %d", thr, got)
+	}
+	// The unqualified Bootstrap (Pedersen-DKG path) refuses t == n
+	// because identifiable-abort detection requires at least one honest
+	// non-sender per round. Confirm the dispatch.
+	if _, _, err := Bootstrap(thr, validators, 0, 0, deterministicRand("public-bft")); err == nil {
+		t.Fatal("Bootstrap with t == n should fail under Pedersen-DKG (t < n required)")
 	}
 }
 

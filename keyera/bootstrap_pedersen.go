@@ -450,23 +450,34 @@ func FinishBootstrapPedersen(suite hash.HashSuite, t int, validators []string, g
 }
 
 // BootstrapTrustedDealer is the legacy single-trusted-party bootstrap
-// retained for genesis-ceremony scenarios where a non-distributed trust
-// root is acceptable (e.g. a publicly observable foundation MPC ceremony
-// at chain launch). It is byte-equivalent to the historical Bootstrap
-// entrypoint.
+// retained for HSM/TEE ceremony scenarios where a non-distributed
+// trust root is acceptable by policy (e.g. a publicly observable
+// foundation MPC ceremony at chain launch). The dealer's host
+// platform is in the trust boundary for the duration of the call.
 //
-// PREFER BootstrapPedersen for any deployment where no single party is
-// trusted to discard the master secret.
+// TRUST MODEL — TRUSTED DEALER (explicit opt-in).
+// This function instantiates the master secret s on a single party
+// (the dealer) for the duration of one stack frame. The dealer
+// constructs Shamir shares of s, hands them to the validator set,
+// and zeroes the in-memory copy of s before returning. The chain
+// only holds the public GroupKey and the distributed shares
+// thereafter. The dealer is in the TCB for the duration of the call.
 //
-// See DEPLOYMENT-RUNBOOK.md for the trust-model trade-off documentation.
+// PREFER Bootstrap (the unqualified entrypoint) for any deployment
+// where no single party is trusted to discard the master secret;
+// Bootstrap routes through Pedersen-DKG (no dealer) by default.
+//
+// See DEPLOYMENT-RUNBOOK.md §Bootstrap-Trust for the trust-model
+// decision matrix (which entry to use when).
 func BootstrapTrustedDealer(t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, entropy io.Reader) (*KeyEra, error) {
-	return Bootstrap(t, validators, groupID, eraID, entropy)
+	return bootstrapTrustedDealerImpl(hash.Default(), t, validators, groupID, eraID, entropy)
 }
 
 // BootstrapTrustedDealerWithSuite is the suite-explicit form of
-// BootstrapTrustedDealer.
+// BootstrapTrustedDealer. See its docstring for the trust-model
+// disclosure.
 func BootstrapTrustedDealerWithSuite(suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, entropy io.Reader) (*KeyEra, error) {
-	return BootstrapWithSuite(suite, t, validators, groupID, eraID, entropy)
+	return bootstrapTrustedDealerImpl(suite, t, validators, groupID, eraID, entropy)
 }
 
 // pathANoiseParameters returns the (σ, bound) pair for the Path (a)

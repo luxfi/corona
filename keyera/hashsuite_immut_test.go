@@ -36,9 +36,9 @@ import (
 // TestBootstrapPinsSuiteSHA3 — Gate 3A: Bootstrap with Corona-SHA3 →
 // era.HashSuiteID == "Corona-SHA3".
 func TestBootstrapPinsSuiteSHA3(t *testing.T) {
-	era, err := BootstrapWithSuite(
+	era, _, err := BootstrapWithSuite(
 		hash.NewCoronaSHA3(),
-		3,
+		2,
 		[]string{"a", "b", "c"},
 		0, 0,
 		deterministicRand("hashsuite-immut-sha3"),
@@ -57,9 +57,9 @@ func TestBootstrapPinsSuiteSHA3(t *testing.T) {
 // TestBootstrapPinsSuiteBLAKE3 — Gate 3A: Bootstrap with Corona-BLAKE3
 // → era.HashSuiteID == "Corona-BLAKE3".
 func TestBootstrapPinsSuiteBLAKE3(t *testing.T) {
-	era, err := BootstrapWithSuite(
+	era, _, err := BootstrapWithSuite(
 		hash.NewCoronaBLAKE3(),
-		3,
+		2,
 		[]string{"a", "b", "c"},
 		0, 0,
 		deterministicRand("hashsuite-immut-blake3"),
@@ -79,7 +79,7 @@ func TestBootstrapPinsSuiteBLAKE3(t *testing.T) {
 // pins the production default, so legacy callers cannot accidentally
 // open an era under no profile at all.
 func TestBootstrapDefaultsToSHA3(t *testing.T) {
-	era, err := Bootstrap(3, []string{"a", "b", "c"}, 0, 0,
+	era, _, err := Bootstrap(2, []string{"a", "b", "c"}, 0, 0,
 		deterministicRand("hashsuite-default"))
 	if err != nil {
 		t.Fatalf("Bootstrap: %v", err)
@@ -92,9 +92,9 @@ func TestBootstrapDefaultsToSHA3(t *testing.T) {
 // TestReshareCannotChangeSuiteSHA3 — Gate 3B: Reshare on a Corona-SHA3
 // era yields a state with HashSuiteID == "Corona-SHA3" (unchanged).
 func TestReshareCannotChangeSuiteSHA3(t *testing.T) {
-	era, err := BootstrapWithSuite(
+	era, _, err := BootstrapWithSuite(
 		hash.NewCoronaSHA3(),
-		3,
+		2,
 		[]string{"v1", "v2", "v3"},
 		0, 0,
 		deterministicRand("reshare-cannot-change-sha3"),
@@ -104,7 +104,7 @@ func TestReshareCannotChangeSuiteSHA3(t *testing.T) {
 	}
 	priorID := era.HashSuiteID
 
-	next, err := era.Reshare([]string{"v1", "v2", "v3"}, 3, deterministicRand("reshare-1"))
+	next, err := era.Reshare([]string{"v1", "v2", "v3"}, 2, deterministicRand("reshare-1"))
 	if err != nil {
 		t.Fatalf("Reshare: %v", err)
 	}
@@ -119,9 +119,9 @@ func TestReshareCannotChangeSuiteSHA3(t *testing.T) {
 // TestReshareCannotChangeSuiteBLAKE3 — Gate 3B mirrored on the legacy
 // profile. A BLAKE3-pinned era stays BLAKE3 across Reshare.
 func TestReshareCannotChangeSuiteBLAKE3(t *testing.T) {
-	era, err := BootstrapWithSuite(
+	era, _, err := BootstrapWithSuite(
 		hash.NewCoronaBLAKE3(),
-		3,
+		2,
 		[]string{"v1", "v2", "v3"},
 		0, 0,
 		deterministicRand("reshare-cannot-change-blake3"),
@@ -178,9 +178,9 @@ func TestReshareAPIHasNoHashSuiteParameter(t *testing.T) {
 // identifiable-abort detection. The legacy t == n equivalence stays
 // available under ReanchorTrustedDealer for HSM-ceremony scenarios.
 func TestReanchorMayChangeSuite(t *testing.T) {
-	era1, err := BootstrapWithSuite(
+	era1, _, err := BootstrapWithSuite(
 		hash.NewCoronaSHA3(),
-		3,
+		2,
 		[]string{"a", "b", "c"},
 		0, 1,
 		deterministicRand("reanchor-era-1"),
