@@ -53,7 +53,7 @@ func TestBootstrapPedersen_RoundTrip(t *testing.T) {
 	if era.HashSuiteID != hash.DefaultID {
 		t.Fatalf("suite: want %q got %q", hash.DefaultID, era.HashSuiteID)
 	}
-	if (transcript.TranscriptHash == [32]byte{}) {
+	if transcript.TranscriptHash == [32]byte{} {
 		t.Fatal("transcript hash is zero")
 	}
 	if len(transcript.BetaSerialized) != n {

@@ -140,8 +140,8 @@ type EpochShareState struct {
 // holds the master secret s at any point in the ceremony. Every
 // validator runs `dkg2.Round1` independently; the per-party noise
 // contributions aggregate into a Corona-Sign-shaped public key
-// `bTilde = Round_Xi(A·s + e'')` where each party adds one Gaussian
-// `e_j'` slice under σ'' = κ·σ_E·√n. Identifiable abort: a
+// `bTilde = Round_Xi(A·s + e”)` where each party adds one Gaussian
+// `e_j'` slice under σ” = κ·σ_E·√n. Identifiable abort: a
 // misbehaving sender is named in a signed `dkg2.Complaint` carrying
 // re-checkable Pedersen evidence; the chain commits the abort
 // transcript and stays at the previous epoch.

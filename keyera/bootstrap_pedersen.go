@@ -116,11 +116,11 @@ type PedersenContributions struct {
 //     comparison; identifiable abort on mismatch).
 //  3. Each party runs dkg2.Round2 → obtains its share s_j of the master
 //     secret s. NO PARTY ever holds s in memory.
-//  4. Each party samples a fresh Gaussian e_j' ~ D(σ'') locally with
-//     σ'' = κ · σ_E · √n (the slack reservation of LP-073 §5) and
+//  4. Each party samples a fresh Gaussian e_j' ~ D(σ”) locally with
+//     σ” = κ · σ_E · √n (the slack reservation of LP-073 §5) and
 //     broadcasts β_j = A · NTT(λ_j · s_j) + e_j'. The published β_j is
 //     LWE-protected by e_j' so no party learns more than its own share.
-//  5. All parties aggregate b = Σ_j β_j = A · s + e'' in NTT-Mont; the
+//  5. All parties aggregate b = Σ_j β_j = A · s + e” in NTT-Mont; the
 //     Corona-Sign-shaped public key is bTilde = Round_Xi(b).
 //
 // On success returns:
@@ -482,7 +482,7 @@ func BootstrapTrustedDealerWithSuite(suite hash.HashSuite, t int, validators []s
 
 // pathANoiseParameters returns the (σ, bound) pair for the Path (a)
 // noise-flooding sub-protocol over a committee of n parties. The slack
-// reservation σ'' = κ · σ_E · √n is the LP-073 §5 bound: it is large
+// reservation σ” = κ · σ_E · √n is the LP-073 §5 bound: it is large
 // enough that the published β_j = A · (λ_j · s_j) + e_j' leaks no more
 // information about s_j than a fresh LWE sample (the standard MLWE
 // noise-flooding argument under DDH/MLWE).

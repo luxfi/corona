@@ -60,9 +60,9 @@ var (
 	fixtureMessage  string
 	// validPool holds kValidPool valid signatures over the same
 	// (group_pk, message), differing only in per-signing randomness.
-	validPool         [kValidPool]*threshold.Signature
-	validPoolEncoded  [kValidPool][]byte
-	fixtureSigBytes   int
+	validPool        [kValidPool]*threshold.Signature
+	validPoolEncoded [kValidPool][]byte
+	fixtureSigBytes  int
 )
 
 // encodeSignature serializes a Corona Signature to a deterministic
@@ -138,10 +138,10 @@ type verifyError struct{ msg string }
 
 func (e *verifyError) Error() string { return e.msg }
 
-//export corona_verify_ct_setup
-//
 // Initialise the long-lived fixture. Returns 0 on success, non-zero
 // on failure. Must be called once before corona_verify_ct.
+//
+//export corona_verify_ct_setup
 func corona_verify_ct_setup() C.int {
 	fixtureMessage = "dudect constant-time smoke message: Corona Verify class N1"
 	// Generate kValidPool independent valid signatures.
@@ -175,27 +175,27 @@ func corona_verify_ct_setup() C.int {
 	return 0
 }
 
-//export corona_verify_ct_sig_size
-//
 // Returns the Corona signature byte size for the fixture's parameter
 // set + the gob-encoded width. The C harness uses this to size its
 // per-sample scratch buffer.
+//
+//export corona_verify_ct_sig_size
 func corona_verify_ct_sig_size() C.size_t {
 	return C.size_t(fixtureSigBytes)
 }
 
-//export corona_verify_ct_pool_size
-//
 // Returns the number of valid signatures in the per-startup pool.
+//
+//export corona_verify_ct_pool_size
 func corona_verify_ct_pool_size() C.size_t {
 	return C.size_t(kValidPool)
 }
 
-//export corona_verify_ct_copy_pool
-//
 // Copies validPoolEncoded[idx] into the caller-supplied dst buffer
 // (fixtureSigBytes bytes). idx MUST be in [0, kValidPool). Returns 0
 // on success, non-zero on bounds violation.
+//
+//export corona_verify_ct_copy_pool
 func corona_verify_ct_copy_pool(idx C.size_t, dst *C.uint8_t) C.int {
 	i := int(idx)
 	if i < 0 || i >= kValidPool || validPoolEncoded[i] == nil {
@@ -206,14 +206,14 @@ func corona_verify_ct_copy_pool(idx C.size_t, dst *C.uint8_t) C.int {
 	return 0
 }
 
-//export corona_verify_ct
-//
 // One dudect measurement sample.
 //
 // data points to fixtureSigBytes of gob-encoded signature bytes. The
 // bridge decodes those bytes into a *Signature and calls
 // threshold.Verify; the return value is ignored. The function MUST be
 // branchless on data; we only copy/decode + dispatch.
+//
+//export corona_verify_ct
 func corona_verify_ct(data *C.uint8_t) {
 	if fixtureGroupKey == nil {
 		return

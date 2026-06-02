@@ -44,10 +44,10 @@ import (
 const kCombinePool = 64
 
 type combineFixture struct {
-	groupKey  *threshold.GroupKey
-	message   string
-	signer0   *threshold.Signer
-	r2Data    map[int]*threshold.Round2Data
+	groupKey *threshold.GroupKey
+	message  string
+	signer0  *threshold.Signer
+	r2Data   map[int]*threshold.Round2Data
 }
 
 var (
@@ -157,11 +157,11 @@ func corona_combine_ct_copy_pool(idx C.size_t, dst *C.uint8_t) C.int {
 	return 0
 }
 
-//export corona_combine_ct
-//
 // One dudect measurement: decode the R2 data map and run Finalize.
 // Combine has no secrets, so any timing artifact dudect detects is
 // an unexpected content-dependent code path in the Finalize body.
+//
+//export corona_combine_ct
 func corona_combine_ct(data *C.uint8_t) {
 	if combineFixtures[0] == nil {
 		return
