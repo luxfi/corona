@@ -155,4 +155,3 @@ func head(b []byte) []byte {
 	}
 	return b
 }
-

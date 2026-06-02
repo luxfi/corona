@@ -67,7 +67,7 @@ func TestReanchorPedersen_RoundTrip(t *testing.T) {
 	if era2.HashSuiteID != prevSuiteID {
 		t.Fatalf("HashSuiteID inheritance: want %q got %q", prevSuiteID, era2.HashSuiteID)
 	}
-	if (transcript.TranscriptHash == [32]byte{}) {
+	if transcript.TranscriptHash == [32]byte{} {
 		t.Fatal("transcript hash is zero")
 	}
 	if len(transcript.BetaSerialized) != n {
