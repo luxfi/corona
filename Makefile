@@ -1,4 +1,4 @@
-# Corona - Post-Quantum Threshold Signature Scheme
+# Corona - Post-Quantum Ring-LWE Threshold Signature Scheme
 # Makefile for building, testing, and managing the project
 
 .PHONY: all build test clean fmt lint vet coverage bench run help install-tools
@@ -33,7 +33,7 @@ all: test build
 
 ## help: Display this help message
 help:
-	@echo "Corona - Post-Quantum Threshold Signature Scheme"
+	@echo "Corona - Post-Quantum Ring-LWE Threshold Signature Scheme"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""

@@ -89,7 +89,7 @@ linters-settings:
     min-complexity: 15
   
   goimports:
-    local-prefixes: corona
+    local-prefixes: github.com/luxfi/corona
   
   gomnd:
     settings:
