@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,17 +54,28 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize P2P communication
-	comm := &networking.P2PComm{
-		Socks: make(map[int]*net.Conn),
-		Rank:  partyID,
+	// Initialize P2P communication over ZAP transport.
+	//
+	// Peers and their listen addresses come from the CORONA_PEERS env
+	// var, formatted as "rank=host:port,rank=host:port,...". The local
+	// party's own rank is excluded; every other rank in the ceremony
+	// must be present. The local listen port is derived from the same
+	// list (peerAddrs[partyID] specifies "host:port" we bind on).
+	peerAddrs, listenPort, err := parsePeerEnv(os.Getenv("CORONA_PEERS"), partyID)
+	if err != nil {
+		log.Fatalf("CORONA_PEERS: %v", err)
 	}
+	comm, err := networking.NewP2PComm(partyID, listenPort, true /*noDiscovery*/, nil)
+	if err != nil {
+		log.Fatalf("NewP2PComm: %v", err)
+	}
+	defer comm.Close()
+	// Suppress unused-import error from prior wiring.
+	_ = (*net.Conn)(nil)
 
-	// Establish connections
-	var connWg sync.WaitGroup
-	connWg.Add(1)
-	go networking.EstablishConnections(&connWg, comm, partyID, sign.K)
-	connWg.Wait()
+	if err := comm.EstablishConnectionsZAP(partyID, sign.K, peerAddrs); err != nil {
+		log.Fatalf("EstablishConnectionsZAP: %v", err)
+	}
 
 	var setupDuration, genDuration, signRound1Duration, signRound2PreprocessDuration, signRound2Duration, finalizeDuration, verifyDuration time.Duration
 	var genStart, genEnd, signRound1Start, signRound1End, signRound2Start, signRound2End, combinerReceiveEnd, combinerFinalizeEnd time.Time
@@ -239,4 +251,57 @@ func main() {
 		fmt.Printf("Combiner receive end timestamp: %s\n", combinerReceiveEnd.Format("15:04:05.000000"))
 		fmt.Printf("Combiner finalize end timestamp: %s\n", combinerFinalizeEnd.Format("15:04:05.000000"))
 	}
+}
+
+// parsePeerEnv parses the CORONA_PEERS env var into a per-rank address
+// map, and returns the local listen port for partyID.
+//
+// Format: "0=host:port,1=host:port,...". Every rank in the ceremony
+// must appear. The local party's entry is dropped from the returned
+// map but its port is harvested as the listen port.
+//
+// Returns an error on malformed input or when partyID is absent.
+func parsePeerEnv(raw string, partyID int) (map[int]string, int, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, 0, fmt.Errorf("CORONA_PEERS is empty (format: rank=host:port,rank=host:port,...)")
+	}
+	peerAddrs := make(map[int]string)
+	listenPort := 0
+	for _, entry := range strings.Split(raw, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		eq := strings.IndexByte(entry, '=')
+		if eq < 0 {
+			return nil, 0, fmt.Errorf("CORONA_PEERS entry %q missing '='", entry)
+		}
+		rank, err := strconv.Atoi(strings.TrimSpace(entry[:eq]))
+		if err != nil {
+			return nil, 0, fmt.Errorf("CORONA_PEERS entry %q: %w", entry, err)
+		}
+		addr := strings.TrimSpace(entry[eq+1:])
+		if addr == "" {
+			return nil, 0, fmt.Errorf("CORONA_PEERS entry %q has empty address", entry)
+		}
+		if rank == partyID {
+			// Local listen port from "host:port" — the host is ignored
+			// (we always listen on all interfaces).
+			_, portStr, err := net.SplitHostPort(addr)
+			if err != nil {
+				return nil, 0, fmt.Errorf("CORONA_PEERS local addr %q: %w", addr, err)
+			}
+			p, err := strconv.Atoi(portStr)
+			if err != nil {
+				return nil, 0, fmt.Errorf("CORONA_PEERS local port %q: %w", portStr, err)
+			}
+			listenPort = p
+			continue
+		}
+		peerAddrs[rank] = addr
+	}
+	if listenPort == 0 {
+		return nil, 0, fmt.Errorf("CORONA_PEERS missing entry for local rank %d", partyID)
+	}
+	return peerAddrs, listenPort, nil
 }
