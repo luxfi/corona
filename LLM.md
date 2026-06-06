@@ -51,7 +51,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 | `a7c3919` | v0.4.x | corona: symmetric domain separation — PULSAR-* tags -> CORONA-* |
 | `2b262ef` | v0.4.x | go.mod: bump go directive to 1.26.3 (security advisory) |
 | `4d02472` | v0.4.x | corona: final Corona purge — code, docs, KAT-side PRF tag |
-| `43e7d88` | v0.4.x | corona/papers: corona2025 cite → boschini2024corona; coronaThreshold → coronaThreshold in TeX |
+| `43e7d88` | v0.4.x | corona/papers: Corona2025 cite → boschini2024corona; coronaThreshold → coronaThreshold in TeX |
 
 ### Active versions
 - Repo: `v0.7.4` (next: `v0.7.5` flips the default `keyera.Bootstrap` / `keyera.BootstrapWithSuite` to route through `BootstrapPedersen`, matching the v0.7.4 Reanchor flip; the legacy trusted-dealer impl is now in the unexported `bootstrapTrustedDealerImpl` and only reachable via the explicit `BootstrapTrustedDealer*` / `ReanchorTrustedDealer*` names).
