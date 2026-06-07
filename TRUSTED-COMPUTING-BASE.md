@@ -61,7 +61,7 @@ target's correctness must be re-verified.
 
 | Layer | What you trust | Reproducibility |
 |---|---|---|
-| **Go toolchain** | The Go compiler used to build the reference. Version pinned to `go 1.26.3` in `go.mod`. | Hard-pinned in `go.mod`; `go.sum` enforces module checksums. |
+| **Go toolchain** | The Go compiler used to build the reference. Version pinned to `go 1.26.4` in `go.mod`. | Hard-pinned in `go.mod`; `go.sum` enforces module checksums. |
 | **`scripts/build.sh`** | The build orchestrator's correctness — that it produces deterministic outputs from a fresh checkout. | CI runs the script on every commit. |
 | **`scripts/test.sh`** | The test harness's correctness — that KAT vectors compare bit-by-bit, not just lex-equal. | Reviewed; uses `bytes.Equal` for byte-level KAT comparison. |
 | **`scripts/gen_vectors.sh`** | Deterministic regeneration of KAT vectors. | Wraps `scripts/regen-kats.sh`; the manifest at `scripts/regen-kats.manifest.sha256` pins SHA-256 of every regenerated file. |
@@ -218,5 +218,5 @@ to a mechanized refinement chain if a Go reviewer misses a bug).
 - Name: `TRUSTED-COMPUTING-BASE.md`
 - Version: v0.1 (initial submission-package scaffolding)
 - Date: 2026-05-18
-- Go toolchain pin: `go 1.26.3` (per `go.mod`)
+- Go toolchain pin: `go 1.26.4` (per `go.mod`)
 - `luxfi/lattice/v7` pin: `v7.1.0` (per `go.mod`)

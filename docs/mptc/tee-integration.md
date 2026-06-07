@@ -81,7 +81,7 @@ Every Corona release tag (`v0.7.x`) ships:
 2. **`scripts/build.sh` invocation**: produces the binary
    `bin/corona` from the release commit.
 3. **Reference-measure manifest**: SHA-256 of `bin/corona` produced
-   on a pinned builder (`golang:1.26.3-alpine` per `Dockerfile`).
+   on a pinned builder (`golang:1.26.4-alpine` per `Dockerfile`).
 4. **Cross-runtime byte-equality**: `scripts/regen-kats.sh --verify`
    against the C++ port at `~/work/luxcpp/crypto/corona/`.
 
@@ -90,7 +90,7 @@ report whose measurement does not match the published manifest. The
 manifest is published at `https://lux.network/release/corona/v0.7.x/manifest.json`
 and signed by the foundation release key.
 
-> **Roadmap (v0.7.6)**: pin the `golang:1.26.3-alpine` builder image
+> **Roadmap (v0.7.6)**: pin the `golang:1.26.4-alpine` builder image
 > by digest, not tag, so the reference measure is reproducible
 > against a specific OCI image digest.
 
