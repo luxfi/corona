@@ -49,27 +49,76 @@ func PRNGKey(suite hash.HashSuite, skShare structs.Vector[ring.Poly]) []byte {
 	return s.PRF(buf.Bytes(), nil, keySize)
 }
 
-// PRNGKeyForRound generates a per-round PRNG seed by domain-separating
-// the secret-share material with the session id. CRIT-1 fix
-// (red audit, 2026-05-03): without sid mixing, R/E/D are byte-identical
-// across every Sign call of the same Setup — multi-Sign leaks R via
-// (z_sum − Σ s_i·λ_i·c)·u^{-1} = R.
+// SessionIDSize is the width in bytes of a SessionID — a 256-bit
+// domain-separated identifier for one signing session.
+const SessionIDSize = 32
+
+// sessionIDTag is the nothing-up-my-sleeve domain tag for SessionID
+// derivation. Version-pinned; a bump invalidates the nonce-key KATs.
+var sessionIDTag = []byte("corona.sign.session-id.v1")
+
+// DeriveSessionID maps the consensus-agreed session inputs to a 256-bit
+// session identifier with no truncation. The bare int sid carries at
+// most 64 bits; folding it (together with the agreed signer set T)
+// through the suite TranscriptHash yields a full-width value, so an
+// external collision in the low 64 bits of sid alone cannot collide the
+// identifier the nonce key derives from.
 //
-// Layout: PRF(key=skShare.WriteTo bytes, msg="CoronaRoundV2" || be64(sid)).
-// Domain tag distinguishes from any other future per-share keying.
+// SessionID is the *deterministic, context-binding* half of the nonce
+// key. It is NOT, on its own, sufficient to prevent nonce reuse: two
+// signatures sharing (sid, T) derive the same SessionID. Reuse
+// durability is provided by the fresh-salt argument to PRNGKeyForRound
+// (hedged signing); see that function and SignRound1's precondition.
 //
 // `suite` selects the hash profile. nil resolves to the production
 // default (Corona-SHA3).
-func PRNGKeyForRound(suite hash.HashSuite, skShare structs.Vector[ring.Poly], sid int64) []byte {
+func DeriveSessionID(suite hash.HashSuite, sid int, T []int) [SessionIDSize]byte {
+	s := hash.Resolve(suite)
+	buf := new(bytes.Buffer)
+	must("binary.Write(sid)", binary.Write(buf, binary.BigEndian, int64(sid)))
+	must("binary.Write(T-len)", binary.Write(buf, binary.BigEndian, int32(len(T))))
+	for _, t := range T {
+		must("binary.Write(T-elem)", binary.Write(buf, binary.BigEndian, int32(t)))
+	}
+	return s.TranscriptHash(sessionIDTag, buf.Bytes())
+}
+
+// PRNGKeyForRound generates a per-signature nonce-PRNG seed by binding
+// the secret-share material to a 256-bit SessionID and a fresh 256-bit
+// hedge salt.
+//
+// CRIT-1 (red audit) established that the Round-1 nonce seed must vary
+// per signature, or R/E/D are byte-identical across every Sign call of
+// the same Setup and multi-Sign leaks R via
+// (z_sum − Σ s_i·λ_i·c)·u^{-1} = R. The original fix keyed on a bare
+// 64-bit sid, which made reuse durability rest entirely on the external
+// consensus layer never reissuing an sid for a given share. This form
+// closes that residual two ways:
+//
+//   - sessionID is the full-width (no 64-bit truncation) deterministic
+//     binding to the agreed (sid, T) — see DeriveSessionID.
+//   - salt is fresh per-signature randomness drawn inside the kernel
+//     (hedged signing, à la Raccoon's fresh per-signature commitment).
+//     Even if sessionID collides because the consensus layer reissued
+//     an sid, distinct salt makes R reuse occur with probability 2^-256.
+//
+// Layout: PRF(key=skShare.WriteTo bytes,
+//
+//	msg="CoronaNonceV3" || sessionID[32] || salt[32]).
+//
+// `suite` selects the hash profile. nil resolves to the production
+// default (Corona-SHA3).
+func PRNGKeyForRound(suite hash.HashSuite, skShare structs.Vector[ring.Poly], sessionID, salt [SessionIDSize]byte) []byte {
 	s := hash.Resolve(suite)
 	skBuf := new(bytes.Buffer)
 	_, err := skShare.WriteTo(skBuf)
 	must("skShare.WriteTo", err)
 	msg := new(bytes.Buffer)
-	const tag = "CoronaRoundV2"
+	const tag = "CoronaNonceV3"
 	_, err = msg.WriteString(tag)
 	must("msg.WriteString(tag)", err)
-	must("binary.Write(sid)", binary.Write(msg, binary.BigEndian, sid))
+	must("msg.Write(sessionID)", binary.Write(msg, binary.BigEndian, sessionID[:]))
+	must("msg.Write(salt)", binary.Write(msg, binary.BigEndian, salt[:]))
 	return s.PRF(skBuf.Bytes(), msg.Bytes(), keySize)
 }
 

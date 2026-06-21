@@ -85,7 +85,10 @@ func benchPulsarSign(b *testing.B, n, thr int, gpuOn bool) {
 		sid := i + 1
 		round1 := make(map[int]*Round1Data, n)
 		for _, s := range signers {
-			d := s.Round1(sid, prfKey, signerIDs)
+			d, err := s.Round1(sid, prfKey, signerIDs)
+			if err != nil {
+				b.Fatal(err)
+			}
 			round1[d.PartyID] = d
 		}
 		round2 := make(map[int]*Round2Data, n)

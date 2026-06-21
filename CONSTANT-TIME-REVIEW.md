@@ -1,145 +1,124 @@
-# Pulsar — constant-time review (Gate 7)
+# Corona — constant-time review
 
-**Scope:** every code path that touches a secret share, a private commit
-opening, an arithmetic intermediate that depends on a secret, or a
-verifier digest that is compared against an attacker-supplied value.
+**Scope:** every Corona code path that touches a secret share, the
+per-signature nonce, a private commit opening, an arithmetic intermediate
+that depends on a secret, or a digest compared against an
+attacker-supplied value. Corona is a pure-Go threshold-Raccoon
+(Module-LWE) signature; there are no curve operations and no `lens`/`warp`
+surfaces — those belong to other repositories and are out of scope here.
 
 **Status legend:**
 
 - **(a)** Constant-time by construction; documented citation to the
   underlying primitive.
-- **(b)** Constant-time gap exists; documented; not exploitable because
-  the value is public, or the path is verifier-controlled and the timing
-  oracle does not gain the adversary anything beyond what the result
-  byte already tells them.
+- **(b)** Variable-time, but every operand on the path is **public**
+  (publicly derivable from the wire-format signature, the group key, or
+  protocol metadata). The timing channel reveals nothing the result byte
+  does not already disclose. Documented, not a secret leak.
 - **(c)** MUST FIX before production; precise location captured.
+- **(TCB)** Constant-time behaviour is **assumed of an upstream
+  dependency**, not proven in this tree. Listed explicitly so the trust
+  assumption is visible.
 
-**Headline:** zero (c) entries. Every secret-dependent comparison is
-already byte-blob `subtle.ConstantTimeCompare` or routes through
-upstream primitives whose constant-time behavior we cite below. The
-remaining (b) entries are public-input verifier paths where the leakage
-channel reduces to "is the verifier's output byte 0 or 1" — already
-visible to the network observer.
+**Headline:** zero (c) entries. Every secret-dependent comparison in
+Corona is `crypto/subtle.ConstantTimeCompare` over a byte view, or
+fixed-size array equality (constant-time on amd64/arm64). The remaining
+(b) entries are public-input paths. One (TCB) entry — the lattigo
+discrete-Gaussian / uniform / ternary samplers — is the residual
+assumption on which secret-seeded Round-1 sampling rests; it is asserted,
+not mechanically proven here.
 
 ---
 
-## 1. Verifier paths
+## 1. Per-signature nonce key (the no-leak-critical path)
 
 | Location | Status | Notes |
 |---|---|---|
-| `pulsar.Verify` (`sign/sign.go:273`) | **(b)** | Operates on a public signature `(c, z, Δ)` against the public group key `(A, b̃)`. The first failure mode is `r.Equal(c, computedC)` — `lattigo` `Ring.Equal` walks coefficient slices and short-circuits, but every operand here is publicly derivable from the wire-format signature. The second mode (`CheckL2Norm`) sums big.Int squares; `big.Int.Cmp/Mul` are not constant-time, but again every operand is public. No secret-share material crosses this surface. |
-| `pulsar.Reshare commit verification` (`reshare/commit.go:124` `VerifyShareAgainstCommits`) | **(b)** | This runs on the recipient with a private `(share, blind)` pair against a public commit vector. The early-return `r.Equal(lhs[ri], rhs[ri])` per-coordinate IS a timing channel — but `lhs` is computed from secret `share`/`blind` and `rhs` is public, so a successful equality at coordinate `ri` reveals only "the secret shares at slot `ri` match the public commitment so far," which is information the recipient already has (it is the entire purpose of running the check). The information disclosed by short-circuit on a Pedersen mismatch ("which slot first diverged") leaks a position index `ri` to a network observer measuring the recipient's response time; that index is bounded by `M = 8` slots (Pulsar) and reveals only that the dealer shipped a malformed pair, which the complaint message broadcasts publicly anyway. **Documented gap; fixed in dkg2 path** (see §2). |
-| `pulsar.VerifyActivation` (`reshare/activation.go:127`) | **(a)** | The hash equality check on `expectedTranscript == localTranscriptHash` is `[32]byte` array-equality — Go compiles fixed-size array equality to a constant-time SIMD compare on amd64/arm64 (see `cmd/compile/internal/walk/compare.go: walkCompareArray`). The threshold-signature `verify` callback is a contract delegated to the caller and verified independently. |
-| `dkg2 Round 2 verifier` (`dkg2/dkg2.go:482` `VerifyShareAgainstCommits`) | **(a)** | Constant-time by construction: every coordinate of `lhs` and `rhs` is fed to `constTimePolyEqual` (`dkg2.go:560`) which calls `subtle.ConstantTimeCompare` over the little-endian byte view of every `Coeffs[level]`. Cross-slot accumulation is `eq &= …` — no early return. This is the **direct response to Findings 5/6 of `luxcpp/crypto/corona/RED-DKG-REVIEW.md`** [1]. Citation: `crypto/subtle.ConstantTimeCompare` is constant-time over inputs of equal length per `pkg.go.dev/crypto/subtle` [2]. |
-| `dkg2 commit-digest verifier` (`dkg2/dkg2.go:253` `CommitDigest`) | **(a)** | Returns `[32]byte`. Cohort consistency check at the orchestration layer compares two `[32]byte` arrays — Go fixed-size array equality is constant-time as above. |
-| `lens sign verify` (`lens/sign/sign.go:314` `Verify`) | **(a)** | Verifier-public path; no secret material. The `lhs.Equal(rhs)` call routes through each curve's `Point.Equal`: Ed25519 → `filippo.io/edwards25519.Point.Equal` returns `int` constant-time per [3]; Ristretto255 → `gtank/ristretto255.Element.Equal` documented constant-time [4]; secp256k1 → see §5 (decred dcrd path is non-constant-time on Equal but operates on public RHS). |
-| `warp.VerifyV2` (`warp/envelope.go:415`) | **(a)** | Pre-flight envelope structure check, hash-suite ID string compare, then delegates to per-lane verifiers. The `env.HashSuiteOrDefault() != opts.HashSuiteID` string compare uses Go's `==` — not constant-time on strings — but the suite ID is **public protocol metadata** (declared in the envelope, transmitted in clear). No secret material. |
-| `warp/pulsar.VerifyPulse` (`warp/pulsar/pulsar.go:125`) | **(a)** | Public-input path. Builds the canonical signing transcript (deterministic byte serialization, no secret-dependent branching), deserializes the wire pulse, calls `pulsarKernel.Verify`. The `env.HashSuiteOrDefault() != suiteID` check is on public metadata. The `BuildSigningBytes` byte-stream serializer has zero secret-dependent branches. |
-
-[1] `~/work/lux/luxcpp/crypto/corona/RED-DKG-REVIEW.md` Findings 5/6.
-[2] https://pkg.go.dev/crypto/subtle#ConstantTimeCompare
-[3] https://pkg.go.dev/filippo.io/edwards25519#Point.Equal
-[4] https://pkg.go.dev/github.com/gtank/ristretto255#Element.Equal
+| `primitives.DeriveSessionID` (`primitives/hash.go:75`) | **(a)** | Deterministic 256-bit session identifier `TranscriptHash("corona.sign.session-id.v1" \|\| be64(sid) \|\| T)`. Inputs `(sid, T)` are public consensus metadata; the function is a hash with no secret-dependent branching. Replaces the prior bare-64-bit-`sid` nonce keying. |
+| `primitives.PRNGKeyForRound` (`primitives/hash.go:111`) | **(a)** | `PRF(skShare, "CoronaNonceV3" \|\| sessionID[32] \|\| salt[32])`. `skShare` is secret but is only fed as the PRF *key* to the suite PRF (KMAC256 under Corona-SHA3 / keyed BLAKE3 under the legacy suite) — keyed-hash absorption is constant-time in the key per the sponge/compression construction; there is no secret-dependent control flow. Output is the Round-1 nonce-PRNG seed. |
+| `sign.Party.SignRound1` nonce guard (`sign/sign.go:151`) | **(a)** | Draws a fresh 32-byte hedge salt from `party.Rand` (default `crypto/rand.Reader`), so the nonce key — hence `R` — is fresh per signature even if the consensus layer reissues an `sid`. The fail-closed guard rejects an all-zero derived `SessionID` (`sign/sign.go:162`) or an all-zero salt (`sign/sign.go:173`) with `ErrDegenerateSession`, and surfaces a short-read error from `io.ReadFull`. The zero-checks use `isZero32` (`sign/sign.go:250`), a branch-free `subtle.ConstantTimeCompare` against a zero array; the guarded values are not adversary-chosen, but the check is kept uniform. This is the durable fix for the CRIT-1 nonce-reuse leak `(z_sum − Σ s_i·λ_i·c)·u^{-1} = R`; reuse durability no longer rests on an external slot-uniqueness invariant. |
+| `sign.DeterministicNonceSource` (`sign/sign.go`) | **(a)** | The KAT/oracle seam: a `KeyedPRNG` over `seed \|\| "corona.sign.nonce-salt.v1" \|\| partyIndex`. Used only by reproducibility harnesses to pin the hedge salt; production never calls it. No secret material (the seed is a test fixture). |
 
 ---
 
-## 2. DKG2 complaint / verification
+## 2. Round-2 masking and the secret-dependent arithmetic
 
 | Location | Status | Notes |
 |---|---|---|
-| Round 1 commit-share dimension check (`dkg2.go:494`) | **(a)** | `len(commits) != threshold` and `len(v) != sign.M` are integer compares on public structural metadata — branch is structural, not secret-dependent. |
-| Round 2 share verification (`dkg2.go:539`) | **(a)** | The Pedersen identity `A·NTT(share) + B·NTT(blind) ?= Σ C_{i,k}` is verified slot-by-slot via `constTimePolyEqual` (`dkg2.go:560`). The `eq &= subtle.ConstantTimeCompare(ab, bb)` accumulation pattern across all `M` slots is the canonical constant-time-AND idiom. No early return; the loop runs to completion before the final `if eq != 1` branch. |
-| Complaint identification (`complaint.go:223` `ComputeDisqualifiedSet`) | **(a)** | Operates on public complaint metadata (sender ID, complainer ID). No secret material; all branches are over public counters. |
-| Disqualification quorum (`complaint.go:250` `FilterQualifiedQuorum`) | **(a)** | Pure deterministic set filter on public IDs; sorted output via insertion-sort over committee size ≤ 32. No secret-dependent branching. |
+| Additive masks (`sign/sign.go:317`, `:323`) | **(a)** | Each `z_i` is masked by `mask = Σ_j PRF(seed_i[j], …)` (outgoing row) minus `maskPrime = Σ_j PRF(seed_j[i], …)` (incoming column), both sums of uniform `R_q` PRF outputs over pairwise seeds (`primitives.PRF`, `primitives/hash.go:173`). The two double-sums telescope to zero when the quorum's `z_i` are summed in `SignFinalize`, so no per-party `c·s` is ever broadcast in the clear (the structural no-leak property). The masking arithmetic (`utils.VectorAdd`/`VectorSub`/`VectorPolyMul`) is coefficient-wise `uint64` ring arithmetic from lattigo — branch-free over the modulus. |
+| `s_i·λ_i·c` term (`sign/sign.go:335`–`:340`) | **(a)** | `VectorPolyMul` is NTT-domain Montgomery multiplication on `uint64` coefficient slices (lattigo `MulCoeffsMontgomery*`); no secret-dependent branch. The result is immediately additively masked before it leaves the function. |
+| `primitives.PRF` seed expansion (`primitives/hash.go:173`) | **(a) / (TCB)** | The PRF key derivation (suite PRF) is constant-time in its inputs; the subsequent `NewUniformSampler.ReadNew` over the derived stream is the lattigo uniform sampler — see the (TCB) note in §4. |
 
 ---
 
-## 3. Share handling
+## 3. Share verification, complaints, and digest comparison
 
 | Location | Status | Notes |
 |---|---|---|
-| `keyera.BootstrapTrustedDealer` share generation (`keyera/bootstrap_pedersen.go:bootstrapTrustedDealerImpl`) | **(a)** | Shamir over Z_q runs entirely in `math/big`. `big.Int` is **not** constant-time, but the trusted-dealer ceremony is a one-time foundation MPC event; the dealer's machine is the only entity with the master secret in memory at this point. Timing is observable only to the dealer. The dealer's standard-form `s` copy is zeroed in place after sharing. The unqualified `keyera.Bootstrap` defaults to `BootstrapPedersen` since v0.7.5, where no party ever holds `s`; the constant-time analysis there inherits from `dkg2/` (see §2). |
-| `keyera.Reshare` share recombination via Lagrange (`keyera/keyera.go:Reshare`) | **(a)** | The Lagrange recombination is a `big.Int` linear combination of secret share values with public Lagrange coefficients. `big.Int.Mul/Mod` are not constant-time per se, but every input value is held by the local party only — there is no remote attacker on the recombination path. Timing leaks only to the local OS scheduler, which is the trust boundary already accepted by the validator deployment posture. |
-| `EraseShare` after activation (`reshare/keyshare.go:158`) | **(a)** | Plain `for k := range coeffs { coeffs[k] = 0 }`. The Go compiler does not zero behind a pointer reference unless we write the assignment ourselves; this is the documented zeroization technique used by upstream `golang.org/x/crypto/internal/poly1305.MACState.zeroize`. The data is already secret to the local process; the goal is overwrite-on-deactivation, not constant-time-equality. |
-| Lens share derivation (`lens/keyera/keyera.go`) | mirrored into `lens/CONSTANT-TIME-REVIEW.md` | See lens doc. |
+| `utils.ConstantTimePolyEqual` (`utils/utils.go:29`) | **(a)** | The **single canonical** constant-time poly comparator: scans every level, no early return, per-level `subtle.ConstantTimeCompare` over the little-endian byte view of each `Coeffs[level]`. Both the dkg2 and reshare verification paths delegate here (one implementation, no `dkg2`↔`reshare` dependency). Citation: `crypto/subtle.ConstantTimeCompare` is constant-time over equal-length inputs per `pkg.go.dev/crypto/subtle`. |
+| `dkg2.VerifyShareAgainstCommits` (`dkg2/dkg2.go:473`) | **(a)** | Verifies the Pedersen identity `A·NTT(share) + B·NTT(blind) ?= Σ C_{i,k}` slot-by-slot via `utils.ConstantTimePolyEqual` (`dkg2/dkg2.go:537`) with `eq &= …` accumulation. `share`/`blind` are secret, `commits` public; the comparator does not leak which slot first diverged. Structural pre-checks `len(commits) != threshold` (`:485`) and `len(v) != sign.M` (`:489`) branch on public metadata only. This is the direct response to Findings 5/6 of `luxcpp/crypto/corona/RED-DKG-REVIEW.md` (the upstream `dkg/` package short-circuited on first mismatch). |
+| `reshare.VerifyShareAgainstCommits` (`reshare/commit.go:126`) | **(a)** | Recipient-side reshare commit check, identical posture to dkg2: `eq &= utils.ConstantTimePolyEqual(lhs[ri], rhs[ri])` (`reshare/commit.go:178`) across all `M` slots, no early return. Previously this path short-circuited; it now uses the canonical constant-time comparator. `lhs` derives from the secret `(share, blind)`, `rhs` is the public commit vector. |
+| `dkg2.CommitDigest` / `reshare.CommitDigest` (`reshare/commit.go:203`) | **(a)** | Return `[32]byte`. Cohort-consistency checks compare two `[32]byte` arrays — Go compiles fixed-size array equality to a constant-time SIMD compare on amd64/arm64 (`cmd/compile/internal/walk/compare.go: walkCompareArray`). |
+| `reshare.VerifyActivation` (`reshare/activation.go:127`) | **(a)** | `expectedTranscript != localTranscriptHash` (`reshare/activation.go:138`) is `[32]byte` array equality — constant-time as above. The activation cert is fail-closed: a transcript mismatch returns `ErrTranscriptMismatch` and the share is never activated. |
+| dkg2 complaint identification / disqualification (`dkg2/complaint.go`) | **(a)** | Operates on public complaint metadata (sender/complainer IDs, public counters). No secret material; all branches are over public values. |
 
 ---
 
-## 4. Scalar / ring operations
+## 4. Samplers — the residual TCB axiom
 
 | Location | Status | Notes |
 |---|---|---|
-| `pulsar/primitives/polynomial.go` Lagrange / Shamir (Shamir routines) | **(a)** | Operates on a single party's view of secret coefficients in `big.Int`. The party holds the secret and there is no remote oracle for timing — same boundary as `keyera.Reshare`. |
-| `pulsar/sign` Montgomery / NTT / discrete-Gaussian sampling | **(a)** | All three primitives come from `github.com/luxfi/lattice/v7/ring` (a fork of `tuneinsight/lattigo/v7`). Lattigo's NTT (`ring/ring_ops.go: NTT`), Montgomery reduction (`ring/ring_field.go`), and the discrete-Gaussian sampler (`ring/sampler_gaussian.go`) all run constant-time over the modulus parameters: NTT and Montgomery do branch-free word-level arithmetic on `uint64` coefficient slices; the Gaussian sampler uses rejection on uniform bytes from `KeyedPRNG`, which is a SHAKE128-based stream — the rejection rate is data-dependent only on the rejected byte, not on the secret coefficient being sampled. **Citation:** `lattigo/v7` README and `ring/sampler_gaussian.go: NewGaussianSampler` documentation [5]. |
-| `lens/primitives` curve.go scalar ops on three curves | see §5 below | |
-
-[5] https://github.com/tuneinsight/lattigo (we vendor `luxfi/lattice/v7` from this; reduction routines are byte-stable and CT-claimed).
+| Round-1 discrete-Gaussian sampling `r_star, e_star, R_i, E_i` (`sign/sign.go:179`, `:185`) | **(a) / (TCB)** | Seeded by the secret-derived `skHash` (the nonce-PRNG seed from §1). The samplers are `github.com/luxfi/lattice/v7/ring.NewGaussianSampler` (a fork of `tuneinsight/lattigo/v7`). Lattigo's discrete-Gaussian sampler uses rejection over a SHAKE/BLAKE2-XOF keystream; the rejection *rate* depends on the rejected uniform byte, **not** on the secret seed value, so timing does not correlate with the secret coefficient being produced. **This constant-time property is asserted of the upstream dependency, not mechanically verified in this tree** — it is the principal Corona TCB axiom (mirrored in `TRUSTED-COMPUTING-BASE.md`). Any secret-seeded sampling (Round-1 nonces, dealer key generation) inherits this assumption. |
+| `primitives.GaussianHash` sampler (`primitives/hash.go:154`, `:164`) | **(a) / (TCB)** | Same lattigo Gaussian sampler, seeded from the **public** transcript digest + `mu`. Public seed, so even if the sampler leaked timing on its seed it would reveal nothing secret; the (TCB) note applies only to the sampler's internal byte-level behaviour. |
+| `primitives.PRF` uniform sampler (`primitives/hash.go:183`) | **(a) / (TCB)** | `NewUniformSampler` over the PRF-derived stream. Uniform sampling is rejection over the modulus; rate depends on rejected bytes, not on the (secret) seed. Public-vs-secret seed varies by caller; the (TCB) note is on the sampler internals. |
+| `primitives.LowNormHash` ternary sampler (`primitives/hash.go:239`) | **(a)** | `NewTernarySampler` seeded from the **public** `(A, b̃, h, mu)` transcript. The sampled challenge `c` is public (it is recomputed by every verifier). No secret on this path. |
 
 ---
 
-## 5. Lens curve operations
+## 5. Verifier paths (public-input, variable-time-tolerant)
 
-The lens reshare and sign paths sit on three curves; each gets its own
-mini-audit.
-
-### Ed25519 (`lens/primitives/ed25519.go`)
-
-| Operation | Status | Notes |
+| Location | Status | Notes |
 |---|---|---|
-| Scalar mul (`ed25519Scalar.Act`, `ActOnBase`) | **(a)** | Backed by `filippo.io/edwards25519.Point.ScalarMult` and `ScalarBaseMult`. Filippo's `edwards25519` package is the Go standard library's reference Ed25519 implementation (it backs `crypto/ed25519` since Go 1.17), and is documented constant-time per `pkg.go.dev/filippo.io/edwards25519` [3]. |
-| Scalar Add/Sub/Mul/Negate/Invert | **(a)** | All delegate to `edwards25519.Scalar.Add/Subtract/Multiply/Negate/Invert`. Every operation in the package is constant-time, including `Invert` (Fermat-based, no extended-Euclidean leakage). |
-| `Equal` on scalars/points | **(a)** | `edwards25519.Scalar.Equal` and `Point.Equal` return `int` (0 or 1) explicitly to enforce constant-time use — see method signatures in [3]. |
-| `SetBytes` (`SetCanonicalBytes`) | **(a)** | Canonical-encoding rejection short-circuits on malformed input, but malformed input is public (came off the wire); accepted input flows through a constant-time scalar reduction. |
+| `sign.Verify` / `sign.VerifyWithSuite` (`sign/sign.go:381`, `:387`) | **(b)** | Operates on a public signature `(c, z, Δ)` against the public group key `(A, b̃)`. The first failure mode `r.Equal(c, computedC)` (`sign/sign.go:411`) walks coefficient slices and short-circuits — but every operand is publicly derivable from the wire signature. No secret-share material crosses this surface. |
+| `sign.CheckL2Norm` (`sign/sign.go:422`) | **(b)** | Sums `big.Int` squares of the centered `(Δ, z)` coefficients and compares to `Bsquare`. `big.Int.Cmp/Mul/Sub` are **not** constant-time, and the `coeff.Cmp(halfQ) > 0` centering branch is data-dependent — but `(z, Δ)` are the *published* signature components, fully public. The norm bound is a property of public data; leaking timing about it reveals only what the signature bytes already do. The function deliberately logs no intermediates (a log would create a side-channel for log-indexing monitors). |
+| `sign.FullRankCheck` (`sign/sign.go:467`) | **(b)** | Gaussian elimination mod `q` over the per-coefficient submatrices of `DSum` to reject a rank-deficient aggregate commitment. `DSum = Σ_j D_j` is the **public** sum of all parties' broadcast Round-1 `D_j` matrices (each `D_j` is broadcast and MAC-bound in Round 1), so every operand is public. `utils.GaussianEliminationModQ` uses `big.Int` and a data-dependent pivot search — variable-time, but only on public aggregate data. Not a secret leak. |
 
-### secp256k1 (`lens/primitives/secp256k1.go`)
+---
 
-| Operation | Status | Notes |
+## 6. Key-share zeroization
+
+| Location | Status | Notes |
 |---|---|---|
-| Scalar mul on points | **(b)** — non-CT, public RHS | `decred/dcrd/dcrec/secp256k1/v4.ScalarMultNonConst` and `ScalarBaseMultNonConst` are explicitly **non-constant-time** (note the `NonConst` suffix). The dcrd authors document this and recommend the constant-time variants for secret-key code paths. **In Lens, the only secp256k1 path that holds a secret scalar is FROST Round 2** (`lens/sign/sign.go:236-243`): `eRho := s.curve.NewScalar().Set(s.eI).Mul(myRho)` and `lamSc := s.curve.NewScalar().Set(s.share.Lambda).Mul(s.share.SkShare).Mul(c)` — these are scalar-on-scalar muls (constant-time, see next row), not scalar-on-point. The point-on-point operations on secp256k1 in Lens are all on **public** points (`commits[id].D`, `commits[id].E`, group key `X`). **Status (b): documented gap; not exploitable because every secp256k1 ScalarMult call site uses public scalar inputs (binding factor `ρ`, challenge `c`, Lagrange coefficient `λ`).** Action: when we ship a secp256k1-backed Lens variant that signs under a single-party path (rather than threshold FROST), reroute to a constant-time scalar-mul implementation (`btcsuite/btcd/btcec/v2.PrivateKey.PubKey()` uses `crypto/ecdsa`'s constant-time mul — that is the upgrade target). |
-| Scalar Add/Sub/Mul/Negate (`ModNScalar`) | **(a)** | `secp256k1.ModNScalar` operations are **constant-time** per dcrd source (`primitives/secp256k1/scalar.go: Add/Mul/etc.` use bit-twiddling). |
-| `Invert` | **(b)** | `s.value.InverseNonConst()` — explicitly non-constant-time. **Only invoked from `primitives.Lagrange` over public IDs**; the input is the difference between two committee party IDs (public integers). Not on a secret scalar path. |
-| Point `Equal` | **(b)** | `secp256k1Point.Equal` (`secp256k1.go:345`) calls `IsZero/IsOddBit/Equals` which short-circuit on the `IsIdentity` branch then `pa.X.Equals(&oa.X) && pa.Y.Equals(&oa.Y)`. `FieldVal.Equals` is constant-time per dcrd source (XOR-fold over the 10-word representation). The `IsIdentity` branch IS data-dependent but operates on public points. |
-
-### Ristretto255 (`lens/primitives/ristretto255.go`)
-
-| Operation | Status | Notes |
-|---|---|---|
-| Scalar mul (`ristrettoScalar.Act`, `ActOnBase`) | **(a)** | Backed by `gtank/ristretto255.Element.ScalarMult` / `ScalarBaseMult`. Per `gtank/ristretto255` README and source, every operation is constant-time, deliberately so for use in PAKE / OPAQUE / threshold-Schnorr deployments [4]. |
-| Scalar Add/Sub/Mul/Negate/Invert | **(a)** | Delegates to `ristretto255.Scalar.{Add,Subtract,Multiply,Negate,Invert}`, all constant-time per package documentation. |
-| `Equal` on scalars/points | **(a)** | `Scalar.Equal` and `Element.Equal` return `int` (0/1) constant-time, by design [4]. |
-| Encoding (`Encode`, `SetCanonicalBytes`) | **(a)** | Canonical encoding is documented constant-time per RFC 9496 §4.3.4. |
+| `reshare.EraseShare` (`reshare/keyshare.go:158`) | **(a)** | `for k := range coeffs { coeffs[k] = 0 }` (`reshare/keyshare.go:166`) overwrites the `SkShare` coefficient backing arrays in place after activation. The goal is overwrite-on-deactivation, not constant-time equality; the data is already secret to the local process. |
+| `keyera` standard-form secret zeroization (`keyera/keyera.go:255`, `:504`) | **(a)** | After Shamir sharing / resharing, the dealer's or party's standard-form secret copy is zeroed coefficient-by-coefficient. `keyera.Reshare` (`keyera/keyera.go:282`) recombines via a `big.Int` Lagrange linear combination of secret share values with public coefficients — `big.Int` is not constant-time, but every value is held by the **local** party only; there is no remote oracle on the recombination path. `BootstrapPedersen` (`keyera/bootstrap_pedersen.go:144`) is the default since no party ever holds the full master secret; its per-party arithmetic inherits the dkg2 §3 analysis. The legacy trusted-dealer path (`bootstrapTrustedDealerImpl`, `keyera/keyera.go:195`) runs the master secret in `big.Int` on a single dealer machine during a one-time ceremony — timing observable only to the dealer. |
 
 ---
 
 ## (c) entries
 
-**None.** All paths reviewed land in (a) or (b).
+**None.** All reviewed paths land in (a), (b), or the §4 (TCB) axiom.
 
-The (b) entries break down as:
+The (b) entries (`sign.Verify`, `CheckL2Norm`, `FullRankCheck`) are all
+public-input verifier paths: `big.Int` and `r.Equal` variable-time
+behaviour operates exclusively on the published signature, the public
+group key, or the broadcast aggregate `DSum`. Promoting them to
+constant-time would add cost for no confidentiality gain.
 
-1. **`reshare/commit.go:124`** — recipient-side Pedersen mismatch leaks
-   the first-diverging slot index. Mitigation: dkg2's `VerifyShareAgainstCommits`
-   already does CT compare, and the legacy `reshare` path will be
-   migrated to use the same `constTimePolyEqual` helper at the next
-   reshare-protocol revision (Mar-31 cutover; tracked in
-   `~/work/lux/pulsar/LLM.md`).
-
-2. **`lens/primitives/secp256k1.go`** — `dcrd` non-CT scalar mul. Only
-   reached with public scalar inputs in current Lens deployments. If we
-   ever expose secp256k1 to a single-party signing path (e.g. an L2
-   bridge requiring Bitcoin-key signatures from a single validator),
-   reroute to a constant-time mul.
-
-Both (b) entries are tracked; neither blocks the Mar-3 Architecture
-Freeze.
+The single (TCB) axiom (§4) is the lattigo Gaussian / uniform sampler
+constant-time behaviour for **secret-seeded** Round-1 nonce and dealer
+sampling. It is asserted from the upstream construction (rejection rate
+depends on rejected bytes, not the secret seed), not mechanically proven
+in this tree. Discharging it (e.g. a `dudect` measurement of the sampler
+under fixed-vs-random secret seeds, or a Jasmin `#ct`-checked sampler) is
+tracked as a v0.8.0 high-assurance gate.
 
 ---
 
-## Reviewers
+## Cross-references
 
-- Audit pass: Scientist (Mar-3-2026)
-- Cross-check: companion file `~/work/lux/lens/CONSTANT-TIME-REVIEW.md`
-  (lens-specific section duplicates §5 here under the lens module's
-  own surface inventory).
-- Proof anchor: `proofs/definitions/transcript-binding.tex`
-  Definitions ref:pulsar-transcript and ref:pulsar-activation-msg.
+- TCB axiom inventory: `TRUSTED-COMPUTING-BASE.md`, `AXIOM-INVENTORY.md`.
+- Nonce-key construction and the CRIT-1 history: `primitives/hash.go`
+  (`DeriveSessionID`, `PRNGKeyForRound`) and `sign/sign.go`
+  (`SignRound1`).
+- Constant-time share comparison origin:
+  `luxcpp/crypto/corona/RED-DKG-REVIEW.md` Findings 5/6.

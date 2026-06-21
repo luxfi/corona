@@ -115,7 +115,11 @@ func signOnly(t *testing.T, suite hash.HashSuite) (
 		r.MForm(lagrangeCoeffs[id], lagrangeCoeffs[id])
 		parties[id].Lambda = lagrangeCoeffs[id]
 		parties[id].Seed = seeds
-		D[id], MACs[id] = parties[id].SignRound1(A, sid, []byte(PRFKey), T)
+		var err error
+		D[id], MACs[id], err = parties[id].SignRound1(A, sid, []byte(PRFKey), T)
+		if err != nil {
+			t.Fatalf("SignRound1 party %d under suite %s: %v", id, suite.ID(), err)
+		}
 	}
 
 	z := make(map[int]structs.Vector[ring.Poly])

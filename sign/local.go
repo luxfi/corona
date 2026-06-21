@@ -84,7 +84,11 @@ func LocalRun(x int) {
 			parties[partyID].Seed = seeds
 			log.Println("Sign Round 1, party", partyID)
 			start = time.Now()
-			D[partyID], MACs[partyID] = parties[partyID].SignRound1(A, sid, []byte(PRFKey), T)
+			var r1err error
+			D[partyID], MACs[partyID], r1err = parties[partyID].SignRound1(A, sid, []byte(PRFKey), T)
+			if r1err != nil {
+				log.Fatalf("SignRound1 failed for party %d: %v", partyID, r1err)
+			}
 			signRound1Durations[partyID] = time.Since(start)
 		}
 

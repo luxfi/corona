@@ -155,7 +155,11 @@ func main() {
 
 	fmt.Printf("Timestamp before Sign Round 1 compute: %s\n", time.Now().Format("15:04:05.000000"))
 	start := time.Now()
-	D[partyID], MACs[partyID] = party.SignRound1(A, sid, []byte(PRFKey), T)
+	var r1err error
+	D[partyID], MACs[partyID], r1err = party.SignRound1(A, sid, []byte(PRFKey), T)
+	if r1err != nil {
+		log.Fatalf("SignRound1 failed for party %d: %v", partyID, r1err)
+	}
 	signRound1Duration = time.Since(start)
 	log.Println("Completed R1")
 

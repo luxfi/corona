@@ -237,7 +237,10 @@ func runRoundsAndVerify(
 	D := make(map[int]structs.Matrix[ring.Poly], len(parties))
 	macs := make(map[int]map[int][]byte, len(parties))
 	for _, p := range parties {
-		Di, MAi := p.SignRound1(A, sid, prfKey, signSet)
+		Di, MAi, err := p.SignRound1(A, sid, prfKey, signSet)
+		if err != nil {
+			t.Fatalf("SignRound1 party %d (%s): %v", p.ID, label, err)
+		}
 		D[p.ID] = Di
 		macs[p.ID] = MAi
 	}

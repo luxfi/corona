@@ -37,7 +37,10 @@ func FuzzVerifyParseSignature(f *testing.F) {
 	message := "fuzz verify seed message"
 	r1 := make(map[int]*Round1Data)
 	for _, s := range signers {
-		d := s.Round1(sid, prfKey, signerIDs)
+		d, err := s.Round1(sid, prfKey, signerIDs)
+		if err != nil {
+			f.Fatal(err)
+		}
 		r1[d.PartyID] = d
 	}
 	r2 := make(map[int]*Round2Data)

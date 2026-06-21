@@ -107,7 +107,11 @@ func signFresh() (*threshold.Signature, error) {
 	r1Data := make(map[int]*threshold.Round1Data)
 	for _, i := range signers {
 		s := threshold.NewSigner(shares[i])
-		r1Data[i] = s.Round1(sid, prfKey, signers)
+		d, err := s.Round1(sid, prfKey, signers)
+		if err != nil {
+			return nil, err
+		}
+		r1Data[i] = d
 	}
 	r2Data := make(map[int]*threshold.Round2Data)
 	for _, i := range signers {

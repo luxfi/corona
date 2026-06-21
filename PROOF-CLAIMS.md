@@ -12,8 +12,9 @@
 The strongest precise statement supported by Corona v0.4.1:
 
 > **Construction-level interchangeability (Class N1).** Every
-> signature byte string produced by the Corona threshold combine
-> procedure (`threshold.Combine` / `sign.LocalSign` aggregation flow)
+> signature byte string produced by the Corona threshold finalize
+> procedure (`sign.Party.SignFinalize`, exposed as
+> `threshold.Signer.Finalize`, which aggregates the Round-2 `z` shares)
 > on inputs `(group_pk = (A, bTilde), m, ctx, quorum, shares)`
 > satisfying the protocol's well-formedness invariants verifies under
 > the Corona reference verifier `sign.Verify(group_pk, m, σ)` with

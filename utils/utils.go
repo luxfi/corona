@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/subtle"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"math/big"
@@ -10,6 +12,49 @@ import (
 	"github.com/luxfi/lattice/v7/utils/structs"
 	"github.com/zeebo/blake3"
 )
+
+// ConstantTimePolyEqual reports whether two ring polynomials have
+// identical coefficient arrays at every level, returning 1 iff equal and
+// 0 otherwise. The comparison runs in time independent of how many
+// coefficients differ — every level is always scanned (no early return),
+// and the per-level compare is crypto/subtle.ConstantTimeCompare over the
+// little-endian byte view of each level's []uint64.
+//
+// This is the single canonical constant-time poly comparator. The dkg2
+// and reshare commit-verification paths both delegate here so there is
+// exactly one implementation. It exists because the upstream dkg/ share
+// comparison short-circuited on the first slot mismatch, leaking the
+// location of a planted divergence to a timing observer
+// (luxcpp/crypto/corona/RED-DKG-REVIEW.md Findings 5/6).
+func ConstantTimePolyEqual(a, b ring.Poly) int {
+	if len(a.Coeffs) != len(b.Coeffs) {
+		return 0
+	}
+	eq := 1
+	for level := range a.Coeffs {
+		al := a.Coeffs[level]
+		bl := b.Coeffs[level]
+		if len(al) != len(bl) {
+			eq = 0
+			continue
+		}
+		ab := uint64SliceToBytes(al)
+		bb := uint64SliceToBytes(bl)
+		eq &= subtle.ConstantTimeCompare(ab, bb)
+	}
+	return eq
+}
+
+// uint64SliceToBytes returns a little-endian byte view of a []uint64.
+// The uint64 little-endian coefficient layout is byte-stable on every
+// supported target (amd64, arm64).
+func uint64SliceToBytes(s []uint64) []byte {
+	b := make([]byte, 8*len(s))
+	for i, v := range s {
+		binary.LittleEndian.PutUint64(b[8*i:8*i+8], v)
+	}
+	return b
+}
 
 // MatrixVectorMul performs matrix-vector multiplication.
 func MatrixVectorMulNTT(r *ring.Ring, M structs.Matrix[ring.Poly], vec structs.Vector[ring.Poly], result structs.Vector[ring.Poly]) {

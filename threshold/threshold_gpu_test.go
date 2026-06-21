@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	cgpu "github.com/luxfi/corona/gpu"
+	"github.com/luxfi/corona/sign"
 )
 
 // deterministicReader is a SHA-256 keystream over a 32-byte seed,
@@ -95,11 +96,19 @@ func TestThresholdSign_CPU_vs_GPU_ByteIdentical(t *testing.T) {
 		signers := make([]*Signer, k)
 		for i, sh := range shares {
 			signers[i] = NewSigner(sh)
+			// Pin the hedged-nonce salt to a deterministic, per-party
+			// source keyed by the shared dealer seed, so both the CPU and
+			// GPU legs draw identical salts and the resulting signature
+			// bytes are byte-identical across paths.
+			signers[i].SetNonceRand(sign.DeterministicNonceSource(seed[:], i))
 		}
 
 		round1 := make(map[int]*Round1Data)
 		for _, s := range signers {
-			d := s.Round1(sessionID, prfKey, signerIDs)
+			d, err := s.Round1(sessionID, prfKey, signerIDs)
+			if err != nil {
+				t.Fatalf("Round1 (gpu=%v): %v", gpuOn, err)
+			}
 			round1[d.PartyID] = d
 		}
 
