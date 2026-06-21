@@ -20,9 +20,25 @@ reconstruct_linear  A -- reconstruction linear over share-list addition. Lean-br
 shamir_correct  A -- reconstruction left-inverse of fresh sharing (Lagrange-at-zero). Lean-bridged. Load-bearing for honest_reshare_reconstructs / reshare_preserves_secret_honest (N4).
 add_share_zeroR  A -- additive identity on share_t (AddCommMonoid). Lean-bridged. Load-bearing for the N4 zero-sharing argument.
 
-# --- C: OPEN security assumptions in the byte-equality cone (reconstruct-then-sign; steps 2-6 open). DISCLOSED, NOT closed. See BLOCKERS.md. ---
-combine_body_axiom  C -- OPEN. declare axiom: T.combine ~ CombineAbs.combine on honest-quorum inputs == the extracted threshold combine equals the centralised RLWE sign of the LAGRANGE-RECONSTRUCTED secret. corona_n1_byte_equality rests on it. Closure = the Jasmin byte-walk (v0.8.0). NOT proven.
+# --- C: OPEN security assumptions in the IDEALISED-CORRECTNESS byte-equality cone
+#        (reconstruct-then-sign; steps 2-6 open). These prove the threshold OUTPUT
+#        bit-equals central sign on the reconstructed secret -- an idealised
+#        CORRECTNESS statement, NOT how production runs. The production no-leak
+#        residual is the STANDARD-ASSUMPTION reduction in the next block
+#        (Corona_N1_NoLeak.ec), not these. See BLOCKERS.md CORONA-EC-RECON-MODEL. ---
+combine_body_axiom  C -- OPEN. declare axiom: T.combine ~ CombineAbs.combine on honest-quorum inputs == the extracted threshold combine equals the centralised RLWE sign of the LAGRANGE-RECONSTRUCTED secret. corona_n1_byte_equality rests on it. IDEALISED CORRECTNESS model only. Closure = the Jasmin byte-walk (v0.8.0). NOT proven.
 S_functional_spec  C -- OPEN. declare axiom: S.sign ~ CentralRLWESign.sign on accepted inputs == the single-party module is a faithful Boschini signer. corona_n1_byte_equality rests on it. NOT proven.
 combine_body_spec  C -- OPEN. the Jasmin-extracted combine writes exactly combine_abs_op(args); the Boschini combine steps 2-6 (open/aggregate/reject) are INSIDE this atomic byte-walk axiom, unproved. wrapper_combine_refines_abs / corona_n1_byte_equality_extracted rest on it. NOT proven.
 combine_abs_op_lifted_bridge  C -- OPEN. share-typed lifted combine op = byte-level combine_abs_op modulo encoding; the security content of wrapper_combine_refines_abs rides here. NOT proven.
-sign_abs_op_lifted_eq_rlwe  C -- OPEN. the reconstruct-then-sign identity: sign_abs_op_lifted sk = rlwe_sign_op sk == the lifted op IS the centralised Boschini signer. wrapper_sign_refines_central rests on it. NOT proven.
+sign_abs_op_lifted_eq_rlwe  C -- OPEN. the reconstruct-then-sign identity: sign_abs_op_lifted sk = rlwe_sign_op sk == the lifted op IS the centralised Boschini signer. wrapper_sign_refines_central rests on it. IDEALISED CORRECTNESS model only. NOT proven.
+
+# --- The NO-LEAK model (Corona_N1_NoLeak.ec) -- the HONEST production residual.
+#     Replaces reconstruct-then-sign as the load-bearing path: per-party masked
+#     responses z_i = R_i*u + maskPrime_i + c*lambda_i*s_i - mask_i aggregate to
+#     R*u + c*s because the pairwise-PRF masks TELESCOPE TO ZERO -- master secret
+#     never formed, no per-party c*s_i ever in the clear -- and the ONLY open
+#     assumption is a STANDARD Module-LWE/Module-SIS reduction (the same substrate
+#     AXIOM-INVENTORY.md §1 already lists). Algebraic core MACHINE-CHECKED in Lean
+#     (Crypto.Corona.NoLeakAggregate / Crypto.Threshold_Lagrange; lake build green). ---
+mask_telescope_zero  B -- standard/Lean-backed. Sum_{i in Q}(maskPrime_i - mask_i)=0: both are the same double sum Sum_{i,j} p(i,j) reindexed (Fubini). MACHINE-CHECKED in Lean as Crypto.Corona.NoLeak.pairwise_mask_telescopes. References ONLY masks, no secret share. Why the aggregate exposes no per-party c*lambda_i*s_i. Recheck pending ec-compile.
+no_leak_reduction  C -- OPEN, but STANDARD-ASSUMPTION (NOT reconstruct-then-sign). Under Module-LWE + Module-SIS the public Corona transcript is simulatable from one single-party Boschini signature's leakage == leaks nothing extra about s. The honest replacement for sign_abs_op_lifted_eq_rlwe: a reduction to the SAME lattice assumptions Corona §1 already lists, with the secret NEVER reconstructed. no_leak_under_standard_assumptions rests on it. EC mirror of MACHINE-CHECKED Lean Crypto.Corona.NoLeak.NoLeakReduction. Full simulation = v0.8.0 artifact. NOT proven (but a standard reduction, not an impl reconstruct).

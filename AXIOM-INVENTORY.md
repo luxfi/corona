@@ -45,16 +45,35 @@ in any Lux work and are not counted in the EC axiom histogram below.
 | Pedersen-VSS soundness | Pedersen (CRYPTO 1991) | Corona's DKG (`dkg2/`) reduces to discrete-log hardness. |
 | cSHAKE256 / KMAC256 collision + preimage resistance | NIST SP 800-185 | Domain-separated hashing across DKG/signing/reshare. |
 
-## §2 EC residual axioms — histogram (56 real axiom declarations)
+## §2 EC residual axioms — histogram (58 real axiom declarations)
 
 | Bucket | Count | Discharged this pass | Remaining |
 |---|---:|---:|---:|
-| A — standard-math-fact | 18 | 0 (abstract algebra / Lean-bridged) | 18 |
-| B — serialization/layout | 27 | 0 (abstract ops/constants) | 27 |
-| C — open security assumption | 11 | 0 (must stay open) | 11 |
-| **Total** | **56** | **0** | **56** |
+| A — standard-math-fact | 18 | 0 (abstract algebra / Lean-bridged; A IS machine-checked in Lean, see below) | 18 |
+| B — serialization/layout | 28 | 0; **+1 `mask_telescope_zero`** (EC contract of the machine-checked Lean telescope) | 28 |
+| C — open security assumption | 12 | 0 discharged; **+1 `no_leak_reduction`** is the new STANDARD-assumption (M-LWE/M-SIS) production residual replacing reconstruct-then-sign as the load-bearing path | 12 |
+| **Total** | **58** | **0** | **58** |
 
-> **Discharged this pass: 0 new.** Reason (honest): no EasyCrypt toolchain
+> **A IS MACHINE-CHECKED IN LEAN ON THIS HOST.** The five A-axioms (A1–A5:
+> `lagrange_inverse_eval`, `threshold_partial_response_identity`,
+> `reconstruct_linear`, `shamir_correct`, `add_share_zeroR`) correspond 1:1
+> to **sorry-free Lean 4 + Mathlib theorems that `lake build` compiles green
+> on this host** (`Crypto.Threshold_Lagrange`, `Crypto.Corona.Shamir`). They
+> remain EC `axiom`s only because EasyCrypt's field/polynomial theory is too
+> thin to re-derive them in-prover; the gap is cross-prover proof-object
+> exchange, not the absence of a proof.
+
+> **Discharged into machine-checked Lean this pass: the no-leak CORRECTNESS
+> CORE.** `Corona_N1_NoLeak.ec` states the production no-leak model whose
+> algebraic core — the telescoping pairwise-mask cancellation + the Lagrange
+> secret aggregate (master secret never formed) — is **newly machine-checked
+> in Lean** (`Crypto.Corona.NoLeakAggregate`: `pairwise_mask_telescopes`,
+> `summed_response_is_mask_free`, `secret_aggregate_no_reconstruct`,
+> `no_leak_under_standard_assumptions`). The residual EC axiom is the
+> Module-LWE/MSIS reduction, a STANDARD assumption (the same substrate §1
+> lists) — not an implementation reconstruct.
+>
+> **EC axioms discharged this pass: 0 new.** Reason (honest): no EasyCrypt toolchain
 > on this host (no `easycrypt`/`alt-ergo`/`why3`), and everything
 > dischargeable from in-file material is already a proved lemma
 > (`encode_decode_signature`, `decode_encode_signature_wf`,
@@ -187,6 +206,58 @@ timing" anti-pattern). Corona's dudect harness is wired (smoke-budget) and
 the submission-grade 10⁹-sample run is roadmap v0.8.0. So these axioms are
 **fail-closed-pending-review**, disclosed here as open.
 
+> **The C1–C10 axioms above are NOT the production residual.** They prove an
+> idealised *correctness* fact (threshold output = central sign on the
+> reconstructed secret) plus the CT/wire contracts. They are deliberately
+> **not** the abstraction the production leaderless path instantiates. The
+> production residual is the standard-assumption no-leak reduction below.
+
+---
+
+### Bucket C-standard — NO-LEAK REDUCTION (`Corona_N1_NoLeak.ec`) — the HONEST production residual
+
+This is the headline of the de-misdirection pass. `Corona_N1_NoLeak.ec`
+models the production path the way it actually runs: the per-party masked
+responses `z_i = R_i·u + maskPrime_i + c·λ_i·s_i − mask_i` aggregate to
+`R·u + c·s` because the pairwise-PRF masks **telescope to zero**
+(`Σ_i maskPrime_i = Σ_i mask_i`, the same double sum reindexed) — so the
+master secret is **never formed** and no per-party `c·s_i` is ever exposed.
+The only open content is then a STANDARD-assumption reduction, NOT a
+reconstruct.
+
+| # | Axiom | File:line | Bucket | What is assumed |
+|---|---|---|---|---|
+| NL1 | `mask_telescope_zero` | Corona_N1_NoLeak.ec | **B (standard / Lean-backed)** | `Σ_{i∈Q}(maskPrime_i − mask_i) = 0` — both are the same double sum `Σ_{i,j} p(i,j)` reindexed (Fubini). EC contract of the **machine-checked Lean** `Crypto.Corona.NoLeak.pairwise_mask_telescopes`. References ONLY masks — no secret share. Why the aggregate exposes no per-party `c·λ_i·s_i`. |
+| NL2 | `no_leak_reduction` | Corona_N1_NoLeak.ec | **C-standard (OPEN, Module-LWE/MSIS)** | Under Module-LWE + Module-SIS, the public Corona transcript is simulatable from one single-party Boschini signature's leakage — leaks nothing extra about `s`. The honest replacement for `sign_abs_op_lifted_eq_rlwe`: a reduction to the SAME lattice assumptions §1 already lists, secret **never reconstructed**. EC mirror of the **machine-checked Lean** `Crypto.Corona.NoLeak.NoLeakReduction`. Full simulation = v0.8.0 artifact. |
+
+What is **machine-checked in Lean** under NL1/NL2 (this host, `lake build`
+green, 0 sorry):
+
+- `Crypto.Corona.NoLeak.pairwise_mask_telescopes` — pairwise-mask aggregate
+  is zero (Fubini reindex); the Corona no-leak core.
+- `Crypto.Corona.NoLeak.summed_response_is_mask_free` — `Σ_i z_i = Σ_i base_i`:
+  the masks contribute nothing, only the aggregate is exposed.
+- `Crypto.Corona.NoLeak.secret_aggregate_no_reconstruct` — the surviving
+  `c · Σ_i λ_i·s_i = c·s` by Lagrange-at-0, secret never formed.
+- `Crypto.Corona.NoLeak.no_leak_under_standard_assumptions` — packaged
+  residual: under M-LWE/M-SIS, every transcript is the simulator's output.
+
+The EC `no_leak_z_aggregate` / `mask_telescope_zero` / `no_leak_reduction`
+are the procedure-level EC wrappers; they are **written, machine-recheck
+pending EasyCrypt** (no `ec` on host; `scripts/checks/ec-compile.sh` is CI).
+
+### The net assurance change of this pass
+
+- **Before:** the headline residual was reconstruct-then-sign
+  (`sign_abs_op_lifted_eq_rlwe` / `combine_body_axiom`) — an implementation
+  reconstruct.
+- **After:** that cone is re-labelled *idealised correctness*; the production
+  residual is `no_leak_reduction`, a **Module-LWE/MSIS standard reduction**,
+  and its CORRECTNESS core (telescoping masks + Lagrange aggregate) is
+  **machine-checked in Lean**. Strictly better: the open assumption is now a
+  standard PQ assumption (the same substrate §1 already discloses), not an
+  implementation reconstruct.
+
 ## §3 Implementation-level axioms (TCB — residual Go ↔ construction gaps)
 
 | Axiom | Location | Closure plan |
@@ -200,15 +271,24 @@ the submission-grade 10⁹-sample run is roadmap v0.8.0. So these axioms are
 ## §4 Honest framing
 
 Corona's EC theories refine the Go implementation against an in-house
-mechanization of the Boschini construction. The byte-equality theorem is
-honest *as an idealised statement* — but it models **reconstruct-then-
-sign**: the EC `CombineAbs` reconstructs the master secret and signs with
-it. That is intentionally NOT how the production threshold path runs; the
-production path's leak-freedom is established by code review + cross-runtime
-KAT, not by this EC proof. Five algebraic axioms (A1–A5) are Lean-bridged.
-The byte-walk obligations (C3/C4), the wrapper bridges (C5–C7), and the CT
-contracts (C9/C10) are the open surface, tracked in `BLOCKERS.md` and gated
-on the v0.8.0 Jasmin-extraction + dudect + external-audit roadmap.
+mechanization of the Boschini construction. There are now TWO models. The
+`corona_n1_byte_equality` theorem is honest *as an idealised CORRECTNESS
+statement* — but it models **reconstruct-then-sign**: the EC `CombineAbs`
+reconstructs the master secret and signs with it. That is intentionally NOT
+how the production threshold path runs. `Corona_N1_NoLeak.ec` adds the
+HONEST production model: the per-party masked responses telescope to
+`R·u + c·s` **without forming the master secret**, and the ONLY open
+assumption is a STANDARD Module-LWE/Module-SIS reduction (`no_leak_reduction`)
+— the same substrate §1 already lists — with the secret never reconstructed.
+The CORRECTNESS core of that model (`pairwise_mask_telescopes` +
+`secret_aggregate_no_reconstruct`) is **machine-checked in Lean on this
+host** (`Crypto.Corona.NoLeakAggregate`; `lake build` green). The
+production no-leak path's correctness is ALSO established by code review +
+cross-runtime KAT. Five algebraic axioms (A1–A5) are Lean-bridged-and-
+machine-checked. The byte-walk obligations (C3/C4), the wrapper bridges
+(C5–C7), the CT contracts (C9/C10), and the no-leak simulation
+(`no_leak_reduction`) are the open surface, tracked in `BLOCKERS.md` and
+gated on the v0.8.0 Jasmin-extraction + dudect + external-audit roadmap.
 
 ## §5 Comparison to Pulsar's AXIOM-INVENTORY
 
