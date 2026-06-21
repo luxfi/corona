@@ -1,0 +1,10 @@
+# Unproven-assertion budget (max counts). Enforced by
+# ~/work/lux/proofs/framework/checks/axiom-budget.sh. FAILS on any drift above.
+# Goal: decrease, never raise. Current surface (2026-06). The EasyCrypt
+# byte-equality proof still models a secret-reconstructing abstraction with the
+# steps 2-6 reduction open (see AUDIT-2026-06); those open steps are the bulk of
+# the 56 axioms and are tracked for discharge in PROOF-CLAIMS.
+SORRY=0
+ADMIT=3
+AXIOM=56
+VACUOUS=0
