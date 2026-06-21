@@ -29,7 +29,10 @@ func freshSig(t testing.TB, message string) (*GroupKey, *Signature) {
 
 	round1 := make(map[int]*Round1Data)
 	for _, s := range signers {
-		d := s.Round1(sessionID, prfKey, signerIDs)
+		d, err := s.Round1(sessionID, prfKey, signerIDs)
+		if err != nil {
+			t.Fatalf("Round1: %v", err)
+		}
 		round1[d.PartyID] = d
 	}
 	round2 := make(map[int]*Round2Data)

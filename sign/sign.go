@@ -2,6 +2,10 @@ package sign
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/subtle"
+	"errors"
+	"io"
 	"math/big"
 
 	"github.com/luxfi/corona/hash"
@@ -12,6 +16,15 @@ import (
 	"github.com/luxfi/lattice/v7/utils/sampling"
 	"github.com/luxfi/lattice/v7/utils/structs"
 )
+
+// ErrDegenerateSession is returned by SignRound1 when the derived
+// session identifier or the fresh hedge salt is all-zero. Both are
+// fail-closed preconditions: an all-zero SessionID indicates an
+// uninitialised/degenerate (sid, T), and an all-zero salt indicates the
+// nonce-randomness source returned no entropy. Signing under either
+// would forfeit the per-signature nonce-freshness on which the no-leak
+// property rests, so the kernel refuses to proceed.
+var ErrDegenerateSession = errors.New("corona/sign: degenerate session (zero SessionID or zero nonce salt); refusing to sign")
 
 // Party struct holds all state and methods for a party in the protocol.
 //
@@ -34,6 +47,16 @@ type Party struct {
 	MACKeys        map[int][]byte
 	MACs           map[int][]byte
 	Suite          hash.HashSuite
+
+	// Rand is the source of the fresh per-signature nonce hedge salt
+	// drawn in SignRound1. NewPartyWithSuite defaults it to
+	// crypto/rand.Reader, which is what every production signer uses.
+	// KAT/oracle and cross-path byte-equality harnesses pin it to a
+	// deterministic reader so the signature bytes are reproducible; no
+	// other code path should override it. This is the single seam
+	// between hedged (production) and deterministic (test) signing —
+	// mirroring threshold.GenerateKeys' randSource parameter.
+	Rand io.Reader
 }
 
 // NewParty initializes a new Party instance with the production hash suite
@@ -55,6 +78,7 @@ func NewPartyWithSuite(id int, r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, s
 		MACKeys:        make(map[int][]byte),
 		MACs:           make(map[int][]byte),
 		Suite:          hash.Resolve(suite),
+		Rand:           rand.Reader,
 	}
 }
 
@@ -109,17 +133,47 @@ func Gen(r *ring.Ring, r_xi *ring.Ring, uniformSampler *ring.UniformSampler, tru
 	return A, skShares, seeds, MACKeys, bTilde
 }
 
-// SignRound1 performs the first round of signing
-func (party *Party) SignRound1(A structs.Matrix[ring.Poly], sid int, PRFKey []byte, T []int) (structs.Matrix[ring.Poly], map[int][]byte) {
+// SignRound1 performs the first round of signing.
+//
+// PRECONDITION (HARD, consensus-enforced): the caller MUST supply an sid
+// that is unique for this signer's skShare across the lifetime of that
+// share. In the Quasar deployment sid is the consensus slot/round and
+// slot-uniqueness is a chain invariant (LP-020). This kernel does NOT
+// trust that invariant for its no-leak guarantee: the nonce key is
+// additionally hedged with fresh per-signature randomness drawn from
+// party.Rand (default crypto/rand), so reuse of an sid degrades only the
+// defence-in-depth layer, not the security proof. An obviously-degenerate
+// session (zero derived SessionID, or a randomness source that yields a
+// zero salt) is rejected fail-closed with ErrDegenerateSession.
+//
+// The error return is the fail-closed signal; on error the returned D
+// and MACs are nil and the caller MUST abort the signing session.
+func (party *Party) SignRound1(A structs.Matrix[ring.Poly], sid int, PRFKey []byte, T []int) (structs.Matrix[ring.Poly], map[int][]byte, error) {
 	r := party.Ring
 
-	// CRIT-1 fix (2026-05-03): mix sid into the per-party PRNG seed.
-	// Previously this was PRNGKey(SkShare) which produced byte-identical
-	// R, E, D across every Sign call of the same Setup → multi-Sign leaked
-	// R. PRNGKeyForRound domain-separates by sid; per-block sid
-	// monotonicity (LP-020 Quasar = block height) gives uniqueness for
-	// free. See LP-073 §5.8 (amended) and red audit response.
-	skHash := primitives.PRNGKeyForRound(party.Suite, party.SkShare, int64(sid))
+	// Nonce-key derivation (replaces the CRIT-1 bare-int keying).
+	//   1. sessionID: full-width (no 64-bit truncation) deterministic
+	//      binding to the consensus-agreed (sid, T).
+	//   2. salt: fresh 256-bit per-signature randomness — hedged signing.
+	// PRNGKeyForRound = PRF(skShare, "CoronaNonceV3" || sessionID || salt).
+	// Either input being all-zero is a degenerate session: fail closed
+	// rather than sign with forfeited nonce freshness.
+	sessionID := primitives.DeriveSessionID(party.Suite, sid, T)
+	if isZero32(sessionID) {
+		return nil, nil, ErrDegenerateSession
+	}
+	src := party.Rand
+	if src == nil {
+		src = rand.Reader
+	}
+	var salt [primitives.SessionIDSize]byte
+	if _, err := io.ReadFull(src, salt[:]); err != nil {
+		return nil, nil, err
+	}
+	if isZero32(salt) {
+		return nil, nil, ErrDegenerateSession
+	}
+	skHash := primitives.PRNGKeyForRound(party.Suite, party.SkShare, sessionID, salt)
 	prng, _ := sampling.NewKeyedPRNG(skHash)
 	gaussianParams := ring.DiscreteGaussian{Sigma: SigmaStar, Bound: BoundStar}
 	gaussianSampler := ring.NewGaussianSampler(prng, r, gaussianParams, false)
@@ -159,7 +213,43 @@ func (party *Party) SignRound1(A structs.Matrix[ring.Poly], sid int, PRFKey []by
 		}
 	}
 
-	return D, MACs
+	return D, MACs, nil
+}
+
+// nonceSaltDomain domain-separates the deterministic nonce-salt stream
+// from every other use of a KeyedPRNG seeded by the same dealer seed.
+var nonceSaltDomain = []byte("corona.sign.nonce-salt.v1")
+
+// DeterministicNonceSource returns a deterministic, party-distinct
+// io.Reader suitable for Party.Rand in KAT/oracle and cross-path
+// byte-equality harnesses. It is keyed by the dealer seed, a fixed
+// domain tag, and the party index, so each party draws an independent
+// but reproducible hedge salt. Production signers MUST NOT use this —
+// they keep the default crypto/rand.Reader. This is the single
+// canonical way to pin hedged signing to a reproducible stream.
+func DeterministicNonceSource(seed []byte, partyIndex int) io.Reader {
+	key := make([]byte, 0, len(seed)+len(nonceSaltDomain)+4)
+	key = append(key, seed...)
+	key = append(key, nonceSaltDomain...)
+	key = append(key, byte(partyIndex>>24), byte(partyIndex>>16), byte(partyIndex>>8), byte(partyIndex))
+	prng, err := sampling.NewKeyedPRNG(key)
+	if err != nil {
+		// NewKeyedPRNG only errors on BLAKE2 XOF construction, which
+		// cannot fail for a non-nil key. Surface loudly if the upstream
+		// contract ever changes rather than return a nil reader.
+		panic("corona/sign: DeterministicNonceSource: " + err.Error())
+	}
+	return prng
+}
+
+// isZero32 reports whether a 32-byte array is all-zero, in constant time.
+// Used by the SignRound1 fail-closed guard; the operands (a derived
+// SessionID, a freshly drawn salt) are not adversary-chosen, but a
+// branch-free check keeps the guard uniform and free of a data-dependent
+// early exit.
+func isZero32(b [primitives.SessionIDSize]byte) bool {
+	var zero [primitives.SessionIDSize]byte
+	return subtle.ConstantTimeCompare(b[:], zero[:]) == 1
 }
 
 // SignRound2Preprocess verifies the MACs received in round 1 and performs the minimum eigenvalue check

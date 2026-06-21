@@ -287,20 +287,56 @@ func TestCoronaSHA3VsBLAKE3_DistinctOutput(t *testing.T) {
 		}
 	})
 
+	t.Run("DeriveSessionID", func(t *testing.T) {
+		T := []int{0, 1, 2}
+		a := DeriveSessionID(sha3, 42, T)
+		// Distinct suite → distinct SessionID (F22 cross-profile sep).
+		if a == DeriveSessionID(bl3, 42, T) {
+			t.Fatal("DeriveSessionID: SHA3 and BLAKE3 produced identical SessionID")
+		}
+		// Distinct sid → distinct SessionID.
+		if a == DeriveSessionID(sha3, 43, T) {
+			t.Fatal("DeriveSessionID: sid not bound")
+		}
+		// Distinct signer set → distinct SessionID.
+		if a == DeriveSessionID(sha3, 42, []int{0, 1, 3}) {
+			t.Fatal("DeriveSessionID: signer set T not bound")
+		}
+		// Deterministic: same inputs → same SessionID.
+		if a != DeriveSessionID(sha3, 42, T) {
+			t.Fatal("DeriveSessionID: not deterministic")
+		}
+	})
+
 	t.Run("PRNGKeyForRound", func(t *testing.T) {
 		skShare := make(structs.Vector[ring.Poly], 3)
 		for i := range skShare {
 			skShare[i] = sampler.ReadNew()
 		}
-		a := PRNGKeyForRound(sha3, skShare, 42)
-		b := PRNGKeyForRound(bl3, skShare, 42)
+		sid := DeriveSessionID(sha3, 42, []int{0, 1, 2})
+		sid2 := DeriveSessionID(sha3, 43, []int{0, 1, 2})
+		var salt, salt2 [SessionIDSize]byte
+		salt[0], salt2[0] = 0x01, 0x02
+
+		a := PRNGKeyForRound(sha3, skShare, sid, salt)
+		b := PRNGKeyForRound(bl3, skShare, sid, salt)
 		if bytes.Equal(a, b) {
 			t.Fatal("PRNGKeyForRound: SHA3 and BLAKE3 produced identical bytes for same input")
 		}
-		// Also assert sid mixing: same suite, two sids → distinct bytes.
-		c := PRNGKeyForRound(sha3, skShare, 43)
-		if bytes.Equal(a, c) {
-			t.Fatal("PRNGKeyForRound: sid mixing broken under SHA3")
+		// SessionID binding: distinct SessionID, same salt → distinct key.
+		if bytes.Equal(a, PRNGKeyForRound(sha3, skShare, sid2, salt)) {
+			t.Fatal("PRNGKeyForRound: SessionID not bound into key")
+		}
+		// Hedge binding: same SessionID, distinct salt → distinct key.
+		// This is the property that closes the sid-reuse leak: even if an
+		// external sid collision makes SessionID repeat, fresh salt makes
+		// the nonce key (hence R) differ.
+		if bytes.Equal(a, PRNGKeyForRound(sha3, skShare, sid, salt2)) {
+			t.Fatal("PRNGKeyForRound: hedge salt not bound into key")
+		}
+		// Deterministic in (sessionID, salt).
+		if !bytes.Equal(a, PRNGKeyForRound(sha3, skShare, sid, salt)) {
+			t.Fatal("PRNGKeyForRound: not deterministic in (sessionID, salt)")
 		}
 	})
 

@@ -37,8 +37,14 @@ func TestSignatureWireRoundtrip(t *testing.T) {
 	sigB := NewSigner(shares[1])
 
 	const sessionID = 42
-	r1A := sigA.Round1(sessionID, prfKey, signers)
-	r1B := sigB.Round1(sessionID, prfKey, signers)
+	r1A, err := sigA.Round1(sessionID, prfKey, signers)
+	if err != nil {
+		t.Fatalf("Round1 A: %v", err)
+	}
+	r1B, err := sigB.Round1(sessionID, prfKey, signers)
+	if err != nil {
+		t.Fatalf("Round1 B: %v", err)
+	}
 	r1Data := map[int]*Round1Data{0: r1A, 1: r1B}
 
 	msg := "corona-wire-roundtrip-test"

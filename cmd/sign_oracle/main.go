@@ -191,6 +191,10 @@ func emitSignVerify(outDir string) error {
 			parties[i].SkShare = skShares[i]
 			parties[i].Seed = seeds
 			parties[i].MACKeys = macKeys[i]
+			// Pin the hedged-nonce salt to a deterministic, per-party
+			// source so the KAT signature bytes reproduce across runs
+			// and the C++ runner. Production keeps crypto/rand.
+			parties[i].Rand = sign.DeterministicNonceSource(seed, i)
 			lambda := r.NewPoly()
 			lambda.Copy(lagrange[i])
 			r.NTT(lambda, lambda)
@@ -208,7 +212,11 @@ func emitSignVerify(outDir string) error {
 		D := make(map[int]structs.Matrix[ring.Poly])
 		MACs := make(map[int]map[int][]byte)
 		for _, pid := range T {
-			D[pid], MACs[pid] = parties[pid].SignRound1(A, sid, prfKey, T)
+			d, macs, err := parties[pid].SignRound1(A, sid, prfKey, T)
+			if err != nil {
+				return fmt.Errorf("sign-e2e: SignRound1 party %d: %w", pid, err)
+			}
+			D[pid], MACs[pid] = d, macs
 		}
 
 		z := make(map[int]structs.Vector[ring.Poly])

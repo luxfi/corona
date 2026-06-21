@@ -58,7 +58,10 @@ func TestThresholdSigningFlow(t *testing.T) {
 	// Round 1: All parties compute D + MACs
 	round1Data := make(map[int]*Round1Data)
 	for _, signer := range signers {
-		data := signer.Round1(sessionID, prfKey, signerIDs)
+		data, err := signer.Round1(sessionID, prfKey, signerIDs)
+		if err != nil {
+			t.Fatalf("Round1: %v", err)
+		}
 		round1Data[data.PartyID] = data
 		t.Logf("Party %d: Round1 complete, D size: %d x %d", data.PartyID, len(data.D), len(data.D[0]))
 	}
@@ -108,7 +111,10 @@ func TestThresholdWrongMessage(t *testing.T) {
 	// Round 1
 	round1Data := make(map[int]*Round1Data)
 	for _, signer := range signers {
-		data := signer.Round1(sessionID, prfKey, signerIDs)
+		data, err := signer.Round1(sessionID, prfKey, signerIDs)
+		if err != nil {
+			t.Fatalf("Round1: %v", err)
+		}
 		round1Data[data.PartyID] = data
 	}
 

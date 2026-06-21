@@ -203,7 +203,11 @@ func mustKernelCeremony(tb testing.TB) {
 		}
 		r1 := make(map[int]*Round1Data, 3)
 		for i, p := range parties {
-			r1[i] = p.Round1(1, prfKey, signers)
+			d, err := p.Round1(1, prfKey, signers)
+			if err != nil {
+				tb.Fatalf("Round1: %v", err)
+			}
+			r1[i] = d
 		}
 
 		// Serialize party-0 Round1Data.D (Matrix[Poly]) wire bytes.

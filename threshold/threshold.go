@@ -1,7 +1,8 @@
 // Copyright (C) 2025, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package corona provides post-quantum threshold signatures using Ring-LWE.
+// Package corona provides post-quantum threshold signatures using Module-LWE
+// (threshold-Raccoon; module dimensions M=8, N=7 over Z_q[X]/(X^256+1)).
 //
 // Signing is a 2-round protocol:
 //   - Round 1: Each party broadcasts D matrix + MACs
@@ -206,14 +207,32 @@ func NewSigner(share *KeyShare) *Signer {
 	}
 }
 
+// SetNonceRand overrides the source of the fresh per-signature nonce
+// hedge salt for this signer. Production signers never call this — they
+// inherit crypto/rand.Reader from sign.NewParty. It exists solely so
+// KAT/oracle and CPU-vs-GPU byte-equality harnesses can pin signing to a
+// deterministic reader and obtain reproducible signature bytes. This is
+// the threshold-layer accessor for the single sign.Party.Rand seam.
+func (s *Signer) SetNonceRand(r io.Reader) {
+	s.party.Rand = r
+}
+
 // Round1 performs signing round 1. Returns D matrix and MACs to broadcast.
-func (s *Signer) Round1(sessionID int, prfKey []byte, signers []int) *Round1Data {
-	D, MACs := s.party.SignRound1(s.share.GroupKey.A, sessionID, prfKey, signers)
+//
+// PRECONDITION: sessionID MUST be unique for this signer's share across
+// that share's lifetime (consensus slot-uniqueness; see
+// sign.Party.SignRound1). Returns ErrDegenerateSession (via the kernel)
+// if the session is degenerate; on error the caller MUST abort signing.
+func (s *Signer) Round1(sessionID int, prfKey []byte, signers []int) (*Round1Data, error) {
+	D, MACs, err := s.party.SignRound1(s.share.GroupKey.A, sessionID, prfKey, signers)
+	if err != nil {
+		return nil, err
+	}
 	return &Round1Data{
 		PartyID: s.share.Index,
 		D:       D,
 		MACs:    MACs,
-	}
+	}, nil
 }
 
 // Round2 performs signing round 2. Returns z share to broadcast.

@@ -4,8 +4,11 @@
 package threshold
 
 import (
+	"bytes"
 	"crypto/rand"
 	"testing"
+
+	"github.com/luxfi/corona/sign"
 )
 
 // TestE2EThresholdVariants exercises the threshold ceremony at the four
@@ -52,7 +55,11 @@ func TestE2EThresholdVariants(t *testing.T) {
 			// Round 1.
 			r1 := make(map[int]*Round1Data, tc.n)
 			for _, s := range signers {
-				d := s.Round1(sid, prfKey, signerIDs)
+				d, err := s.Round1(sid, prfKey, signerIDs)
+				if err != nil {
+					t.Fatalf("(%d,%d) Round1 party %d: %v",
+						tc.t, tc.n, s.share.Index, err)
+				}
 				r1[d.PartyID] = d
 			}
 			// Round 2.
@@ -79,24 +86,35 @@ func TestE2EThresholdVariants(t *testing.T) {
 }
 
 // TestE2EKATReplayDeterminism asserts that running the same protocol
-// inputs twice (same keys, same prfKey, same sid, same message) yields
-// the same signature byte-string. The Corona construction is
-// rejection-sampled but the rejection randomness derives
-// deterministically from (sk_share, sid) per CRIT-1.
+// inputs twice captures the post-hedging nonce contract:
+//
+//   - With the DEFAULT crypto/rand nonce source (production), two signings
+//     on the same key set, sid, prfKey and message yield DISTINCT
+//     signature bytes — fresh per-signature nonces, so R is never reused
+//     even when sid repeats. This is the property that durably closes the
+//     CRIT-1 nonce-reuse leak.
+//   - With a PINNED deterministic nonce source (the KAT/oracle seam), two
+//     signings yield BYTE-IDENTICAL signatures — reproducibility for the
+//     cross-runtime KAT vectors.
 func TestE2EKATReplayDeterminism(t *testing.T) {
-	// Use a deterministic randSource so GenerateKeys is reproducible.
 	seed := [32]byte{
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
 		0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
 		0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
 		0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
 	}
-	type fixedReader struct{ buf [32]byte }
-	// runSign: deterministic across calls with the same shares.
-	runSign := func(shares []*KeyShare, gk *GroupKey) *Signature {
+	const message = "corona KAT replay determinism"
+
+	// pinNonce: when true, pin each signer to a deterministic, per-party
+	// salt source so the run is byte-reproducible; otherwise leave the
+	// default crypto/rand (hedged production path).
+	runSign := func(shares []*KeyShare, pinNonce bool) []byte {
 		signers := make([]*Signer, len(shares))
 		for i, share := range shares {
 			signers[i] = NewSigner(share)
+			if pinNonce {
+				signers[i].SetNonceRand(sign.DeterministicNonceSource(seed[:], i))
+			}
 		}
 		signerIDs := make([]int, len(shares))
 		for i := range signerIDs {
@@ -104,11 +122,13 @@ func TestE2EKATReplayDeterminism(t *testing.T) {
 		}
 		const sid = 1
 		prfKey := seed[:]
-		message := "corona KAT replay determinism"
 
 		r1 := make(map[int]*Round1Data, len(shares))
 		for _, s := range signers {
-			d := s.Round1(sid, prfKey, signerIDs)
+			d, err := s.Round1(sid, prfKey, signerIDs)
+			if err != nil {
+				t.Fatalf("Round1: %v", err)
+			}
 			r1[d.PartyID] = d
 		}
 		r2 := make(map[int]*Round2Data, len(shares))
@@ -123,33 +143,31 @@ func TestE2EKATReplayDeterminism(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Finalize: %v", err)
 		}
-		return sig
+		if !Verify(&GroupKey{A: shares[0].GroupKey.A, BTilde: shares[0].GroupKey.BTilde, Params: shares[0].GroupKey.Params}, message, sig) {
+			t.Fatal("signature must verify")
+		}
+		b, err := sig.MarshalBinary()
+		if err != nil {
+			t.Fatalf("MarshalBinary: %v", err)
+		}
+		return b
 	}
 
-	// Two key sets generated with the same seed.
-	rdr1 := &fixedReader{buf: seed}
-	rdr2 := &fixedReader{buf: seed}
-	_ = rdr1
-	_ = rdr2
-	// GenerateKeys uses io.ReadFull(randSource, key); we can't easily
-	// drive it deterministically without modifying the API, so instead
-	// we verify the WEAKER but operationally-meaningful property:
-	// signing TWICE on the SAME key set produces the SAME signature.
-	shares, gk, err := GenerateKeys(2, 3, rand.Reader)
+	shares, _, err := GenerateKeys(2, 3, rand.Reader)
 	if err != nil {
 		t.Fatalf("GenerateKeys: %v", err)
 	}
-	sig1 := runSign(shares, gk)
-	sig2 := runSign(shares, gk)
 
-	if !Verify(gk, "corona KAT replay determinism", sig1) ||
-		!Verify(gk, "corona KAT replay determinism", sig2) {
-		t.Fatal("both signatures must verify")
+	// Hedged production path: two runs MUST differ (fresh nonces) yet both
+	// verify. Distinct bytes here is the direct, observable evidence that
+	// R is not reused across signatures of the same (share, sid).
+	if bytes.Equal(runSign(shares, false), runSign(shares, false)) {
+		t.Fatal("hedged signing produced byte-identical signatures across two runs: nonce not fresh (CRIT-1 reuse risk)")
 	}
-	// Per CRIT-1, identical (sk_share, sid, prfKey, message, signerIDs)
-	// inputs yield identical Round-1 / Round-2 outputs and hence
-	// identical Finalize bytes. (The seeds in Party.Seed are NOT
-	// regenerated between calls because we reuse the share-bound
-	// Party state.)
-	_ = sig2
+
+	// Pinned deterministic path: two runs MUST be byte-identical
+	// (KAT reproducibility).
+	if !bytes.Equal(runSign(shares, true), runSign(shares, true)) {
+		t.Fatal("pinned-nonce signing not byte-reproducible across two runs")
+	}
 }

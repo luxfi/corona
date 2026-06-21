@@ -87,7 +87,6 @@ package dkg2
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/subtle"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -528,57 +527,19 @@ func VerifyShareAgainstCommits(
 	}
 
 	// Constant-time compare across all M slots, all coefficient levels.
-	// subtle.ConstantTimeCompare returns 1 iff equal; AND across slots.
+	// utils.ConstantTimePolyEqual returns 1 iff equal; AND across slots.
+	// This is the dkg2 response to Findings 5/6 of
+	// luxcpp/crypto/corona/RED-DKG-REVIEW.md, which note that the upstream
+	// dkg/ share comparison short-circuits on the first slot mismatch and
+	// so leaks the location of any planted divergence to a timing observer.
 	eq := 1
 	for ri := 0; ri < sign.M; ri++ {
-		eq &= constTimePolyEqual(lhs[ri], rhs[ri])
+		eq &= utils.ConstantTimePolyEqual(lhs[ri], rhs[ri])
 	}
 	if eq != 1 {
 		return false, ErrShareVerification
 	}
 	return true, nil
-}
-
-// constTimePolyEqual returns 1 iff a and b have identical coefficient
-// arrays at every level, 0 otherwise. The comparison runs in time
-// independent of how many coefficients differ — a full scan is always
-// performed (no early return).
-//
-// This is the dkg2 response to Findings 5/6 of
-// luxcpp/crypto/corona/RED-DKG-REVIEW.md, which note that the Round 2
-// share-comparison loop in the upstream dkg/ package short-circuits on the
-// first slot mismatch and so leaks the location of any planted divergence
-// to a network observer measuring response timing.
-func constTimePolyEqual(a, b ring.Poly) int {
-	if len(a.Coeffs) != len(b.Coeffs) {
-		return 0
-	}
-	eq := 1
-	for level := range a.Coeffs {
-		al := a.Coeffs[level]
-		bl := b.Coeffs[level]
-		if len(al) != len(bl) {
-			eq = 0
-			continue
-		}
-		// Reinterpret each Coeffs[level] as a byte buffer and feed it
-		// to subtle.ConstantTimeCompare. uint64 little-endian coefficient
-		// layout is byte-stable on every supported target (amd64, arm64).
-		ab := uint64SliceToBytes(al)
-		bb := uint64SliceToBytes(bl)
-		eq &= subtle.ConstantTimeCompare(ab, bb)
-	}
-	return eq
-}
-
-// uint64SliceToBytes returns a little-endian byte view of a []uint64. The
-// caller must not retain the result past the lifetime of the input.
-func uint64SliceToBytes(s []uint64) []byte {
-	b := make([]byte, 8*len(s))
-	for i, v := range s {
-		binary.LittleEndian.PutUint64(b[8*i:8*i+8], v)
-	}
-	return b
 }
 
 // Round2 verifies received shares (and blinds) against commitments, then

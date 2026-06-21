@@ -193,7 +193,10 @@ func signAndVerify(t *testing.T, era *KeyEra, validators []string) bool {
 
 	round1Data := make(map[int]*threshold.Round1Data, len(validators))
 	for _, v := range validators {
-		r1 := signersByVal[v].Round1(sessionID, prfKey, signerIndices)
+		r1, err := signersByVal[v].Round1(sessionID, prfKey, signerIndices)
+		if err != nil {
+			t.Fatalf("Round1 for %s: %v", v, err)
+		}
 		round1Data[era.State.Shares[v].Index] = r1
 	}
 
