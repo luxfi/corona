@@ -1,0 +1,7 @@
+# Axioms that a LOAD-BEARING lemma rests on, reviewed and justified.
+# Format: AXIOM_NAME  <justification>
+# An entry MUST be a cited standard fact or a layout/encoding identity, NEVER a
+# restatement of a security conclusion.
+# Enforced by ~/work/lux/proofs/framework/checks/circular-proof.sh.
+
+lagrange_inverse_eval  Standard Lagrange interpolation: constant-term recovery from t distinct evaluations over a field of order > committee size. Field-theory primitive EasyCrypt lacks built-in; candidate for discharge against Mathlib `lagrange`. NOT a security conclusion -- the algebraic core the Raccoon-family threshold reduction uses.
