@@ -1,9 +1,25 @@
 # Unproven-assertion budget (max counts). Enforced by
 # ~/work/lux/proofs/framework/checks/axiom-budget.sh. FAILS on any drift above.
-# Goal: decrease, never raise. Current surface (2026-06). The EasyCrypt
-# byte-equality proof still models a secret-reconstructing abstraction with the
-# steps 2-6 reduction open (see AUDIT-2026-06); those open steps are the bulk of
-# the 56 axioms and are tracked for discharge in PROOF-CLAIMS.
+# Goal: decrease, never raise.
+#
+# Current surface (reclassified, not reduced, this pass). The 56 axioms are
+# fully bucketed in AXIOM-INVENTORY.md:
+#   A standard-math-fact (18) | B serialization/layout (27) |
+#   C OPEN security assumption (11, reconstruct-then-sign; see BLOCKERS.md).
+# The EC byte-equality proof MODELS reconstruct-then-sign: CombineAbs
+# reconstructs the master secret and signs with it (steps 2-6 of the Boschini
+# combine are open inside combine_body_spec / the wrapper bridges). Those open
+# steps are the bulk of the C axioms; the production no-leak path is interop-
+# tested (Go<->C++ KAT), NOT EC-proven.
+# 0 NEW discharges this pass: no EasyCrypt toolchain on host, and every
+# in-file-derivable axiom is already a proved lemma; residual A/B axioms are
+# over abstract ops/constants (op group_pk_width : int., op sig_len : int.)
+# not dischargeable without a verify-gated concretization.
+#
+# Real `admit.` tactics = 0 (scripts/checks/ec-admits.sh, matching ^admit.$,
+# is authoritative). ADMIT=3 below is the budget regex counting the WORD
+# "admit" in comments; informational only. AXIOM=56 is exact (no comment
+# false-positives in this tree).
 SORRY=0
 ADMIT=3
 AXIOM=56

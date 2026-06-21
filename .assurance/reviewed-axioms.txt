@@ -1,7 +1,28 @@
 # Axioms that a LOAD-BEARING lemma rests on, reviewed and justified.
-# Format: AXIOM_NAME  <justification>
-# An entry MUST be a cited standard fact or a layout/encoding identity, NEVER a
-# restatement of a security conclusion.
-# Enforced by ~/work/lux/proofs/framework/checks/circular-proof.sh.
+# Format: AXIOM_NAME  <bucket> -- <justification>
+#
+# An entry MUST be a cited standard fact, a layout/encoding identity, or a
+# DISCLOSED-AND-OPEN security assumption -- NEVER a silently-closed security
+# conclusion. The framework (circular-proof.sh) HARD-requires only axioms a
+# load-bearing-named lemma discharges via apply/exact in <=12 lines (today:
+# lagrange_inverse_eval). We list MORE than the mechanical minimum so the
+# whole trust cone of corona_n1_byte_equality is written down. This is full
+# disclosure, NOT a blanket allow: only load-bearing / security-cone axioms
+# appear; pure layout/length B-axioms and structural-only A-axioms are
+# inventoried in AXIOM-INVENTORY.md. Buckets: A standard-math-fact |
+# B serialization/layout | C OPEN security assumption (reconstruct-then-sign;
+# see BLOCKERS.md).
 
-lagrange_inverse_eval  Standard Lagrange interpolation: constant-term recovery from t distinct evaluations over a field of order > committee size. Field-theory primitive EasyCrypt lacks built-in; candidate for discharge against Mathlib `lagrange`. NOT a security conclusion -- the algebraic core the Raccoon-family threshold reduction uses.
+# --- A: load-bearing standard-math-fact (mechanically flagged) ---
+lagrange_inverse_eval  A -- Lagrange-at-0 secret recovery from t distinct evaluations over a field of order > committee size. EasyCrypt lacks this over abstract share_t; Lean-bridged to Crypto.Corona.Shamir.shamir_correct_at_target. The algebraic core the Raccoon/Boschini-family threshold reduction USES, NOT the security claim. Used by reconstruct_of_share via `exact:`.
+threshold_partial_response_identity  A -- Lagrange-aggregation of partial responses = rlwe_compute_z on the reconstructed share. Lean-bridged. Load-bearing in the combine refinement cone.
+reconstruct_linear  A -- reconstruction linear over share-list addition. Lean-bridged. Load-bearing for the N4 reshare-preservation lemmas.
+shamir_correct  A -- reconstruction left-inverse of fresh sharing (Lagrange-at-zero). Lean-bridged. Load-bearing for honest_reshare_reconstructs / reshare_preserves_secret_honest (N4).
+add_share_zeroR  A -- additive identity on share_t (AddCommMonoid). Lean-bridged. Load-bearing for the N4 zero-sharing argument.
+
+# --- C: OPEN security assumptions in the byte-equality cone (reconstruct-then-sign; steps 2-6 open). DISCLOSED, NOT closed. See BLOCKERS.md. ---
+combine_body_axiom  C -- OPEN. declare axiom: T.combine ~ CombineAbs.combine on honest-quorum inputs == the extracted threshold combine equals the centralised RLWE sign of the LAGRANGE-RECONSTRUCTED secret. corona_n1_byte_equality rests on it. Closure = the Jasmin byte-walk (v0.8.0). NOT proven.
+S_functional_spec  C -- OPEN. declare axiom: S.sign ~ CentralRLWESign.sign on accepted inputs == the single-party module is a faithful Boschini signer. corona_n1_byte_equality rests on it. NOT proven.
+combine_body_spec  C -- OPEN. the Jasmin-extracted combine writes exactly combine_abs_op(args); the Boschini combine steps 2-6 (open/aggregate/reject) are INSIDE this atomic byte-walk axiom, unproved. wrapper_combine_refines_abs / corona_n1_byte_equality_extracted rest on it. NOT proven.
+combine_abs_op_lifted_bridge  C -- OPEN. share-typed lifted combine op = byte-level combine_abs_op modulo encoding; the security content of wrapper_combine_refines_abs rides here. NOT proven.
+sign_abs_op_lifted_eq_rlwe  C -- OPEN. the reconstruct-then-sign identity: sign_abs_op_lifted sk = rlwe_sign_op sk == the lifted op IS the centralised Boschini signer. wrapper_sign_refines_central rests on it. NOT proven.

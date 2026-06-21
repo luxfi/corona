@@ -1,11 +1,45 @@
-# PROOF-CLAIMS — Corona (HONEST framing)
+# PROOF-CLAIMS — Corona (assurance-vocabulary, HONEST)
 
 > **What this submission proves, and — critically — what it does NOT.**
-> Companion to `TRUSTED-COMPUTING-BASE.md` (TCB) and `SUBMISSION.md`
-> (cover sheet).
+> Every claim carries one assurance-vocabulary tag that MATCHES the
+> artifact's actual state. Companion to `AXIOM-INVENTORY.md` (bucketed
+> axiom census), `BLOCKERS.md` (open findings),
+> `TRUSTED-COMPUTING-BASE.md` (TCB), `SUBMISSION.md` (cover sheet).
 >
 > Read this before reading the Corona code. The framing matters as
 > much as the implementation.
+
+## §0 Assurance vocabulary (canonical) + the two load-bearing disclosures
+
+| Tag | Meaning |
+|---|---|
+| **machine-checked** | A proof assistant verifies it; the named file has ZERO `sorry`/`admit`/`:= True`. (No EasyCrypt toolchain on host; `scripts/checks/ec-compile.sh` is the CI gate, skipped when easycrypt is absent.) |
+| **sound-by-reduction** | Pen-and-paper reduction to a stated assumption; not mechanized. |
+| **interop-tested** | Validated against ≥2 INDEPENDENT implementations. |
+| **asserted-axiom** | Taken as an axiom in EC; bucketed in AXIOM-INVENTORY.md (A/B). |
+| **fail-closed-pending-review** | Implemented but gated to REFUSE until external review. |
+| **open-research** | Multi-month roadmap; not done. |
+
+**Disclosure 1 — the EC byte-equality MODELS reconstruct-then-sign.**
+`corona_n1_byte_equality` / `corona_n1_byte_equality_extracted` prove the
+threshold combine equals `CombineAbs.combine`, whose body
+(`wrapper_combine_refines_abs`) reduces — via the bridge axioms
+`combine_abs_op_lifted_bridge` and `sign_abs_op_lifted_eq_rlwe` — to
+`rlwe_sign_op (reconstruct quorum shares) …`: the centralised R-LWE signer
+applied to the **Lagrange-reconstructed master secret**. The Boschini
+combine **steps 2–6** (open/aggregate/reject) are **opened inside
+`combine_body_spec`, not proved**. So the EC theorem is **machine-checked
+(0 admits) modulo a C-cone of asserted axioms that reconstruct-then-sign** —
+it is NOT a proof that the production threshold path is leak-free.
+
+**Disclosure 2 — the no-leak property is NOT independently interop-tested.**
+Corona's KAT cross-validation is **Go↔C++ of the SAME construction**
+(`luxcpp/crypto/corona`), not against an independent verifier. There is no
+CIRCL/pq-crystals analog for R-LWE (no NIST target). So Corona's combine
+output byte-equality is **asserted + same-construction-KAT-tested**, NOT
+interop-tested in the ≥2-independent-implementations sense (unlike Pulsar's
+CIRCL + pq-crystals). We therefore do NOT claim Corona byte-equality is
+"proven/verified" anywhere in this document.
 
 ## §1 The narrow claim Corona makes at this submission
 
@@ -51,7 +85,16 @@ submission. See §3 below for the explicit non-claims list.
 
 This section is the load-bearing honesty disclosure. Read it.
 
-### §3.1 v0.7.0: EC + Lean + Jasmin scaffolding LANDED (was: NOT proved)
+### §3.1 v0.7.0: EC + Lean + Jasmin scaffolding LANDED — but the EC byte-equality is reconstruct-then-sign (asserted-axiom cone)
+
+**Assurance: machine-checked structure (0 admits) MODULO the C-cone of
+asserted axioms (reconstruct-then-sign).** The 13 EC theories are
+structurally complete, but `corona_n1_byte_equality` rests on the open
+bucket-C axioms in `AXIOM-INVENTORY.md` §C (the `combine_body_spec`
+byte-walk with Boschini steps 2–6 inside it, and the
+`combine_abs_op_lifted_bridge` / `sign_abs_op_lifted_eq_rlwe` wrapper
+bridges that pin the lifted op to `rlwe_sign_op` on the **reconstructed**
+secret). See §0 Disclosure 1.
 
 **v0.7.0 update**: Corona now ships:
 - **13 EasyCrypt theories** compiling clean with admit budget **0/0**
@@ -179,9 +222,15 @@ DESIGN.md invariants ("what is preserved across resharing")
 ```
 
 Each "implements" / "conforms" relation is by **inspection and
-test**, NOT machine-checked. Compare to Pulsar's refinement chain
-(machine-checked at every step via EasyCrypt 13/13 + Lean bridges
-5/5 + Jasmin-CT 3/3).
+test**, NOT machine-checked. Compare to Pulsar's refinement chain, which
+is machine-checked (0-admit) at the EC level **but only modulo the same
+reconstruct-then-sign asserted-axiom cone** — Pulsar's EC byte-equality is
+also relative to `combine_body_axiom` / `S_functional_spec` (its
+`AXIOM-INVENTORY.md` §C). The honest difference is degree of
+*decomposition* (Pulsar splits the byte-walk into ~10 narrow per-stage
+sub-axioms; Corona keeps one `combine_body_spec`) and *interop*: Pulsar's
+final signature is interop-tested vs CIRCL + pq-crystals, Corona's is
+same-construction Go↔C++ KAT only (§0 Disclosure 2).
 
 ## §5 What an auditor verifying this submission should do
 
