@@ -20,17 +20,36 @@
 | **fail-closed-pending-review** | Implemented but gated to REFUSE until external review. |
 | **open-research** | Multi-month roadmap; not done. |
 
-**Disclosure 1 — the EC byte-equality MODELS reconstruct-then-sign.**
-`corona_n1_byte_equality` / `corona_n1_byte_equality_extracted` prove the
-threshold combine equals `CombineAbs.combine`, whose body
-(`wrapper_combine_refines_abs`) reduces — via the bridge axioms
-`combine_abs_op_lifted_bridge` and `sign_abs_op_lifted_eq_rlwe` — to
-`rlwe_sign_op (reconstruct quorum shares) …`: the centralised R-LWE signer
-applied to the **Lagrange-reconstructed master secret**. The Boschini
-combine **steps 2–6** (open/aggregate/reject) are **opened inside
-`combine_body_spec`, not proved**. So the EC theorem is **machine-checked
-(0 admits) modulo a C-cone of asserted axioms that reconstruct-then-sign** —
-it is NOT a proof that the production threshold path is leak-free.
+**Disclosure 1 — TWO models; reconstruct-then-sign is the idealised one,
+NOT the production residual (RE-SCOPED this pass).**
+
+*Model 1 (idealised correctness).* `corona_n1_byte_equality` /
+`_extracted` prove the threshold combine equals `CombineAbs.combine`, whose
+body reduces — via `combine_abs_op_lifted_bridge` and
+`sign_abs_op_lifted_eq_rlwe` — to `rlwe_sign_op (reconstruct quorum
+shares) …`: the centralised R-LWE signer applied to the
+**Lagrange-reconstructed master secret**. The Boschini combine steps 2–6 are
+opened inside `combine_body_spec`, not proved. So Model 1 is machine-checked
+(0 admits) modulo a C-cone that **reconstructs-then-signs** — an idealised
+*correctness* statement, NOT how production runs and NOT a leak-freeness
+proof.
+
+*Model 2 (the HONEST production residual, `Corona_N1_NoLeak.ec`).* The
+production path's per-party masked responses
+`z_i = R_i·u + maskPrime_i + c·λ_i·s_i − mask_i` aggregate to `R·u + c·s`
+because the pairwise-PRF masks **telescope to zero** (`mask_telescope_zero`)
+— the master secret is **never formed** and no per-party `c·s_i` is ever
+exposed (`no_leak_z_aggregate`). The CORRECTNESS core of Model 2 is
+**machine-checked in Lean 4 + Mathlib on this host** (`lake build` green, 0
+sorry): `Crypto.Corona.NoLeakAggregate` (`pairwise_mask_telescopes`,
+`summed_response_is_mask_free`, `secret_aggregate_no_reconstruct`,
+`no_leak_under_standard_assumptions`) + `Crypto.Threshold_Lagrange`. The
+ONLY open assumption is `no_leak_reduction`: under **Module-LWE +
+Module-SIS** (the SAME substrate §ProofSubstrate / AXIOM-INVENTORY.md §1
+already lists) the public transcript leaks nothing about `s` beyond one
+single-party Boschini signature — a STANDARD PQ assumption, **not** an
+implementation reconstruct. Model 2's EC side is **written, machine-recheck
+pending EasyCrypt**; its Lean core is machine-checked now.
 
 **Disclosure 2 — the no-leak property is NOT independently interop-tested.**
 Corona's KAT cross-validation is **Go↔C++ of the SAME construction**

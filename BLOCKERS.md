@@ -14,43 +14,71 @@ fix they move to `## Closed` with commit + tag.
 
 ## Open
 
-### CORONA-EC-RECON-MODEL (HIGH — proof-scope disclosure)
+### CORONA-EC-RECON-MODEL (HIGH — proof-scope disclosure; RE-SCOPED this pass)
 
-**Status: OPEN. Disclosed, not closed.** The EasyCrypt Class N1
-byte-equality theorem (`corona_n1_byte_equality` /
-`corona_n1_byte_equality_extracted`) is machine-checked structurally
-(0 admits) but proved **relative to** the bucket-C asserted axioms in
-`AXIOM-INVENTORY.md` §C:
+**Status: OPEN, but RE-SCOPED — reconstruct-then-sign is no longer the
+load-bearing production residual.** Two distinct models now exist:
 
-- `combine_body_spec` (the atomic Jasmin byte-walk) — the **Boschini
-  combine steps 2–6 (open/aggregate/reject) are INSIDE this axiom,
-  unproved.**
+**Model 1 — idealised correctness (reconstruct-then-sign).** The EC
+`corona_n1_byte_equality` / `_extracted` is machine-checked structurally (0
+admits) **relative to** the bucket-C-idealised axioms:
+- `combine_body_spec` (the atomic Jasmin byte-walk) — the Boschini combine
+  steps 2–6 are INSIDE it, unproved.
 - `combine_abs_op_lifted_bridge` + `sign_abs_op_lifted_eq_rlwe` — the
-  wrapper bridges that pin the lifted combine/sign op to
-  `rlwe_sign_op (reconstruct quorum shares) …`, i.e. the centralised
-  R-LWE signer applied to the **Lagrange-reconstructed master secret**.
-- `combine_body_axiom` / `S_functional_spec` — the section-local module
-  contracts of the same identity.
+  wrapper bridges pinning the lifted op to
+  `rlwe_sign_op (reconstruct quorum shares) …`, i.e. the centralised R-LWE
+  signer on the **Lagrange-reconstructed master secret**.
+- `combine_body_axiom` / `S_functional_spec` — the section-local contracts.
 
-So the EC model **reconstructs the master key and signs with it**
-(reconstruct-then-sign). This is an idealised *correctness* statement; it
-is NOT a proof that the production threshold path is leak-free, and it is
-NOT how the production path is intended to run.
+So Model 1 **reconstructs the master key and signs with it** — an idealised
+*correctness* statement, intentionally NOT the production instantiation.
+
+**Model 2 — the production no-leak residual (added this pass).**
+`proofs/easycrypt/Corona_N1_NoLeak.ec` states the production path the way it
+runs: the per-party masked responses
+`z_i = R_i·u + maskPrime_i + c·λ_i·s_i − mask_i` aggregate to `R·u + c·s`
+because the pairwise-PRF masks **telescope to zero** (`mask_telescope_zero`:
+`Σ_i maskPrime_i = Σ_i mask_i`, the same double sum reindexed) — so the
+master secret is **never formed** and no per-party `c·s_i` is ever in the
+clear (`no_leak_z_aggregate`). The ONLY open assumption is
+`no_leak_reduction`: under **Module-LWE + Module-SIS** the public transcript
+leaks nothing about `s` beyond one single-party Boschini signature. That is
+a STANDARD PQ assumption — the same substrate `AXIOM-INVENTORY.md` §1
+already lists — **not** an implementation reconstruct.
+
+**What is machine-checked NOW (this host, `lake build` green, 0 sorry):**
+the CORRECTNESS core of Model 2 — `Crypto.Corona.NoLeakAggregate`
+(`pairwise_mask_telescopes`, `summed_response_is_mask_free`,
+`secret_aggregate_no_reconstruct`, `no_leak_under_standard_assumptions`) +
+`Crypto.Threshold_Lagrange`. The EC side of Model 2 is **written,
+machine-recheck pending EasyCrypt** (no `ec` on the authoring host;
+`scripts/checks/ec-compile.sh` is the CI gate).
+
+Remaining OPEN:
+
+- The production no-leak path's correctness is ALSO established by code
+  review + cross-runtime KAT (Go↔C++); there is no independent R-LWE
+  verifier (CORONA-NO-INDEP-VERIFIER — by design, no NIST target).
+- `no_leak_reduction`'s full simulation-soundness proof (the v0.8.0
+  EC/paper artifact) is not written; disclosed as a Module-LWE/MSIS reduction.
+- Model 1's C-idealised cone closure is still the Jasmin byte-walk (v0.8.0)
+  — but Model 1 is now explicitly *not* the safety-relevant residual.
 
 **Resolution criteria:**
-- [ ] Jasmin combine/sign byte-walk lands (production target v0.8.0) ⇒
-      `combine_body_spec` / `sign_body_spec` and the layout-frame axioms
-      become lemmas against the Jasmin operational semantics.
-- [ ] Wrapper bridges (`combine_abs_op_lifted_bridge`,
-      `sign_abs_op_lifted_eq_rlwe`, `combine_abs_op_lifted_bridge`)
-      discharge to lemmas, OR are replaced by a faithful (non-reconstruct)
-      model of the Boschini steps 2–6.
-- [ ] `combine_body_axiom` / `S_functional_spec` discharge to lemmas via
-      the wrapper instantiation against the extracted modules.
-- [ ] **External cryptographic review** (shared gate with
-      CORONA-CT-PENDING and CORONA-NO-INDEP-VERIFIER below) signs off that
-      the reconstruct-then-sign EC model is an acceptable correctness
-      idealisation given the separate code-review + KAT evidence.
+- [x] A separate (non-reconstruct) model of the PRODUCTION no-leak path is
+      written, with its CORRECTNESS core machine-checked (Lean, this host)
+      and its residual stated as a STANDARD Module-LWE/MSIS reduction
+      (`Corona_N1_NoLeak.ec` + `Crypto.Corona.NoLeakAggregate`).
+- [ ] `Corona_N1_NoLeak.ec` passes `scripts/checks/ec-compile.sh` in CI
+      (machine-recheck pending EasyCrypt; cannot run on the authoring host).
+- [ ] `no_leak_reduction` discharged to a full M-LWE/M-SIS simulation proof
+      (v0.8.0), OR accepted by external review as a standard reduction.
+- [ ] Jasmin byte-walk lands ⇒ Model 1's C-idealised axioms become lemmas
+      (correctness nicety).
+- [ ] **External cryptographic review** (shared gate with CORONA-CT-PENDING
+      and CORONA-NO-INDEP-VERIFIER) signs off that (a) Model 2's
+      standard-reduction residual is the correct production posture and (b)
+      Model 1 is an acceptable correctness idealisation.
 
 ### CORONA-CT-PENDING (MEDIUM — constant-time evidence)
 
