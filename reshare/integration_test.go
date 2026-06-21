@@ -1,13 +1,6 @@
 // Copyright (C) 2025-2026, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-//go:build corona_research
-
-// This end-to-end test reconstructs the master secret (via the research-only
-// reshare.Verify) to prove resharing preserves the public key, so it is gated
-// behind the `corona_research` build tag alongside the reconstruction helper.
-// Run with -tags corona_research.
-
 package reshare
 
 import (
@@ -227,10 +220,59 @@ func TestResharePreservesPublicKey(t *testing.T) {
 // runRoundsAndVerify drives the 2-round Sign protocol across the given
 // signers and checks that the resulting signature verifies against
 // (A, bTilde). Returns true on success.
-// runRoundsAndVerify (the 2-round sign-and-verify driver) lives in
-// signrounds_test.go (untagged) so the default-build full_integration_test.go
-// can use it; it runs the production sign protocol + sign.Verify and does NOT
-// reconstruct any secret.
+func runRoundsAndVerify(
+	t *testing.T,
+	label string,
+	r *ring.Ring, rXi *ring.Ring, rNu *ring.Ring,
+	A structs.Matrix[ring.Poly], bTilde structs.Vector[ring.Poly],
+	parties []*sign.Party, signSet []int,
+) bool {
+	t.Helper()
+
+	const sid = 1
+	prfKey := []byte("integration-test-prfkey-32-bytes")
+	mu := "test-message-" + label
+
+	// Round 1.
+	D := make(map[int]structs.Matrix[ring.Poly], len(parties))
+	macs := make(map[int]map[int][]byte, len(parties))
+	for _, p := range parties {
+		Di, MAi, err := p.SignRound1(A, sid, prfKey, signSet)
+		if err != nil {
+			t.Fatalf("SignRound1 party %d (%s): %v", p.ID, label, err)
+		}
+		D[p.ID] = Di
+		macs[p.ID] = MAi
+	}
+
+	// Round 2 preprocess + Round 2.
+	Z := make(map[int]structs.Vector[ring.Poly], len(parties))
+	var DSum structs.Matrix[ring.Poly]
+	var hash []byte
+	for _, p := range parties {
+		ok, ds, h := p.SignRound2Preprocess(A, bTilde, D, macs, sid, signSet)
+		if !ok {
+			t.Errorf("%s: SignRound2Preprocess failed for party %d", label, p.ID)
+			return false
+		}
+		if DSum == nil {
+			DSum = ds
+			hash = h
+		}
+		zi := p.SignRound2(A, bTilde, DSum, sid, mu, signSet, prfKey, hash)
+		Z[p.ID] = zi
+	}
+
+	// Finalize.
+	c, zSum, delta := parties[0].SignFinalize(Z, A, bTilde)
+	ok := sign.Verify(r, rXi, rNu, zSum, A, mu, bTilde, c, delta)
+	if !ok {
+		t.Errorf("%s: signature failed to verify", label)
+		return false
+	}
+	t.Logf("%s: signature verified", label)
+	return true
+}
 
 // buildSeedsAndMACs returns deterministic, public-coin seeds and MAC
 // key maps in the format sign.Party expects. The values themselves are
@@ -265,6 +307,11 @@ func buildSeedsAndMACs(K int) (map[int][][]byte, map[int]map[int][]byte) {
 // cloneVector deep-copies a Share so that NTT mutation does not affect
 // the original (Reshare returns shares in standard form; the signing
 // path mutates them into NTT-Mont form).
-// cloneVector lives in clone_test.go (untagged) so the default-build
-// full_integration_test.go can use it too; it is generic share-copy plumbing,
-// not part of the gated reconstruction path.
+func cloneVector(r *ring.Ring, in Share) structs.Vector[ring.Poly] {
+	out := make(structs.Vector[ring.Poly], len(in))
+	for i, p := range in {
+		out[i] = *p.CopyNew()
+	}
+	_ = r // consume parameter to keep symmetry with other helpers
+	return out
+}

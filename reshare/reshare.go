@@ -594,11 +594,46 @@ func sampleModQ(rs io.Reader, q *big.Int) *big.Int {
 	}
 }
 
-// The master-secret reconstruction helper Verify lives in
-// verify_reconstruct.go behind the `corona_research` build tag — it recovers
-// the master secret and MUST NOT be reachable from a production build. The
-// shared interpolation helpers it uses (selectQuorum, lagrangeAtZero,
-// sortedKeys) stay here because the production Reshare/Refresh paths use them.
+// Verify is a debugging helper: it Lagrange-interpolates the input
+// shares at X=0 (using the smallest-ID t-subset) and returns the
+// reconstructed master secret as []ring.Poly in standard form.
+//
+// IMPORTANT: This recovers s, so it MUST NOT be used in production —
+// only in tests and KAT verification. Calling it gives the caller the
+// secret.
+func Verify(r *ring.Ring, shares map[int]Share, t int) ([]ring.Poly, error) {
+	if t > len(shares) {
+		return nil, ErrTOldShortfall
+	}
+	q := r.Modulus()
+	N := r.N()
+
+	// Pick the smallest-ID t shares.
+	quorum := selectQuorum(shares, t)
+	lambda := lagrangeAtZero(quorum, q)
+
+	var nVec int
+	for _, sh := range quorum {
+		nVec = len(sh)
+		break
+	}
+
+	out := make([]ring.Poly, nVec)
+	for p := 0; p < nVec; p++ {
+		out[p] = r.NewPoly()
+		for k := 0; k < N; k++ {
+			acc := big.NewInt(0)
+			for _, i := range sortedKeys(quorum) {
+				yi := new(big.Int).SetUint64(quorum[i][p].Coeffs[0][k])
+				term := new(big.Int).Mul(lambda[i], yi)
+				acc.Add(acc, term)
+			}
+			acc.Mod(acc, q)
+			out[p].Coeffs[0][k] = acc.Uint64()
+		}
+	}
+	return out, nil
+}
 
 // sortedKeys returns the keys of m sorted ascending (canonical order
 // for protocol determinism).
