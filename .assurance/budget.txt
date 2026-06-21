@@ -1,5 +1,5 @@
 # Unproven-assertion budget (max counts). Enforced by
-# ~/work/lux/proofs/framework/checks/axiom-budget.sh. FAILS on any drift above.
+# ~/work/lux/luxfi/security/framework/checks/axiom-budget.sh. FAILS on any drift above.
 # Goal: decrease, never raise.
 #
 # Current surface (reclassified, not reduced, this pass). The 56 axioms are
