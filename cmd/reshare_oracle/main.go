@@ -1,6 +1,8 @@
 // Copyright (c) 2025-2026 Lux Industries Inc.
 // SPDX-License-Identifier: BSD-3-Clause-Eco
-//
+
+//go:build corona_research
+
 // reshare_oracle — emits byte-equal KATs for the proactive secret-resharing
 // protocol implemented in github.com/luxfi/corona/reshare. The C++ port at
 // ~/work/luxcpp/crypto/corona/reshare/ replays each entry's seeds and must
