@@ -60,7 +60,7 @@ lemma wrapper_sign_refines_central :
 proof.
   proc.
   wp.
-  skip => /> &m1 &m2 ? ? ? ? ?.
+  skip => /> &m1 &m2.
   by rewrite sign_abs_op_lifted_eq_rlwe.
 qed.
 

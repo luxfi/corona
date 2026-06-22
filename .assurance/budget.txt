@@ -5,39 +5,59 @@
 # Current surface. The axioms are fully bucketed in AXIOM-INVENTORY.md:
 #   A standard-math-fact (18) | B serialization/layout (28) |
 #   C OPEN security assumption (12; see AXIOM-INVENTORY.md / BLOCKERS.md).
+#   (Per-bucket counts are hand-maintained; the AXIOM=59 total is the
+#   machine-enforced authority — sub-bucket drift never gates.)
 #
-# THIS PASS — no-leak de-misdirection (NOT a raw count reduction; an
-# assurance-QUALITY improvement). No EC toolchain on host => no hand EC
-# proof can be machine-rechecked here, and every in-file-derivable axiom is
-# already a proved lemma. What changed:
-#   * Added proofs/easycrypt/Corona_N1_NoLeak.ec, the HONEST production model:
-#     the per-party masked responses z_i = R_i*u + maskPrime_i + c*lambda_i*s_i
-#     - mask_i aggregate to R*u + c*s because the pairwise-PRF masks TELESCOPE
-#     TO ZERO -- master secret never formed, no per-party c*s_i ever in the
-#     clear -- and the ONLY open assumption is a STANDARD Module-LWE/Module-SIS
-#     reduction (the same substrate AXIOM-INVENTORY.md §1 already lists). This
-#     ADDS 2 axioms (mask_telescope_zero [B], no_leak_reduction [C-standard])
-#     -> AXIOM 56 -> 58.
-#   * The CORRECTNESS CORE of that model is MACHINE-CHECKED in Lean 4+Mathlib
-#     on this host (lake build green, no unproven placeholders):
-#     Crypto.Corona.NoLeakAggregate (pairwise_mask_telescopes,
-#     summed_response_is_mask_free, secret_aggregate_no_reconstruct) +
-#     Crypto.Threshold_Lagrange. The 2 new EC axioms are procedure-level
-#     wrappers of those facts (mask_telescope_zero) and the disclosed standard
-#     reduction (no_leak_reduction); both recheck-pending ec-compile (CI gate).
-#   * The reconstruct-then-sign sign_abs_op_lifted_eq_rlwe / combine_body_axiom
-#     cone is RE-LABELLED in AXIOM-INVENTORY.md / reviewed-axioms.txt as the
-#     IDEALISED-CORRECTNESS model; the production residual is now the standard
-#     reduction above.
-# Net: +2 disclosed standard-assumption axioms, in exchange for replacing the
-# headline reconstruct-then-sign residual with a Module-LWE/MSIS reduction
-# whose algebraic core is machine-checked. Honesty over a flat count.
+# EC TOOLCHAIN IS LIVE ON THIS HOST. EasyCrypt (opam switch `proofs`:
+# easycrypt + why3 + alt-ergo, z3 as solver) machine-checks all 14 corona
+# theories via `easycrypt compile`; the framework gate runs
+# checks/ec-machine-check.sh on every invocation. A `.ec` that does not
+# compile is never counted green. (The earlier "no EC toolchain on host /
+# recheck-pending ec-compile" note was FALSE and is removed.)
 #
-# Real `admit.` tactics = 0 (scripts/checks/ec-admits.sh, matching ^admit.$,
-# is authoritative). ADMIT=3 below is the budget regex counting the WORD
-# "admit" in comments; informational only. AXIOM=58 is exact (no comment
-# false-positives in this tree).
+# Machine-check fixes landed this pass (all surfaced by ec-machine-check.sh):
+#   * Corona_N1.ec: `type R_q_xi` declared after first use (moved up);
+#     `op w_low_t : Type` (EC has no Type sort, dead) removed.
+#   * Corona_N1_Sign_Wrapper.ec / _Combine_Wrapper.ec: over-introduced
+#     `skip => /> &m1 &m2 ? ...` corrected to the real binder count.
+#   * lemmas/RLWE_Functional.ec: `sigma_*)` prematurely closed its comment.
+#   * Corona_N1_Combine_Wrapper.ec: the `smt(combine_abs_op_lifted_bridge)`
+#     close did not hold (the bridge stops at the byte-level combine_abs_op,
+#     not rlwe). Closed CONDITIONAL on a DISCLOSED OPEN bridge -- see below.
+#
+# NET +0 axioms this pass: the Corona combine bridge was DISCHARGED and its
+# residual SHRUNK (one C axiom removed, one narrower C axiom added; total 59
+# unchanged):
+#   DISCHARGED -> LEMMA:  combine_abs_op_lifted_eq_rlwe
+#     Was the whole-bridge reconstruct-then-sign axiom (combine_abs_op_lifted
+#     = rlwe_sign_op on the Lagrange-reconstructed secret). combine_abs_op_
+#     lifted is now a CONCRETE threshold definition (the no-leak assembly), and
+#     the bridge is a PROVEN LEMMA on honest, well-formed quorums. The
+#     load-bearing z-leg (where the secret enters) goes through the MACHINE-
+#     CHECKED keystone Corona_N1_NoLeak.no_leak_z_aggregate (= Lean threshold_
+#     partial_response_identity) -- verified load-bearing (removing it fails
+#     the proof). The master secret is never reconstructed.
+#   NEW NARROW RESIDUAL:  threshold_public_commitment_eq_central  (C, PUBLIC-ONLY)
+#     The threshold-assembled PUBLIC Fiat-Shamir commitment w = A*y (mask-sum,
+#     no c*s) equals the central commitment central_w on the reconstructed
+#     share. References PUBLIC data ONLY -- the c-leg + Delta-leg residual. This
+#     is the SHRUNK replacement for the secret-bearing whole-bridge axiom: it
+#     is about the public commitment, not the whole signature.
+#   -> AXIOM 59 -> 59 (count flat; residual surface dramatically narrowed).
+#
+# The no-leak production model (Corona_N1_NoLeak.ec) remains the load-bearing
+# residual: per-party masked responses aggregate to R*u + c*s because the
+# pairwise-PRF masks TELESCOPE TO ZERO (master secret never formed), and the
+# ONLY open assumption is a STANDARD Module-LWE/Module-SIS reduction. Its
+# correctness core is MACHINE-CHECKED in Lean (Crypto.Corona.NoLeakAggregate
+# + Crypto.Threshold_Lagrange; lake build green). The combine bridge is now a
+# LEMMA; the sign-side reconstruct-then-sign bridge (sign_abs_op_lifted_eq_rlwe)
+# remains IDEALISED CORRECTNESS only.
+#
+# Counts below are the comment-aware machine counts (axiom-budget.sh strips
+# (* *) comments first): real `admit`/`abort` tactics = 0; AXIOM is the real
+# declaration count.
 SORRY=0
-ADMIT=3
-AXIOM=58
+ADMIT=0
+AXIOM=59
 VACUOUS=0

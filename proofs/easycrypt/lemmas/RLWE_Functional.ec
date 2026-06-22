@@ -11,7 +11,7 @@
 (* What this file gives reviewers TODAY                                 *)
 (* ------------------------------------                                 *)
 (*   1. Corona's parameter set as EasyCrypt operators                   *)
-(*      (q, n_poly, M, N, Dbar, Kappa, Xi, Nu, sigma_*).                *)
+(*      (q, n_poly, M, N, Dbar, Kappa, Xi, Nu, sigma_star).             *)
 (*   2. Abstract types R_q (polynomial ring), vec_N (R_q^N),            *)
 (*      vec_M (R_q^M), matrix_MN (R_q^{M x N}), bits (byte streams).    *)
 (*   3. Auxiliary operations: round_xi, round_nu, expand_a,             *)

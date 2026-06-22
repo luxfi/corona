@@ -406,14 +406,14 @@ op rlwe_compute_c
    : c_n1_t =
   kmac_mu_w mu_val (central_w usk mu_val rho_rnd).
 
+type R_q_xi.        (* the c_xi field element used for c-scaling *)
+
 (* The z response: z = y + c * s_1 + mask_prime - mask. *)
 op central_c_from_c_tilde : c_n1_t -> R_q_xi.
 op apply_c_to_s1 : R_q_xi -> unpacked_sk_t -> z_n1_t.
 op add_response_vec : z_n1_t -> z_n1_t -> z_n1_t.
 
 (* The z computation -- pure-functional composition. *)
-type R_q_xi.        (* the c_xi field element used for c-scaling *)
-
 op rlwe_compute_z
    (usk : unpacked_sk_t) (mu_val : mu_t) (rho_rnd : randomness_t)
    : z_n1_t =
@@ -425,8 +425,6 @@ op rlwe_compute_z
        usk).
 
 (* The Delta vector: Delta = h - round_nu(A*z - b*c). *)
-op w_low_t : Type.   (* placeholder; matching FIPS 204 §3.4.2 structure *)
-
 op make_delta_of_w : w_value_t -> z_n1_t -> delta_n1_t.
 
 op rlwe_compute_delta
