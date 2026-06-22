@@ -50,9 +50,61 @@ already lists — **not** an implementation reconstruct.
 the CORRECTNESS core of Model 2 — `Crypto.Corona.NoLeakAggregate`
 (`pairwise_mask_telescopes`, `summed_response_is_mask_free`,
 `secret_aggregate_no_reconstruct`, `no_leak_under_standard_assumptions`) +
-`Crypto.Threshold_Lagrange`. The EC side of Model 2 is **written,
-machine-recheck pending EasyCrypt** (no `ec` on the authoring host;
-`scripts/checks/ec-compile.sh` is the CI gate).
+`Crypto.Threshold_Lagrange`. The EC side of Model 2 (`Corona_N1_NoLeak.ec`)
+**machine-checks on this host** via `easycrypt compile` (opam switch `proofs`:
+easycrypt + why3 + alt-ergo, z3 solver); the framework gate
+`checks/ec-machine-check.sh` runs it on every invocation (corona: 14/14).
+
+**Combine wrapper — the share-typed bridge is now DISCHARGED (residual
+shrunk to a public-commitment equality).** `combine_abs_op_lifted` (the
+share-typed lifted combine op) is now a **concrete threshold definition** —
+the no-leak assembly `c = kmac_mu_w mu w_pub`; `z = lagrange_aggregate_
+responses` of `per_party_partial_response`; `Delta = make_delta_of_w w_pub z`
+— **not** an opaque op and **not** named as `rlwe_sign_op(reconstruct …)`.
+The former axiom **`combine_abs_op_lifted_eq_rlwe`** (AXIOM-INVENTORY C11) is
+now a **PROVEN LEMMA** on honest, well-formed quorums (uniq/size/degree/
+sharing — exactly `wrapper_combine_refines_abs`'s preconditions):
+- **z-LEG** (the load-bearing leg; the secret enters only as the public `z`'s
+  `c*s` summand): discharged through the **machine-checked keystone**
+  `Corona_N1_NoLeak.no_leak_z_aggregate` (= Lean
+  `threshold_partial_response_identity`). Verified load-bearing — deleting the
+  keystone rewrite makes the proof fail (`cannot close goals`). The master
+  secret is never reconstructed.
+- **c-LEG + Delta-LEG** (public): discharged through the single narrow PUBLIC
+  residual **`threshold_public_commitment_eq_central`** (C11′) — the
+  threshold-assembled public Fiat-Shamir commitment `w = A*y` (mask-summed, no
+  `c*s`) equals the central `central_w`. Also verified load-bearing.
+So `wrapper_combine_refines_abs` is now **machine-checked NOT conditional on
+any reconstruct-then-sign axiom** — it rests only on the public-commitment
+residual C11′ and the unchanged B-bucket codec bridges.
+
+**What remains open (honest).** The residual is **narrowed, not eliminated**:
+- **C11′ `threshold_public_commitment_eq_central`** — PUBLIC-ONLY (commitment
+  `w = A*y`, no secret). This EC abstraction has no commitment-aggregate op
+  (unlike the z-leg's `lagrange_aggregate_responses`), so the `w`-agreement
+  stays a disclosed-open axiom. v0.8.0 discharge: a commitment-aggregate op +
+  Lean bridge for the `A*y` mask-sum identity (the commitment analog of the
+  already-machine-checked z-leg keystone).
+- **C5 `combine_abs_op_lifted_bridge`** (lifted op ↔ byte-level
+  `combine_abs_op`) — still a B/open codec bridge: `combine_abs_op` (the
+  Jasmin byte-level op) remains OPAQUE. The byte-walk roadmap below targets
+  THIS bridge (the wire/encoding layer), now that the share-level algebra is a
+  lemma. Make both sides real definitions and prove decomposed (no magical
+  equality):
+  1. `Corona_N1_Encoding.ec` — `decode(encode(x)) = Some x` + canonical
+     uniqueness + malformed rejection (B if codecs stay opaque, KAT/fuzz).
+  2. `Corona_N1_Reconstruct.ec` — Lagrange/Shamir reconstruction correctness
+     (A-class, already machine-checked in `Crypto.Corona.Shamir` /
+     `Crypto.Threshold_Lagrange`).
+  3. `Corona_N1_CombineSpec.ec` — the per-component (z / challenge / hint)
+     reference meaning, reusing `combine_abs_op_lifted`'s now-concrete legs +
+     `mask_telescope_zero`.
+  4. `Corona_N1_CombineBridge.ec` — define `combine_abs_op` as the executable
+     `decode → validate → combine_abs_op_lifted → encode` model (NOT as the
+     answer), then prove `combine_abs_op(encoded) = combine_abs_op_lifted(args)`
+     by rewrite chain.
+  Only if `combine_abs_op` cannot be given an executable model does C5 stay a
+  B/open implementation-spec bridge (tests/review), never a closed theorem.
 
 Remaining OPEN:
 
@@ -69,10 +121,22 @@ Remaining OPEN:
       written, with its CORRECTNESS core machine-checked (Lean, this host)
       and its residual stated as a STANDARD Module-LWE/MSIS reduction
       (`Corona_N1_NoLeak.ec` + `Crypto.Corona.NoLeakAggregate`).
-- [ ] `Corona_N1_NoLeak.ec` passes `scripts/checks/ec-compile.sh` in CI
-      (machine-recheck pending EasyCrypt; cannot run on the authoring host).
+- [x] `Corona_N1_NoLeak.ec` machine-checks via `easycrypt compile` on the host
+      (gate `checks/ec-machine-check.sh`; corona 14/14 theories compile).
 - [ ] `no_leak_reduction` discharged to a full M-LWE/M-SIS simulation proof
       (v0.8.0), OR accepted by external review as a standard reduction.
+- [x] `combine_abs_op_lifted_eq_rlwe` (C11) **DISCHARGED → LEMMA**:
+      `combine_abs_op_lifted` made concrete (the no-leak threshold assembly);
+      z-leg via the machine-checked keystone `no_leak_z_aggregate`, c/Delta-leg
+      via the narrow PUBLIC residual `threshold_public_commitment_eq_central`
+      (C11′). `wrapper_combine_refines_abs` is now machine-checked NOT
+      conditional on any reconstruct-then-sign axiom. (Verified load-bearing:
+      removing either the keystone or the commitment rewrite fails the proof.)
+- [ ] C11′ `threshold_public_commitment_eq_central` (the residual public-`w`
+      equality) discharged by a commitment-aggregate op + Lean `A*y` mask-sum
+      bridge (the commitment analog of the z-leg keystone), AND the byte-level
+      `combine_abs_op` (C5) given an executable model via the byte-walk
+      decomposition above (Encoding/Reconstruct/CombineSpec/CombineBridge).
 - [ ] Jasmin byte-walk lands ⇒ Model 1's C-idealised axioms become lemmas
       (correctness nicety).
 - [ ] **External cryptographic review** (shared gate with CORONA-CT-PENDING

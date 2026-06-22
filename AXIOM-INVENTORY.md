@@ -45,14 +45,20 @@ in any Lux work and are not counted in the EC axiom histogram below.
 | Pedersen-VSS soundness | Pedersen (CRYPTO 1991) | Corona's DKG (`dkg2/`) reduces to discrete-log hardness. |
 | cSHAKE256 / KMAC256 collision + preimage resistance | NIST SP 800-185 | Domain-separated hashing across DKG/signing/reshare. |
 
-## §2 EC residual axioms — histogram (58 real axiom declarations)
+## §2 EC residual axioms — histogram (nominal sub-bucket counts)
+
+> The per-bucket counts below are hand-maintained nominal figures. The
+> MACHINE-ENFORCED authority is `.assurance/budget.txt` `AXIOM=59`
+> (comment-stripped declarations across the whole proof tree, EC + Lean);
+> sub-bucket drift never gates. The gate `ec-machine-check.sh` confirms
+> 14/14 EC theories compile.
 
 | Bucket | Count | Discharged this pass | Remaining |
 |---|---:|---:|---:|
 | A — standard-math-fact | 18 | 0 (abstract algebra / Lean-bridged; A IS machine-checked in Lean, see below) | 18 |
 | B — serialization/layout | 28 | 0; **+1 `mask_telescope_zero`** (EC contract of the machine-checked Lean telescope) | 28 |
-| C — open security assumption | 12 | 0 discharged; **+1 `no_leak_reduction`** is the new STANDARD-assumption (M-LWE/M-SIS) production residual replacing reconstruct-then-sign as the load-bearing path | 12 |
-| **Total** | **58** | **0** | **58** |
+| C — open security assumption | 12 | **−1 `combine_abs_op_lifted_eq_rlwe` DISCHARGED → LEMMA** (z-leg via the machine-checked keystone; master secret never reconstructed); **+1 `threshold_public_commitment_eq_central`** — the NARROW PUBLIC-commitment residual that replaces it (no `c*s`, no secret). Net 0; the secret-bearing whole-bridge residual is GONE, only the public-commitment c/Delta-leg residual remains. | 12 |
+| **Total** | **(nominal 58; budget authority = 59 EC+Lean)** | **C11 → lemma** | **— see budget.txt** |
 
 > **A IS MACHINE-CHECKED IN LEAN ON THIS HOST.** The five A-axioms (A1–A5:
 > `lagrange_inverse_eval`, `threshold_partial_response_identity`,
@@ -73,23 +79,38 @@ in any Lux work and are not counted in the EC axiom histogram below.
 > Module-LWE/MSIS reduction, a STANDARD assumption (the same substrate §1
 > lists) — not an implementation reconstruct.
 >
-> **EC axioms discharged this pass: 0 new.** Reason (honest): no EasyCrypt toolchain
-> on this host (no `easycrypt`/`alt-ergo`/`why3`), and everything
-> dischargeable from in-file material is already a proved lemma
-> (`encode_decode_signature`, `decode_encode_signature_wf`,
-> `encode_signature_len`, `read_after_write_sig`, `write_sig_separation`,
-> `pack_n1_signature_injective`, `reconstruct_of_share`,
+> **EC TOOLCHAIN IS LIVE ON THIS HOST** (opam switch `proofs`: easycrypt +
+> why3 + alt-ergo, z3 solver). The gate `ec-machine-check.sh` compiles all
+> 14/14 EC theories. The earlier "no EasyCrypt toolchain on host" note was
+> FALSE and is removed.
+>
+> **EC axioms DISCHARGED this pass: the combine bridge (C11).** The former
+> whole-bridge reconstruct-then-sign axiom `combine_abs_op_lifted_eq_rlwe`
+> (C11) is now a **machine-checked LEMMA**: `combine_abs_op_lifted` was given a
+> CONCRETE threshold definition (the no-leak assembly), and the bridge to
+> `rlwe_sign_op (reconstruct …)` is proven on honest, well-formed quorums.
+> The load-bearing z-leg goes through the machine-checked keystone
+> `Corona_N1_NoLeak.no_leak_z_aggregate` (= Lean
+> `threshold_partial_response_identity`); the c/Delta-legs go through the
+> single NARROW PUBLIC residual `threshold_public_commitment_eq_central`
+> (C11′). Net C-bucket change: flat (one whole-bridge axiom out, one
+> public-commitment axiom in), but the residual is narrowed from a
+> whole-signature secret-bearing identity to a public-commitment equality.
+>
+> The other in-file lemmas were already proved (`encode_decode_signature`,
+> `decode_encode_signature_wf`, `encode_signature_len`, `read_after_write_sig`,
+> `write_sig_separation`, `pack_n1_signature_injective`, `reconstruct_of_share`,
 > `reconstruct_quorum_invariant`, `fresh_sharing_zero_is_zero`,
 > `combine_post_signature`, `combine_idempotent`, `sign_post_signature`,
 > `sign_idempotent`, `wrapper_combine_refines_abs`,
 > `wrapper_sign_refines_central`, `corona_n1_byte_equality_extracted`). The
-> residual A-axioms are over abstract algebra (`inf_norm_R : R_q -> int`),
-> and the residual B-axioms are over abstract ops/constants
-> (`op group_pk_width : int.`, `op sig_len : int.`, `share_encode`/`decode`
-> abstract). Discharging them requires concretizing those — a verify-gated
-> wire-format decision that cannot be done blind and machine-rechecked
-> here. Faking such a discharge is the cheat the gate forbids. The honest
-> reclassification + disclosure below is the gate-satisfying outcome.
+> residual A-axioms are over abstract algebra (`inf_norm_R : R_q -> int`), and
+> the residual B-axioms are over abstract ops/constants (`op group_pk_width :
+> int.`, `op sig_len : int.`, `share_encode`/`decode` abstract). Discharging
+> them requires concretizing those — a verify-gated wire-format decision that
+> cannot be done blind and machine-rechecked here. Faking such a discharge is
+> the cheat the gate forbids. The honest reclassification + disclosure below is
+> the gate-satisfying outcome.
 
 EC admit budget remains **0 / 0** (real `admit.` tactics; statically
 guarded by `scripts/checks/ec-admits.sh`). The `.assurance/budget.txt`
@@ -160,7 +181,7 @@ ADMIT key counts the *word* "admit" in comments and is informational.
 
 ---
 
-### Bucket C — OPEN SECURITY ASSUMPTION (11) — **MUST STAY OPEN**
+### Bucket C — OPEN SECURITY ASSUMPTION (12) — **MUST STAY OPEN**
 
 Corona's EC byte-equality (`corona_n1_byte_equality` /
 `corona_n1_byte_equality_extracted`) proves the threshold combine equals
@@ -188,13 +209,16 @@ Tracked: `BLOCKERS.md` § "EC reconstruct-then-sign model".
 | C8 | `rlwe_sign_size` | RLWE_Functional.ec:204 | per-instance signature byte length under Boschini's rejection-sampling. Carries the construction's wire-size contract; classified C because it is a construction-level claim from the paper, not a pure layout identity. |
 | C9 | `sign_round1_constant_time` (declare axiom) | lemmas/Corona_CT.ec:80 | Round-1 commit is constant-time. A CT *contract*, discharged Jasmin-side via `jasminc -checkCT` (roadmap), NOT by EC; a timing property, so a name/EC claim cannot certify it (see `proof-by-rename.sh` rationale). |
 | C10 | `sign_round2_constant_time` (declare axiom) | lemmas/Corona_CT.ec:110 | Round-2 response is constant-time. As C9. |
+| ~~C11~~ → **DISCHARGED** | ~~`combine_abs_op_lifted_eq_rlwe`~~ (now a PROVEN LEMMA) | Corona_N1_Combine_Wrapper.ec | The combine reconstruct-then-sign identity is **no longer an axiom**: `combine_abs_op_lifted` is now a CONCRETE threshold definition (the no-leak assembly: `c = kmac_mu_w mu w_pub`; `z = lagrange_aggregate_responses` of `per_party_partial_response`; `Delta = make_delta_of_w w_pub z`) and the bridge `combine_abs_op_lifted_eq_rlwe = rlwe_sign_op (reconstruct …)` is a **machine-checked LEMMA** on honest, well-formed quorums (uniq/size/degree/sharing). The load-bearing z-leg (where the secret enters) is discharged through the **MACHINE-CHECKED keystone** `Corona_N1_NoLeak.no_leak_z_aggregate` (= Lean `threshold_partial_response_identity`; verified load-bearing — removing it fails the proof). The master secret is never reconstructed. The residual shrinks to the PUBLIC-commitment axiom C11′ below. |
+| C11′ | `threshold_public_commitment_eq_central` | Corona_N1_Combine_Wrapper.ec | **NARROW, PUBLIC-ONLY** (the SHRUNK residual replacing the secret-bearing whole-bridge C11). The threshold-assembled public Fiat-Shamir commitment `w = A*y` (sum of per-party Round-1 commitments; mask `y = Σ_i R_i*u` is mask-summed and telescopes like the responses — **carries no `c*s`**) equals the central commitment `central_w` on the reconstructed share. References **PUBLIC data only** (the commitment `w`, no secret share, no per-party `c*s_i`): cryptographically benign. The c-leg + Delta-leg of the combine bridge ride here. Discharge pathway (v0.8.0): a commitment-aggregate op + Lean bridge for the `A*y` mask-sum identity. |
 
-> C-cone bundling note: the histogram lists 11; the table enumerates 10
-> rows. The 11th C-declaration is `combine_body_axiom`'s and
-> `S_functional_spec`'s pair counted with the two CT contracts and the two
-> refinement byte-walks and the three wrapper bridges and `rlwe_sign_size`
-> = 11 declarations total (C1–C10 with C9/C10 being the two CT axioms). All
-> named; none hidden.
+> C-cone bundling note: the enumerated C-declarations are C1–C10 plus C11′
+> (`threshold_public_commitment_eq_central`) = 11 rows. The former C11
+> (`combine_abs_op_lifted_eq_rlwe`) is now a PROVEN LEMMA (struck through
+> above), not an axiom — it does not count. The C11→lemma discharge and the
+> C11′ replacement are net-flat in the C bucket, but the residual surface is
+> narrowed from a whole-signature reconstruct-then-sign identity to a
+> public-commitment equality (no secret). All named; none hidden.
 
 ### Why the CT axioms (C9/C10) are C, not B
 
