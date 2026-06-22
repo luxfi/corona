@@ -34,6 +34,7 @@ var (
 	ErrMACVerifyFailed   = errors.New("MAC verification failed")
 	ErrFullRankFailed    = errors.New("full rank check failed")
 	ErrInsufficientData  = errors.New("insufficient round data")
+	ErrDuplicateSigner   = errors.New("duplicate PartyID in round data")
 )
 
 // Params holds ring parameters for the protocol.
@@ -242,10 +243,17 @@ func (s *Signer) Round2(sessionID int, message string, prfKey []byte, signers []
 		return nil, ErrInsufficientData
 	}
 
-	// Collect D matrices and MACs
+	// Collect D matrices and MACs. Reject a duplicate PartyID before the
+	// map-collect: two inputs carrying the same PartyID would silently
+	// overwrite, corrupting the aggregate. The LP-020 quorum invariant is
+	// meant to guarantee uniqueness upstream; this is kernel-boundary
+	// defense-in-depth.
 	D := make(map[int]structs.Matrix[ring.Poly])
 	MACs := make(map[int]map[int][]byte)
 	for _, data := range round1Data {
+		if _, dup := D[data.PartyID]; dup {
+			return nil, ErrDuplicateSigner
+		}
 		D[data.PartyID] = data.D
 		MACs[data.PartyID] = data.MACs
 	}
@@ -288,9 +296,16 @@ func (s *Signer) Finalize(round2Data map[int]*Round2Data) (*Signature, error) {
 		return nil, ErrInsufficientData
 	}
 
-	// Collect z vectors
+	// Collect z vectors. Reject a duplicate PartyID before the map-collect:
+	// a repeated PartyID would silently overwrite its z share, double-
+	// counting one signer in the aggregate. The LP-020 quorum invariant is
+	// meant to guarantee uniqueness upstream; this is kernel-boundary
+	// defense-in-depth.
 	z := make(map[int]structs.Vector[ring.Poly])
 	for _, data := range round2Data {
+		if _, dup := z[data.PartyID]; dup {
+			return nil, ErrDuplicateSigner
+		}
 		z[data.PartyID] = data.Z
 	}
 

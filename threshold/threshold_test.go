@@ -135,6 +135,100 @@ func TestThresholdWrongMessage(t *testing.T) {
 	}
 }
 
+// TestFinalize_DuplicatePartyID_Rejected feeds two Round2 inputs carrying
+// the same PartyID into Finalize and asserts the kernel-boundary guard
+// rejects them with ErrDuplicateSigner instead of silently overwriting the
+// duplicated z share (which would double-count one signer).
+func TestFinalize_DuplicatePartyID_Rejected(t *testing.T) {
+	shares, _, err := GenerateKeys(2, 3, nil)
+	if err != nil {
+		t.Fatalf("GenerateKeys failed: %v", err)
+	}
+
+	signers := make([]*Signer, 3)
+	for i, share := range shares {
+		signers[i] = NewSigner(share)
+	}
+
+	sessionID := 1
+	prfKey := []byte("test-prf-key-32-bytes-long!!!!!!")
+	signerIDs := []int{0, 1, 2}
+	message := "test block hash for consensus"
+
+	round1Data := make(map[int]*Round1Data)
+	for _, signer := range signers {
+		data, err := signer.Round1(sessionID, prfKey, signerIDs)
+		if err != nil {
+			t.Fatalf("Round1: %v", err)
+		}
+		round1Data[data.PartyID] = data
+	}
+
+	round2Data := make(map[int]*Round2Data)
+	for _, signer := range signers {
+		data, err := signer.Round2(sessionID, message, prfKey, signerIDs, round1Data)
+		if err != nil {
+			t.Fatalf("Round2: %v", err)
+		}
+		round2Data[data.PartyID] = data
+	}
+
+	// Inject a duplicate: a distinct map key whose payload carries a
+	// PartyID already present in the set. This is exactly what a buggy or
+	// malicious caller that violated the quorum-uniqueness invariant would
+	// produce, and what the collect-loop guard must reject.
+	dup := &Round2Data{PartyID: round2Data[0].PartyID, Z: round2Data[0].Z}
+	round2Data[99] = dup
+
+	_, err = signers[0].Finalize(round2Data)
+	if err != ErrDuplicateSigner {
+		t.Fatalf("expected ErrDuplicateSigner, got %v", err)
+	}
+}
+
+// TestRound2_DuplicatePartyID_Rejected mirrors the duplicate-PartyID guard
+// for the Round 2 combine, where a repeated PartyID would overwrite the D
+// matrix / MAC entry collected for that party.
+func TestRound2_DuplicatePartyID_Rejected(t *testing.T) {
+	shares, _, err := GenerateKeys(2, 3, nil)
+	if err != nil {
+		t.Fatalf("GenerateKeys failed: %v", err)
+	}
+
+	signers := make([]*Signer, 3)
+	for i, share := range shares {
+		signers[i] = NewSigner(share)
+	}
+
+	sessionID := 1
+	prfKey := []byte("test-prf-key-32-bytes-long!!!!!!")
+	signerIDs := []int{0, 1, 2}
+	message := "test block hash for consensus"
+
+	round1Data := make(map[int]*Round1Data)
+	for _, signer := range signers {
+		data, err := signer.Round1(sessionID, prfKey, signerIDs)
+		if err != nil {
+			t.Fatalf("Round1: %v", err)
+		}
+		round1Data[data.PartyID] = data
+	}
+
+	// Inject a duplicate Round1 payload under a fresh map key so len() still
+	// satisfies the insufficient-data check and the collect loop sees the
+	// repeated PartyID.
+	round1Data[99] = &Round1Data{
+		PartyID: round1Data[0].PartyID,
+		D:       round1Data[0].D,
+		MACs:    round1Data[0].MACs,
+	}
+
+	_, err = signers[0].Round2(sessionID, message, prfKey, signerIDs, round1Data)
+	if err != ErrDuplicateSigner {
+		t.Fatalf("expected ErrDuplicateSigner, got %v", err)
+	}
+}
+
 func TestInvalidThreshold(t *testing.T) {
 	// Threshold >= total
 	_, _, err := GenerateKeys(3, 3, nil)
