@@ -167,8 +167,8 @@ byte-equality with `luxcpp/crypto/corona/`).
         - ec-regressions: no abstract reshare_preserves_secret axiom
         - ec-refinement-scaffold: no declare axiom in refinement files
         - lean-bridge: 5/5 axiom citations + Lean-side names verified
-        - extraction: skipped (jasminc absent)
-        - ec-compile: skipped (easycrypt absent on this host)
+        - extraction: jasminc available on host (opam switch `proofs`); the Jasmin byte-walk extraction is not performed this pass (v0.8 target)
+        - ec-compile: 14/14 theories machine-check via `easycrypt compile` on host (gate `ec-machine-check.sh`)
 - [x] **KAT determinism.** `scripts/regen-kats.sh --verify` (when
       artifacts present) enforces byte-equality with committed vectors.
 - [x] **Cross-runtime byte-equality.** `~/work/luxcpp/crypto/corona/`
