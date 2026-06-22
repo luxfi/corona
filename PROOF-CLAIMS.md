@@ -13,7 +13,7 @@
 
 | Tag | Meaning |
 |---|---|
-| **machine-checked** | A proof assistant verifies it; the named file has ZERO `sorry`/`admit`/`:= True`. (No EasyCrypt toolchain on host; `scripts/checks/ec-compile.sh` is the CI gate, skipped when easycrypt is absent.) |
+| **machine-checked** | A proof assistant verifies it; the named file has ZERO real `sorry`/`admit`/`:= True` tactics. The EasyCrypt toolchain **is live on the host** (opam switch `proofs`: easycrypt + why3 + alt-ergo, z3 solver) — all 14 theories compile under `easycrypt compile`, enforced every run by `security/framework/checks/ec-machine-check.sh`. (`combine_abs_op_lifted_eq_rlwe` is now a machine-checked **lemma**; its residual is the narrow public `threshold_public_commitment_eq_central`.) |
 | **sound-by-reduction** | Pen-and-paper reduction to a stated assumption; not mechanized. |
 | **interop-tested** | Validated against ≥2 INDEPENDENT implementations. |
 | **asserted-axiom** | Taken as an axiom in EC; bucketed in AXIOM-INVENTORY.md (A/B). |
