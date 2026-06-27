@@ -366,7 +366,7 @@ func finishBootstrapPedersen(suite hash.HashSuite, suiteID string, t, n int, val
 	}
 	for j, v := range validators {
 		// sShares[j] is in standard form; convert to NTT-Mont for the
-		// signing-time multiplication path (matches threshold.GenerateKeys
+		// signing-time multiplication path (matches threshold.GenerateKeysTrustedDealer
 		// convention).
 		skNTT := make(structs.Vector[ring.Poly], sign.N)
 		for vi := 0; vi < sign.N; vi++ {

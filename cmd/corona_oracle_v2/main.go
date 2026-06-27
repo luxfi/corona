@@ -945,7 +945,7 @@ func emitSignVerify(outDir string) error {
 		Description: "Full Corona Sign+Verify round-trip. For each (t,n,msg,seed): " +
 			"Gen → SignRound1 (all parties) → SignRound2Preprocess+SignRound2 (all parties) → " +
 			"SignFinalize → Verify. Note: corona/sign currently signs with K=Threshold=n " +
-			"(see threshold.GenerateKeys). The n in this KAT is the total signer count; " +
+			"(see threshold.GenerateKeysTrustedDealer). The n in this KAT is the total signer count; " +
 			"the t is documented for the C++ port to validate threshold-aware sharing logic " +
 			"once it is implemented downstream. SHA-256 hashes are used for large fields " +
 			"(A, BTilde, sk shares, partial sigs) to keep file size finite while still " +

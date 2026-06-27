@@ -89,7 +89,7 @@ Examples:
 
 			fmt.Fprintf(os.Stderr, "Generating %d-of-%d threshold key shares...\n", t, n)
 
-			shares, groupKey, err := threshold.GenerateKeys(t, n, rand.Reader)
+			shares, groupKey, err := threshold.GenerateKeysTrustedDealer(t, n, rand.Reader)
 			if err != nil {
 				return fmt.Errorf("generate keys: %w", err)
 			}
