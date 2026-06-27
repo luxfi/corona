@@ -1,3 +1,6 @@
+(* NAMING NOTE: 'RLWE' / 'rlwe_*' identifiers here are the retained      *)
+(* proof names for the single-party reference signer; the scheme is      *)
+(* Module-LWE (threshold-Raccoon/Ringtail; M=8, N=7 over Z_q[X]/X^256+1).*)
 (* -------------------------------------------------------------------- *)
 (* Corona -- Class N1 NO-LEAK telescoping-mask model                    *)
 (* -------------------------------------------------------------------- *)
@@ -131,7 +134,7 @@ type public_transcript_t.     (* per-party commitments, rounded h, z-sum, c *)
 type rlwe_leakage_t.          (* one single-party Boschini sig's public footprint *)
 
 op module_lwe_hard : bool.    (* Gaussian-masked commitments pseudorandom *)
-op module_sis_hard : bool.    (* extracting short s from the z-sum is R-SIS *)
+op module_sis_hard : bool.    (* extracting short s from the z-sum is Module-SIS *)
 op transcript_simulator : rlwe_leakage_t -> public_transcript_t.
 
 (* NO-LEAK REDUCTION (C / OPEN, but now a STANDARD-ASSUMPTION reduction).

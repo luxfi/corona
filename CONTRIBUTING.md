@@ -2,7 +2,7 @@
 
 ## What we accept
 
-This repository is **both** a production Ring-LWE threshold signature
+This repository is **both** a production Module-LWE threshold signature
 library for Quasar consensus AND a NIST-MPTC-track submission
 package. Until the 2026-Nov-16 package submission, contributions that
 align with the MPTC submission are highest priority:
@@ -42,8 +42,9 @@ Until after the MPTC submission lands:
   KMAC256 / TupleHash256 exclusively (Corona-SHA3). The legacy
   Corona-BLAKE3 suite is retained for cross-port byte checks only;
   new BLAKE3 deltas should NOT land.
-- Patches that introduce Pulsar (M-LWE) types into Corona (R-LWE).
-  The two libraries are independent with no shared types; keep
+- Patches that introduce Pulsar (ML-DSA) types into Corona
+  (threshold-Raccoon). Both are Module-LWE, but they are distinct
+  constructions in independent libraries with no shared types; keep
   them that way.
 
 These reopen post-submission.

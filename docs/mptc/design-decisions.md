@@ -1,24 +1,28 @@
 # Corona — Design Decisions
 
 > Rationale for the design choices behind Corona's production
-> lifecycle on top of the Boschini et al. ePrint 2024/1113 R-LWE
+> lifecycle on top of the Boschini et al. ePrint 2024/1113 Module-LWE
 > threshold construction.
 
-## §1 Why Ring-LWE (not Module-LWE)?
+## §1 Why two Module-LWE schemes (Corona threshold-Raccoon + Pulsar ML-DSA)?
+
+Both Corona and Pulsar are Module-LWE; they are distinct *constructions*,
+not distinct lattice families. Corona is the Ringtail/Raccoon-line 2-round
+threshold construction; Pulsar is FIPS-204 ML-DSA made threshold.
 
 | Question | Answer |
 |---|---|
-| Why ship an R-LWE library when ML-DSA (M-LWE) is the NIST standard? | The R-LWE 2-round construction (Boschini et al. 2024/1113) was published a year before the M-LWE equivalent matured. Lux deployed the R-LWE path first because it was the only construction with a published peer-reviewed 2-round threshold signature analysis for lattice-based signatures at the time of consensus design. |
-| Why keep R-LWE after the M-LWE path (Pulsar) is ready? | Lux's primary-network QuasarCert is designed to consume BOTH lattice families as a **Double Lattice** layered defence so a break in one lattice family does not break finality. The two are complementary, not interchangeable. |
-| Why not converge on a single lattice family? | A break in Module-LWE (which Pulsar uses) would not automatically break Ring-LWE (which Corona uses), and vice versa. The cost is wire-size overhead (Corona certs are variable-size; Pulsar certs are fixed-size); the benefit is structural diversity. |
+| Why ship Corona when ML-DSA (Pulsar) is the NIST standard? | Corona's 2-round *threshold* construction (Boschini et al. 2024/1113, the Ringtail/Raccoon line) was published with a peer-reviewed 2-round threshold analysis a year before the ML-DSA threshold path matured. Lux deployed it first because it was the only construction with a published peer-reviewed 2-round threshold signature analysis for lattice-based signatures at the time of consensus design. |
+| Why keep Corona after the ML-DSA path (Pulsar) is ready? | Lux's primary-network QuasarCert is designed to consume BOTH as a **Double Lattice** layered defence: two *independent constructions and codebases* (threshold-Raccoon vs ML-DSA) so that a construction- or implementation-specific flaw in one does not break finality. The two are complementary, not interchangeable. |
+| Does running both give lattice-family diversity? | No. Both legs are Module-LWE, so a break of the Module-LWE problem itself would affect both. The diversity is at the *construction and implementation* layer, not the hardness assumption. Hardness-assumption diversity in the stack comes from the (research-stage) hash-based Magnetar (SLH-DSA), not from Corona-vs-Pulsar. The cost of running both is wire-size overhead (Corona certs are variable-size; Pulsar certs are fixed-size); the benefit is construction and implementation diversity. |
 
 ## §2 Why this parameter set?
 
 | Parameter | Value | Rationale |
 |---|---|---|
-| Ring degree `N` | 256 | Standard choice for 128-bit post-quantum security per the lattice-estimator methodology; matches lattigo's default ring sizing for R-LWE. |
+| Ring degree `N` | 256 | Standard choice for 128-bit post-quantum security per the lattice-estimator methodology; matches lattigo's default ring sizing. |
 | Prime `q` | `0x1000000004A01` | 48-bit NTT-friendly prime. Wide enough to absorb the Lagrange-aggregation coefficient growth without overflow; narrow enough that single-`q` polynomial arithmetic fits in `uint64`. |
-| Module width `M` | 8 | Balances signature size against security margin under R-LWE attacks. |
+| Module width `M` | 8 | Balances signature size against security margin under Module-LWE attacks. |
 | Module height `N_M` | 7 | Matches `M` − 1 to give comfortable EUF-CMA reduction margin. |
 | Challenge weight `Kappa` | 23 | Ternary challenge weight per Boschini et al. parameter analysis. |
 

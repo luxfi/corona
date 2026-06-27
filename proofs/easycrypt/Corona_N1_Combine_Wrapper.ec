@@ -1,3 +1,7 @@
+(* NAMING NOTE: 'RLWE' / 'rlwe_*' identifiers (e.g.                      *)
+(* combine_abs_op_lifted_eq_rlwe, rlwe_sign_op) are the retained proof   *)
+(* names for the single-party reference signer; the scheme is           *)
+(* Module-LWE (threshold-Raccoon/Ringtail; M=8, N=7, X^256+1).          *)
 (* -------------------------------------------------------------------- *)
 (* Corona -- Combine wrapper bridge                                     *)
 (* -------------------------------------------------------------------- *)

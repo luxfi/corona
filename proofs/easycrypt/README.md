@@ -4,6 +4,13 @@ This directory holds the EasyCrypt mechanization of the Class N1
 (byte-equality) and Class N4 (reshare public-key preservation)
 correctness claims for Corona, mirroring `~/work/lux/pulsar/proofs/easycrypt/`.
 
+> **Naming note.** Identifiers and file names containing `RLWE` / `rlwe`
+> here (e.g. the `RLWESign` module type, `rlwe_sign_op`, and
+> `lemmas/RLWE_Functional.ec`) are retained proof identifiers for the
+> single-party reference signer the threshold protocol refines against;
+> Corona is a **Module-LWE** scheme (threshold-Raccoon/Ringtail; module
+> dims M=8, N=7 over `Z_q[X]/(X^256+1)`).
+
 ## File map
 
 | File | Contains |

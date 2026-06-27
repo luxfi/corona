@@ -4,19 +4,20 @@
 
 See [LP-105 §Claims and evidence](https://github.com/luxfi/lps/blob/main/LP-105-lux-stack-lexicon.md#claims-and-evidence) for the canonical claims/evidence table and the ten architectural commitments — single source of truth.
 
-**Corona** is the Lux **Ring-LWE** post-quantum threshold signature library
+**Corona** is the Lux **Module-LWE** post-quantum threshold signature library
 for **Quasar consensus**. The 2-round threshold construction line traces back
-to the Boschini–Kaviani–Lai–Malavolta–Takahashi–Tibouchi R-LWE paper
+to the Boschini–Kaviani–Lai–Malavolta–Takahashi–Tibouchi Module-LWE paper
 ([ePrint 2024/1113](https://eprint.iacr.org/2024/1113)). Corona adds the
 production lifecycle that line lacked: Pedersen DKG over `R_q` with proper
 hiding, proactive resharing for epoch validator rotation, identifiable
 abort, and the integration surface Quasar consumes.
 
-The **Module-LWE sibling library** lives at [`luxfi/pulsar`](https://github.com/luxfi/pulsar).
-Pulsar's threshold signature output is byte-equal to FIPS 204 single-party
-ML-DSA (NIST MPTC Class N1). The two libraries are independent — there is
-no import line between them — and Quasar consumes them as parallel kernels
-selected per-chain via `FinalitySchemeID`.
+The **ML-DSA sibling library** lives at [`luxfi/pulsar`](https://github.com/luxfi/pulsar).
+Pulsar is also Module-LWE, but a different construction: its threshold
+signature output is byte-equal to FIPS 204 single-party ML-DSA (NIST MPTC
+Class N1). The two libraries are independent — there is no import line
+between them — and Quasar consumes them as parallel kernels selected
+per-chain via `FinalitySchemeID`.
 
 ## Why "Corona"
 
@@ -33,7 +34,7 @@ research artefact — trusted-dealer DKG, no proactive resharing, no
 integration surface. Corona is the production track that fills those
 gaps:
 
-| Layer | Original R-LWE construction | Corona |
+| Layer | Original Module-LWE construction | Corona |
 |---|---|---|
 | 2-round threshold sign | ✅ same byte-equal protocol | ✅ inherited |
 | Trusted-dealer Gen | ✅ for fixed federation | ✅ tests / KAT / CLI / permissioned bridge MPC only — never the chain keygen path |
@@ -43,15 +44,18 @@ gaps:
 
 ## Composition with Pulsar as optional layered PQ defense
 
-Corona is independently usable: a chain can pick Ring-LWE Corona as its
+Corona is independently usable: a chain can pick Corona as its
 sole PQ threshold layer, no cross-dependency on Pulsar. Lux primary-
-network QuasarCert combines both lattice families as a **Double Lattice**
-layered defence so a break in one family does not break finality:
+network QuasarCert combines both Module-LWE schemes as a **Double Lattice**
+layered defence so a break in one *construction or implementation* does not
+break finality. (Both legs are Module-LWE, so this is construction- and
+implementation-diversity, not lattice-family diversity — a break of the
+shared Module-LWE problem would affect both legs):
 
 ```
 QuasarCert {
     BLS         — optional classical fast-path (BLS-12-381 aggregate)
-    Corona      — Ring-LWE   threshold ML-DSA (this repo)
+    Corona      — Module-LWE threshold (Raccoon/Ringtail line; this repo)
     Pulsar      — Module-LWE threshold ML-DSA (luxfi/pulsar)
     MLDSARollup — per-validator ML-DSA-65 rolled up via STARK/FRI (P3Q)
 }
@@ -84,7 +88,7 @@ Pulsar's key generation provably stuck at a trusted dealer.
 ## Status
 
 Production. The 2-round Sign+Verify path is byte-equal-validated against
-the original R-LWE construction (ePrint 2024/1113) via 16 SHA-256 KATs.
+the original Module-LWE construction (ePrint 2024/1113) via 16 SHA-256 KATs.
 The dealerless **Pedersen DKG** (`dkg2/`, entered through
 `keyera.Bootstrap` / `BootstrapPedersen`) is the **production keygen
 default since v0.7.5**: it opens a new key era without a trusted dealer,
@@ -96,7 +100,7 @@ alongside it; the trusted-dealer keygen helpers remain only as
 tests / KAT / CLI footguns (and permissioned bridge MPC), never the
 chain keygen path.
 
-Corona remains the Ringtail/Raccoon-derived R-LWE leg (Boschini et al.,
+Corona remains the Ringtail/Raccoon-derived Module-LWE leg (Boschini et al.,
 ePrint 2024/1113) with its own parameter set: it is **not** FIPS-204
-byte-equal, and its certificates are variable-size R-LWE certificates,
+byte-equal, and its certificates are variable-size Module-LWE certificates,
 larger than Pulsar's FIPS-204-equal output.

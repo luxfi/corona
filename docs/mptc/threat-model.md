@@ -31,7 +31,7 @@ adversary** with the following capabilities:
 | Eavesdropping on all broadcast messages | YES |
 | Active modification of broadcast messages | YES (Byzantine adversary; messages are signed and complaints expose tampering) |
 | Asynchronous corruption / late corruption mid-session | OUT OF SCOPE |
-| Quantum computer | YES — the construction is post-quantum (R-LWE) |
+| Quantum computer | YES — the construction is post-quantum (Module-LWE) |
 | Side-channel observation | OUT OF SCOPE for the math; addressed at the implementation layer via `CONSTANT-TIME-REVIEW.md` and `DEPLOYMENT-RUNBOOK.md` hardening checklist |
 
 ### §2.2 Adversary cannot
@@ -84,8 +84,8 @@ protocol transcript with high probability.
 
 | Assumption | Where used |
 |---|---|
-| Ring-LWE hardness over `R_q = Z_q[X]/(X^N + 1)` with `N = 256`, `q = 0x1000000004A01` | Inherits EUF-CMA reduction from Boschini et al. ePrint 2024/1113. |
-| Ring-SIS hardness (informally; the construction's reduction passes through SIS in the random oracle model) | Same paper. |
+| Module-LWE hardness over `R_q = Z_q[X]/(X^N + 1)` with `N = 256`, module dims `M = 8` × `N = 7`, `q = 0x1000000004A01` | Inherits EUF-CMA reduction from Boschini et al. ePrint 2024/1113. |
+| Module-SIS hardness (informally; the construction's reduction passes through SIS in the random oracle model) | Same paper. |
 | cSHAKE256 / KMAC256 / TupleHash256 collision and preimage resistance | All transcript hashes, MAC derivation, PRF derivation. |
 | Random oracle model | The EUF-CMA reduction in Boschini et al. relies on ROM. |
 
@@ -98,7 +98,7 @@ protocol transcript with high probability.
 
 ### §4.3 What this DOES NOT cover
 
-- Lattice-cryptanalysis breakthroughs that reduce R-LWE security
+- Lattice-cryptanalysis breakthroughs that reduce Module-LWE security
   parameters below current estimates.
 - Quantum-cryptanalytic breakthroughs against the random oracle
   model.
@@ -199,7 +199,7 @@ historical reference and reading existing test fixtures.
 ### §8.1 What the chain trusts
 
 - The Bootstrap MPC ceremony at chain genesis (one-time).
-- The R-LWE construction's correctness (per Boschini et al.
+- The Module-LWE construction's correctness (per Boschini et al.
   paper).
 - The Go reference implementation's correctness (per code review +
   KAT + fuzz).

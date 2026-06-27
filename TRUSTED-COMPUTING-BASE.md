@@ -180,14 +180,14 @@ incorporating Corona):
   modify the hash suite, the claim's transferable guarantees
   attenuate.
 - **For FIPS 140-3 module validation**, Corona is NOT a candidate
-  — R-LWE threshold has no NIST standard, so no FIPS 140-3 module
+  — Module-LWE threshold has no NIST standard, so no FIPS 140-3 module
   can claim FIPS 204-style algorithm validation for it. For
   FIPS-validation pathways, use Pulsar (M-LWE / FIPS 204) instead.
 - **For NIST MPTC review**, Corona's role is the algorithm-level
   reference + production lifecycle artifacts; module packaging +
   external audit are downstream.
 - **For threshold signing in a Quasar deployment**, Corona is the
-  R-LWE kernel; the consuming consensus layer is responsible for
+  Module-LWE kernel; the consuming consensus layer is responsible for
   the chain-of-custody and validator-rotation orchestration (the
   LSS adapter at `~/work/lux/threshold/protocols/lss/lss_pulsar.go`
   is the canonical orchestrator).
@@ -201,11 +201,11 @@ incorporating Corona):
 | Jasmin verified compiler | YES (threshold layer in Jasmin) | NO (pure Go) |
 | OCaml runtime | YES (EC is OCaml) | NO |
 | Go toolchain | YES (Go reference) | YES (Go reference; primary) |
-| lattigo / `luxfi/lattice/v7` | NO (Jasmin path) | YES (R-LWE primitives) |
+| lattigo / `luxfi/lattice/v7` | NO (Jasmin path) | YES (Module-LWE primitives) |
 | `crypto/subtle` | YES (Go reference path) | YES (primary CT helper) |
 | `golang.org/x/crypto/sha3` | YES | YES |
 | Academic construction paper | FIPS 204 (NIST standard) | Boschini et al. ePrint 2024/1113 (2024 academic) |
-| Third-party FIPS-validated verifier | YES (BoringSSL FIPS / AWS-LC / OpenSSL 3.0) | NO (none exists for R-LWE threshold) |
+| Third-party FIPS-validated verifier | YES (BoringSSL FIPS / AWS-LC / OpenSSL 3.0) | NO (none exists for Module-LWE threshold) |
 
 **Net effect**: Corona's TCB is smaller (fewer proof-tool
 dependencies) but the trust per-component is higher (no fall-back

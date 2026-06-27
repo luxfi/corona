@@ -1,6 +1,6 @@
 # Cryptographer sign-off -- luxfi/corona v0.7.0
 
-> Independent review of the Corona threshold R-LWE implementation
+> Independent review of the Corona threshold Module-LWE implementation
 > at `main` of `github.com/luxfi/corona`.
 > Date of review: 2026-05-18.
 > Reviewer: cryptographer agent (Hanzo Dev, internal review).
@@ -69,14 +69,14 @@ byte-equality with `luxcpp/crypto/corona/`).
 - **`~/work/lux/proofs/lean/Crypto/Corona/`**:
   - `Shamir.lean` -- Lagrange-over-polynomial-ring algebraic core.
   - `OutputInterchange.lean` -- Class N1 verifier-compatibility.
-  - `Unforgeability.lean` -- EUF-CMA reduction to R-LWE.
+  - `Unforgeability.lean` -- EUF-CMA reduction to Module-LWE.
   - `dkg2.lean` -- Pedersen-VSS DKG correctness statement.
 - **`jasmin/`**:
   - `lib/` -- shared primitives (corona_params, seed, transcript,
     mac, lagrange).
   - `threshold/round1.jazz`, `round2.jazz`, `combine.jazz` -- the
     Boschini 2-round threshold protocol with `#ct` annotations.
-  - `rlwe/sign.jazz` -- centralized R-LWE Sign reference.
+  - `rlwe/sign.jazz` -- centralized Module-LWE Sign reference.
 - **`ct/dudect/`**:
   - `verify_ct.go` + `dudect_verify.c` -- Verify CT harness.
   - `combine_ct.go` + `dudect_combine.c` -- Combine CT harness.
@@ -197,7 +197,7 @@ byte-equality with `luxcpp/crypto/corona/`).
 I attest that, given the above review and the explicit non-claims
 documented in `corona/PROOF-CLAIMS.md` §3 (now reflecting the v0.7.0
 EC + Lean + Jasmin scaffold), `luxfi/corona` v0.7.0 is **APPROVED
-WITH ROADMAP GATES** for production use as a R-LWE threshold
+WITH ROADMAP GATES** for production use as a Module-LWE threshold
 signature primitive in Lux Quasar consensus' Aurora and Polaris cert
 profiles.
 

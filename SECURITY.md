@@ -10,7 +10,7 @@ fix lands and downstream consumers have had a 14-day private window.
 ## What is in-scope
 
 Corona is **production-hardened reference implementation** for
-Ring-LWE threshold signing in Quasar consensus, and a NIST MPTC
+Module-LWE threshold signing in Quasar consensus, and a NIST MPTC
 submission package. The following are in-scope for responsible
 disclosure:
 

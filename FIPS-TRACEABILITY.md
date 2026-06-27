@@ -1,6 +1,6 @@
 # FIPS-TRACEABILITY — Corona
 
-> Construction-paper → code traceability map. R-LWE has no FIPS
+> Construction-paper → code traceability map. Module-LWE has no FIPS
 > standard, so this document maps **Boschini ePrint 2024/1113 (IEEE
 > S&P 2025)** sections to `~/work/lux/corona/` implementation paths.
 > Equivalent role to Pulsar's `FIPS-TRACEABILITY.md` (which maps
@@ -89,7 +89,7 @@ unforgeability — see `AXIOM-INVENTORY.md` §2.
 
 - NOT a security proof. The Boschini construction's security is
   proved in the cited paper.
-- NOT a NIST FIPS standard reference (R-LWE has no FIPS standard).
+- NOT a NIST FIPS standard reference (Module-LWE has no FIPS standard).
 - NOT a mechanized refinement against the cited paper. EC theories
   that formalize this mapping are roadmap v0.7.0 (see
   `AXIOM-INVENTORY.md` §2 + `PROOF-CLAIMS.md` §3).

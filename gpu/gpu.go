@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026, Lux Industries Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-// Package gpu wires Corona (R-LWE threshold signing) into the lattice
+// Package gpu wires Corona (Module-LWE threshold signing) into the lattice
 // library's per-SubRing GPU NTT dispatcher.
 //
 // Decomplecting note. Corona never speaks CGO directly. The lattice

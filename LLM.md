@@ -6,7 +6,7 @@
 
 ## Purpose (one-liner)
 
-Ring-LWE threshold signature library used as the post-quantum threshold
+Module-LWE threshold signature library used as the post-quantum threshold
 layer in Quasar consensus. Corona provides O(1) per-cert proofs after
 DKG, paired with BLS12-381 + ML-DSA-65 in the QuasarCert.
 
@@ -21,7 +21,7 @@ keygen path. This is why **Corona — not Pulsar — carries the permissionless 
 no-trusted-dealer guarantee** in the Quasar AND-mode dual-PQ cert: Pulsar's
 byte-FIPS-204 keygen is provably stuck at a trusted dealer (a dealerless sum
 of FIPS-204 secrets breaks ML-DSA's small-norm `S_η` bound), so the
-dealerless property must come from Corona's R-LWE leg.
+dealerless property must come from Corona's Module-LWE leg.
 
 This repository is BOTH the production library AND the active NIST MPTC
 submission package (Class N1 + N4). The submission tarball is cut from a
@@ -45,7 +45,7 @@ tag on `main` via `scripts/cut-submission.sh`; reviewer feedback lands here.
 | `docs/patent-claims.md` | Attorney-prep claim drafts (FEWER than Pulsar — only Corona-novel lifecycle additions) |
 
 **HONESTY GUARD**: do not claim Corona has EC / Lean / Jasmin proofs. It does not.
-Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
+Pulsar does; Corona's Module-LWE construction has no FIPS standard target to refine against. See
 `PROOF-CLAIMS.md` §3 for the explicit non-claims list.
 
 ## Recent significant commits
@@ -73,7 +73,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 
 ### Active versions
 - Repo: `v0.8.0`. The default `keyera.Bootstrap` / `keyera.BootstrapWithSuite` route through `BootstrapPedersen` (dealerless Pedersen DKG over R_q); the legacy trusted-dealer impl is the unexported `bootstrapTrustedDealerImpl`, reachable only via the explicit `BootstrapTrustedDealer*` / `ReanchorTrustedDealer*` names.
-- Pinned by: `luxfi/consensus v1.23.6+` (R-LWE path is consensus-only).
+- Pinned by: `luxfi/consensus v1.23.6+` (Module-LWE path is consensus-only).
 
 ### Canonical params
 - Ring degree: 256 (LogN=8).
@@ -87,7 +87,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 - `golang.org/x/crypto/sha3` → cSHAKE256 / KMAC256 / TupleHash256.
 - `zeebo/blake3` → LEGACY only (cross-port byte-check).
 - Consumed by:
-  - `luxfi/consensus/protocol/quasar` (R-LWE threshold for QuasarCert).
+  - `luxfi/consensus/protocol/quasar` (Module-LWE threshold for QuasarCert).
 - Cross-runtime byte-equal port: `~/work/luxcpp/crypto/corona/` (KAT manifest at `scripts/regen-kats.manifest.sha256`).
 
 ### Where to look for X
@@ -105,9 +105,9 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 ### Open follow-ups (tracked in BLOCKERS.md)
 - Constant-time: `jasminc -checkCT` on the extracted threshold layer + dudect submission-grade 10⁹-sample run (CORONA-CT-PENDING).
 - `no_leak_reduction` discharged to a full Module-LWE/M-SIS simulation proof, OR accepted by external review as a standard reduction; plus the C11′ public-`w` commitment-aggregate bridge (CORONA-EC-RECON-MODEL).
-- Independent R-LWE interop verifier, OR external review accepting the same-construction Go↔C++ KAT posture (CORONA-NO-INDEP-VERIFIER).
+- Independent Module-LWE interop verifier, OR external review accepting the same-construction Go↔C++ KAT posture (CORONA-NO-INDEP-VERIFIER).
 - External cryptographic review — shared gate across the three open findings above.
-- Variable-size R-LWE certs remain a wire-size cost vs Pulsar M-LWE; consensus uses Corona for finality-throughput and Pulsar for the identity rollup.
+- Variable-size Corona (Module-LWE, Raccoon-line) certs remain a wire-size cost vs Pulsar's fixed-size ML-DSA certs; consensus uses Corona for finality-throughput and Pulsar for the identity rollup.
 
 ## Rules
 
@@ -116,7 +116,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
    hardcode SHAKE / KMAC outside `hash/sp800_185.go`.
 3. Param changes require a new key-era boundary; never edit in place.
 4. NEVER claim mechanized refinement Corona does not have. See `PROOF-CLAIMS.md` §3.
-5. NEVER mix Pulsar (M-LWE) types into Corona (R-LWE) — independent libraries with no shared types.
+5. NEVER mix Pulsar (ML-DSA) types into Corona (threshold-Raccoon) — both Module-LWE, but independent libraries with no shared types.
 6. NEVER push the legacy `dkg/` package onto a deployment surface — it has known
    leakage (Feldman VSS without blinding). Production uses `dkg2/`.
 7. Cross-runtime byte-equality with the C++ port (`~/work/luxcpp/crypto/corona/`)
