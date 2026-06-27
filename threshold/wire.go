@@ -153,7 +153,7 @@ func (s *Signature) UnmarshalBinary(b []byte) error {
 // MarshalBinary serializes the public GroupKey to a canonical wire
 // form. Only the public matrix A and rounded public key BTilde are
 // emitted; Params is reconstructed on the verifier side from a fresh
-// NewParams() call (matches the GenerateKeys / Bootstrap conventions).
+// NewParams() call (matches the GenerateKeysTrustedDealer / Bootstrap conventions).
 //
 // Layout:
 //

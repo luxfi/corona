@@ -182,9 +182,9 @@ var (
 
 func mustKernelCeremony(tb testing.TB) {
 	kernelOnce.Do(func() {
-		shares, gk, err := GenerateKeys(2, 3, rand.Reader)
+		shares, gk, err := GenerateKeysTrustedDealer(2, 3, rand.Reader)
 		if err != nil {
-			tb.Fatalf("GenerateKeys: %v", err)
+			tb.Fatalf("GenerateKeysTrustedDealer: %v", err)
 		}
 		kShares = shares
 		kGroupKey = gk

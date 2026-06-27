@@ -93,7 +93,7 @@ func signFresh() (*threshold.Signature, error) {
 	// quorum for the dudect harness; the property under test is
 	// content-dependent timing in Verify, independent of party count).
 	const t, n = 2, 3
-	shares, gk, err := threshold.GenerateKeys(t, n, rand.Reader)
+	shares, gk, err := threshold.GenerateKeysTrustedDealer(t, n, rand.Reader)
 	if err != nil {
 		return nil, err
 	}

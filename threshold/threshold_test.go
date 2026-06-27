@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-func TestGenerateKeys(t *testing.T) {
-	shares, groupKey, err := GenerateKeys(2, 3, nil)
+func TestGenerateKeysTrustedDealer(t *testing.T) {
+	shares, groupKey, err := GenerateKeysTrustedDealer(2, 3, nil)
 	if err != nil {
-		t.Fatalf("GenerateKeys failed: %v", err)
+		t.Fatalf("GenerateKeysTrustedDealer failed: %v", err)
 	}
 
 	if len(shares) != 3 {
@@ -38,9 +38,9 @@ func TestGenerateKeys(t *testing.T) {
 
 func TestThresholdSigningFlow(t *testing.T) {
 	// Generate 2-of-3 threshold keys
-	shares, groupKey, err := GenerateKeys(2, 3, nil)
+	shares, groupKey, err := GenerateKeysTrustedDealer(2, 3, nil)
 	if err != nil {
-		t.Fatalf("GenerateKeys failed: %v", err)
+		t.Fatalf("GenerateKeysTrustedDealer failed: %v", err)
 	}
 
 	// Create signers for all parties
@@ -93,9 +93,9 @@ func TestThresholdSigningFlow(t *testing.T) {
 }
 
 func TestThresholdWrongMessage(t *testing.T) {
-	shares, groupKey, err := GenerateKeys(2, 3, nil)
+	shares, groupKey, err := GenerateKeysTrustedDealer(2, 3, nil)
 	if err != nil {
-		t.Fatalf("GenerateKeys failed: %v", err)
+		t.Fatalf("GenerateKeysTrustedDealer failed: %v", err)
 	}
 
 	signers := make([]*Signer, 3)
@@ -140,7 +140,7 @@ func TestThresholdWrongMessage(t *testing.T) {
 // rejects them with ErrDuplicateSigner instead of silently overwriting the
 // duplicated z share (which would double-count one signer).
 func TestFinalize_DuplicatePartyID_Rejected(t *testing.T) {
-	shares, _, err := GenerateKeys(2, 3, nil)
+	shares, _, err := GenerateKeysTrustedDealer(2, 3, nil)
 	if err != nil {
 		t.Fatalf("GenerateKeys failed: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestFinalize_DuplicatePartyID_Rejected(t *testing.T) {
 // for the Round 2 combine, where a repeated PartyID would overwrite the D
 // matrix / MAC entry collected for that party.
 func TestRound2_DuplicatePartyID_Rejected(t *testing.T) {
-	shares, _, err := GenerateKeys(2, 3, nil)
+	shares, _, err := GenerateKeysTrustedDealer(2, 3, nil)
 	if err != nil {
 		t.Fatalf("GenerateKeys failed: %v", err)
 	}
@@ -231,19 +231,19 @@ func TestRound2_DuplicatePartyID_Rejected(t *testing.T) {
 
 func TestInvalidThreshold(t *testing.T) {
 	// Threshold >= total
-	_, _, err := GenerateKeys(3, 3, nil)
+	_, _, err := GenerateKeysTrustedDealer(3, 3, nil)
 	if err != ErrInvalidThreshold {
 		t.Errorf("expected ErrInvalidThreshold, got %v", err)
 	}
 
 	// Threshold = 0
-	_, _, err = GenerateKeys(0, 3, nil)
+	_, _, err = GenerateKeysTrustedDealer(0, 3, nil)
 	if err != ErrInvalidThreshold {
 		t.Errorf("expected ErrInvalidThreshold, got %v", err)
 	}
 
 	// Too few parties
-	_, _, err = GenerateKeys(1, 1, nil)
+	_, _, err = GenerateKeysTrustedDealer(1, 1, nil)
 	if err != ErrInvalidPartyCount {
 		t.Errorf("expected ErrInvalidPartyCount, got %v", err)
 	}
