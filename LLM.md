@@ -1,7 +1,7 @@
 # Corona -- Agent Knowledge Base
 
 **Repository**: github.com/luxfi/corona
-**Latest Tag**: v0.7.4 (next: v0.7.5 — public-BFT Bootstrap default closes the last unqualified trusted-dealer dispatch)
+**Latest Tag**: v0.8.0 (dealerless Pedersen DKG is the production keygen default; signing never reconstructs the master secret)
 **Status**: Production (consensus path); NIST MPTC submission package included. Sibling submission `luxfi/pulsar` is the M-LWE byte-equal FIPS 204 path.
 
 ## Purpose (one-liner)
@@ -9,6 +9,19 @@
 Ring-LWE threshold signature library used as the post-quantum threshold
 layer in Quasar consensus. Corona provides O(1) per-cert proofs after
 DKG, paired with BLS12-381 + ML-DSA-65 in the QuasarCert.
+
+Keygen is **natively dealerless**: the Pedersen DKG (`dkg2/`, entered via
+`keyera.Bootstrap` → `BootstrapPedersen`) is the production default since
+v0.7.5 — no single party ever holds the secret. Signing never reconstructs
+the key: `SignFinalize` sums the per-party partial responses
+(`z_sum = Σ z_j`, then `A·z_sum`); `ReconstructSecret` was dropped (`f08e2b5`),
+and the trusted-dealer helpers (`GenerateKeysTrustedDealer`,
+`BootstrapTrustedDealer*`) are tests / KAT / CLI footguns, never the chain
+keygen path. This is why **Corona — not Pulsar — carries the permissionless /
+no-trusted-dealer guarantee** in the Quasar AND-mode dual-PQ cert: Pulsar's
+byte-FIPS-204 keygen is provably stuck at a trusted dealer (a dealerless sum
+of FIPS-204 secrets breaks ML-DSA's small-norm `S_η` bound), so the
+dealerless property must come from Corona's R-LWE leg.
 
 This repository is BOTH the production library AND the active NIST MPTC
 submission package (Class N1 + N4). The submission tarball is cut from a
@@ -39,7 +52,12 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 
 | SHA | Tag | Impact |
 |-----|-----|--------|
-| (pending) | v0.7.5 | keyera: Bootstrap default → BootstrapPedersen; trusted-dealer impl moved to unexported helper; loud-name invariant restored across both Bootstrap and Reanchor |
+| `f08e2b5` | v0.8.0 | threshold: trusted-dealer keygen made explicit/footgun-only; dead `ReconstructSecret` dropped; sub-quorum soundness pinned — signing sums partials, master secret never formed |
+| `7c102d2` | v0.7.9 | threshold: reject duplicate PartyID in Round2/Finalize combine (kernel-boundary uniq guard) |
+| `6b4d5d5` | v0.7.8 | docs: correct stale 'no EC toolchain' claims; combine bridge discharged to lemma + jasminc available |
+| `baf2ba8` | v0.7.7 | ec: machine-check all 14 theories; discharge combine bridge C11 → lemma via `no_leak_z_aggregate` keystone, residual shrunk to public w-agreement |
+| `ee2c5b8` | v0.7.6 | threshold: canonical wire codec for Signature / GroupKey / VerifyBytes |
+| `1d44430` | v0.7.5 | keyera: public-BFT `Bootstrap` default → `BootstrapPedersen`; trusted-dealer impl moved to unexported helper; loud-name invariant across Bootstrap + Reanchor |
 | `607d71c` | v0.7.4 | keyera: ReanchorPedersen — closes Reanchor trusted-dealer regression; `mathSqrt` → stdlib `math.Sqrt` |
 | `e412c7e` | v0.7.3 | keyera: BootstrapPedersen — Pedersen-DKG over R_q + Path (a) noise flooding; closes trusted-dealer caveat |
 | `920195e` | v0.7.2 | gpu: opt corona threshold signing into lattice/ring GPU NTT dispatch |
@@ -54,7 +72,7 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 | `43e7d88` | v0.4.x | corona/papers: Corona2025 cite → boschini2024corona; coronaThreshold → coronaThreshold in TeX |
 
 ### Active versions
-- Repo: `v0.7.4` (next: `v0.7.5` flips the default `keyera.Bootstrap` / `keyera.BootstrapWithSuite` to route through `BootstrapPedersen`, matching the v0.7.4 Reanchor flip; the legacy trusted-dealer impl is now in the unexported `bootstrapTrustedDealerImpl` and only reachable via the explicit `BootstrapTrustedDealer*` / `ReanchorTrustedDealer*` names).
+- Repo: `v0.8.0`. The default `keyera.Bootstrap` / `keyera.BootstrapWithSuite` route through `BootstrapPedersen` (dealerless Pedersen DKG over R_q); the legacy trusted-dealer impl is the unexported `bootstrapTrustedDealerImpl`, reachable only via the explicit `BootstrapTrustedDealer*` / `ReanchorTrustedDealer*` names.
 - Pinned by: `luxfi/consensus v1.23.6+` (R-LWE path is consensus-only).
 
 ### Canonical params
@@ -84,10 +102,11 @@ Pulsar does; Corona's R-LWE has no FIPS standard target to refine against. See
 - KAT oracles: `cmd/{reshare,dkg2,activation,cross_runtime,sign,corona_oracle_v2}*/`
 - Submission scripts: `scripts/{cut-submission,build,test,bench,gen_vectors,check-high-assurance,regen-kats}.sh`
 
-### Open follow-ups (roadmap)
-- v0.6.0: single-document `spec/corona.tex` + parameter-set worksheet
-- v0.7.0: EasyCrypt theory shell + Lean Lagrange-aggregation mechanization (RESEARCH; multi-month)
-- v0.8.0: dudect-style statistical CT harness + external cryptographic audit
+### Open follow-ups (tracked in BLOCKERS.md)
+- Constant-time: `jasminc -checkCT` on the extracted threshold layer + dudect submission-grade 10⁹-sample run (CORONA-CT-PENDING).
+- `no_leak_reduction` discharged to a full Module-LWE/M-SIS simulation proof, OR accepted by external review as a standard reduction; plus the C11′ public-`w` commitment-aggregate bridge (CORONA-EC-RECON-MODEL).
+- Independent R-LWE interop verifier, OR external review accepting the same-construction Go↔C++ KAT posture (CORONA-NO-INDEP-VERIFIER).
+- External cryptographic review — shared gate across the three open findings above.
 - Variable-size R-LWE certs remain a wire-size cost vs Pulsar M-LWE; consensus uses Corona for finality-throughput and Pulsar for the identity rollup.
 
 ## Rules

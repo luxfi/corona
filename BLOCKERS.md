@@ -1,5 +1,7 @@
 # Finding registry — luxfi/corona
 
+**Version: v0.8.0** — dealerless Pedersen DKG is the production keygen default.
+
 **Status: OPEN items present (see `## Open`).** Corona's single-party /
 N4 reshare / code-review-against-Boschini claims are at the disclosed
 v0.7.0/v0.8.0-roadmap tier; the EasyCrypt byte-equality proof rests on an
@@ -8,6 +10,21 @@ static audit (dudect-submission-grade pending), and there is no independent
 interop verifier for the R-LWE construction. None of these is hidden — they
 are the honest proof-tier of a published-construction implementation. See
 `PROOF-CLAIMS.md` §0 and `AXIOM-INVENTORY.md` §C.
+
+**Built capability — NOT a blocker (permissionless keygen).** Corona's
+keygen is natively dealerless: the Pedersen DKG (`dkg2/`, entered via
+`keyera.Bootstrap` → `BootstrapPedersen`) is the production default since
+v0.7.5 — no single party ever holds the secret, and the production signing
+path never reconstructs it (`SignFinalize` sums partials, `z_sum = Σ z_j`;
+the no-leak Model 2 of CORONA-EC-RECON-MODEL; `ReconstructSecret` removed in
+`f08e2b5`). This is the property that lets Corona — not Pulsar — carry the
+**permissionless / no-trusted-dealer guarantee** in the Quasar AND-mode
+dual-PQ cert (Pulsar's byte-FIPS-204 keygen cannot: a dealerless sum of
+FIPS-204 secrets breaks ML-DSA's small-norm `S_η` bound). This capability is
+BUILT and shipped (`dkg2/` + `keyera.BootstrapPedersen`, default); it is
+independent of and does NOT close the three open proof-tier findings below
+(CORONA-EC-RECON-MODEL, CORONA-CT-PENDING, CORONA-NO-INDEP-VERIFIER), which
+remain OPEN.
 
 This file is the finding registry. New findings open under `## Open`; on
 fix they move to `## Closed` with commit + tag.

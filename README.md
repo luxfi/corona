@@ -36,10 +36,10 @@ gaps:
 | Layer | Original R-LWE construction | Corona |
 |---|---|---|
 | 2-round threshold sign | ✅ same byte-equal protocol | ✅ inherited |
-| Trusted-dealer Gen | ✅ for fixed federation | ✅ retained for bridge MPC |
-| **Proactive resharing** for epoch validator rotation | ❌ not specified | 🚧 **corona/reshare/** (this fork) |
-| **Pedersen DKG over R_q** with proper hiding | ❌ not specified | 🚧 **corona/dkg2/** (this fork) |
-| Per-validator triple-sign integration with Quasar | ❌ N/A | 🚧 **corona/consensus/** integration |
+| Trusted-dealer Gen | ✅ for fixed federation | ✅ tests / KAT / CLI / permissioned bridge MPC only — never the chain keygen path |
+| **Proactive resharing** for epoch validator rotation | ❌ not specified | ✅ **corona/reshare/** (this fork) |
+| **Pedersen DKG over R_q** with proper hiding | ❌ not specified | ✅ **corona/dkg2/** — production keygen default since v0.7.5 |
+| Per-validator triple-sign integration with Quasar | ❌ N/A | ✅ consumed by **luxfi/consensus/protocol/quasar** |
 
 ## Composition with Pulsar as optional layered PQ defense
 
@@ -62,6 +62,14 @@ the layer happens at chain-construction time via the `FinalitySchemeID`
 axis on the chain's `ChainSecurityProfile`. The pure-PQ profile drops
 BLS entirely and runs on `Corona + Pulsar`.
 
+In that pure-PQ `Corona + Pulsar` AND-mode cert the two lattice legs are
+not interchangeable in trust model. Because Corona's keygen is natively
+dealerless (the production-default Pedersen DKG), **Corona is the leg that
+carries the permissionless / no-trusted-dealer guarantee** — the property
+Pulsar's byte-FIPS-204 keygen cannot provide, since a dealerless sum of
+FIPS-204 secrets would break ML-DSA's small-norm (`S_η`) bound, leaving
+Pulsar's key generation provably stuck at a trusted dealer.
+
 ## Layout
 
 - `sign/` — 2-round threshold signing (byte-equal with upstream)
@@ -75,4 +83,20 @@ BLS entirely and runs on `Corona + Pulsar`.
 
 ## Status
 
-WIP. The 2-round Sign+Verify path is byte-equal-validated against the original R-LWE construction (ePrint 2024/1113) via 16 SHA-256 KATs. The production-lifecycle additions (resharing + Pedersen DKG) are under design and implementation.
+Production. The 2-round Sign+Verify path is byte-equal-validated against
+the original R-LWE construction (ePrint 2024/1113) via 16 SHA-256 KATs.
+The dealerless **Pedersen DKG** (`dkg2/`, entered through
+`keyera.Bootstrap` / `BootstrapPedersen`) is the **production keygen
+default since v0.7.5**: it opens a new key era without a trusted dealer,
+so no single party ever holds the secret. Signing never reconstructs the
+key — `SignFinalize` sums the per-party partial responses
+(`z_sum = Σ z_j`, then `A·z_sum`), so the master secret is never formed.
+Proactive resharing (`reshare/`) for epoch validator rotation ships
+alongside it; the trusted-dealer keygen helpers remain only as
+tests / KAT / CLI footguns (and permissioned bridge MPC), never the
+chain keygen path.
+
+Corona remains the Ringtail/Raccoon-derived R-LWE leg (Boschini et al.,
+ePrint 2024/1113) with its own parameter set: it is **not** FIPS-204
+byte-equal, and its certificates are variable-size R-LWE certificates,
+larger than Pulsar's FIPS-204-equal output.
