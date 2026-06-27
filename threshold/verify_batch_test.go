@@ -15,9 +15,9 @@ import (
 // (Sign1/Sign2/Combine are the only public entry points).
 func freshSig(t testing.TB, message string) (*GroupKey, *Signature) {
 	t.Helper()
-	shares, groupKey, err := GenerateKeys(2, 3, nil)
+	shares, groupKey, err := GenerateKeysTrustedDealer(2, 3, nil)
 	if err != nil {
-		t.Fatalf("GenerateKeys: %v", err)
+		t.Fatalf("GenerateKeysTrustedDealer: %v", err)
 	}
 	signers := make([]*Signer, 3)
 	for i, share := range shares {

@@ -20,9 +20,9 @@ import (
 // not Verify(...) = true.
 func FuzzVerifyParseSignature(f *testing.F) {
 	// Seed corpus: one fresh valid signature.
-	shares, gk, err := GenerateKeys(2, 3, rand.Reader)
+	shares, gk, err := GenerateKeysTrustedDealer(2, 3, rand.Reader)
 	if err != nil {
-		f.Fatalf("GenerateKeys: %v", err)
+		f.Fatalf("GenerateKeysTrustedDealer: %v", err)
 	}
 	signers := make([]*Signer, 3)
 	for i, share := range shares {
@@ -85,9 +85,9 @@ func FuzzVerifyParseSignature(f *testing.F) {
 // Together with FuzzVerifyParseSignature, this exercises BOTH the
 // structural (gob) and the byte-level interpretation paths.
 func FuzzVerifyRandomBytes(f *testing.F) {
-	_, gk, err := GenerateKeys(2, 3, rand.Reader)
+	_, gk, err := GenerateKeysTrustedDealer(2, 3, rand.Reader)
 	if err != nil {
-		f.Fatalf("GenerateKeys: %v", err)
+		f.Fatalf("GenerateKeysTrustedDealer: %v", err)
 	}
 
 	f.Add([]byte{0, 0, 0, 0})

@@ -15,15 +15,15 @@ import (
 // parsed group key over the same message. Byte-equal serialization is
 // enforced.
 //
-// NOTE: cannot t.Parallel — GenerateKeys mutates sign.K / sign.Threshold
-// package globals (see threshold.go:123-124). The wire codec itself is
+// NOTE: cannot t.Parallel — GenerateKeysTrustedDealer mutates sign.K / sign.Threshold
+// package globals (see threshold.go:131-132). The wire codec itself is
 // pure; this is a kernel-side limitation we accept rather than refactor
 // out from under sibling agents who own pulsar/.
 func TestSignatureWireRoundtrip(t *testing.T) {
 	const tThr, n = 1, 2
-	shares, gk, err := GenerateKeys(tThr, n, rand.Reader)
+	shares, gk, err := GenerateKeysTrustedDealer(tThr, n, rand.Reader)
 	if err != nil {
-		t.Fatalf("GenerateKeys: %v", err)
+		t.Fatalf("GenerateKeysTrustedDealer: %v", err)
 	}
 
 	// Two-party signing (smallest committee that exercises the protocol).
@@ -218,9 +218,9 @@ func TestGroupKeyWireRejectMalformed(t *testing.T) {
 // GroupKey-magic frame in the Signature slot and vice versa — domain
 // separation must be effective.
 func TestVerifyBytesRejectsCrossWire(t *testing.T) {
-	shares, gk, err := GenerateKeys(1, 2, rand.Reader)
+	shares, gk, err := GenerateKeysTrustedDealer(1, 2, rand.Reader)
 	if err != nil {
-		t.Fatalf("GenerateKeys: %v", err)
+		t.Fatalf("GenerateKeysTrustedDealer: %v", err)
 	}
 	_ = shares
 	gkBytes, err := gk.MarshalBinary()

@@ -26,9 +26,9 @@ func TestE2EThresholdVariants(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run("", func(t *testing.T) {
-			shares, gk, err := GenerateKeys(tc.t, tc.n, rand.Reader)
+			shares, gk, err := GenerateKeysTrustedDealer(tc.t, tc.n, rand.Reader)
 			if err != nil {
-				t.Fatalf("(%d,%d) GenerateKeys: %v", tc.t, tc.n, err)
+				t.Fatalf("(%d,%d) GenerateKeysTrustedDealer: %v", tc.t, tc.n, err)
 			}
 			if len(shares) != tc.n {
 				t.Fatalf("(%d,%d) wanted %d shares, got %d",
@@ -84,7 +84,7 @@ func TestE2EThresholdVariants(t *testing.T) {
 // rejection-sampled but the rejection randomness derives
 // deterministically from (sk_share, sid) per CRIT-1.
 func TestE2EKATReplayDeterminism(t *testing.T) {
-	// Use a deterministic randSource so GenerateKeys is reproducible.
+	// Use a deterministic randSource so GenerateKeysTrustedDealer is reproducible.
 	seed := [32]byte{
 		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
 		0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
@@ -131,13 +131,13 @@ func TestE2EKATReplayDeterminism(t *testing.T) {
 	rdr2 := &fixedReader{buf: seed}
 	_ = rdr1
 	_ = rdr2
-	// GenerateKeys uses io.ReadFull(randSource, key); we can't easily
+	// GenerateKeysTrustedDealer uses io.ReadFull(randSource, key); we can't easily
 	// drive it deterministically without modifying the API, so instead
 	// we verify the WEAKER but operationally-meaningful property:
 	// signing TWICE on the SAME key set produces the SAME signature.
-	shares, gk, err := GenerateKeys(2, 3, rand.Reader)
+	shares, gk, err := GenerateKeysTrustedDealer(2, 3, rand.Reader)
 	if err != nil {
-		t.Fatalf("GenerateKeys: %v", err)
+		t.Fatalf("GenerateKeysTrustedDealer: %v", err)
 	}
 	sig1 := runSign(shares, gk)
 	sig2 := runSign(shares, gk)

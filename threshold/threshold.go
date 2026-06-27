@@ -109,9 +109,17 @@ type Signature struct {
 	Delta structs.Vector[ring.Poly]
 }
 
-// GenerateKeys generates threshold key shares for n parties with threshold t.
-// This runs once per epoch when the validator set changes.
-func GenerateKeys(t, n int, randSource io.Reader) ([]*KeyShare, *GroupKey, error) {
+// GenerateKeysTrustedDealer is the trusted-dealer, in-process threshold keygen.
+// It sets the global sign.K / sign.Threshold and samples the full secret in a
+// single process, then derives the n KeyShares for threshold t. Because one
+// party materializes the whole secret, this is a FOOTGUN for production: use it
+// ONLY for tests / KAT / constant-time harnesses / CLI / the reference oracle.
+//
+// Production chain keygen MUST use keyera.Bootstrap (the dealerless Pedersen
+// DKG), where no single party ever holds the secret. The TrustedDealer suffix
+// mirrors keyera.BootstrapTrustedDealer to keep the trust model explicit and
+// greppable.
+func GenerateKeysTrustedDealer(t, n int, randSource io.Reader) ([]*KeyShare, *GroupKey, error) {
 	if n < 2 {
 		return nil, nil, ErrInvalidPartyCount
 	}

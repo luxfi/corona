@@ -22,10 +22,10 @@ package reshare
 //	RotateEpochKeys          ReshareEpoch (or RotateEpochShares)
 //	EpochKeys (struct)       EpochShareState
 //	RotateEpoch(newVals)     RotateEpoch(newVals) calls Reshare(...)
-//	  → calls GenerateKeys      instead of GenerateKeys
+//	  → calls GenerateKeysTrustedDealer      instead of GenerateKeysTrustedDealer
 //
 // Concretely the existing `EpochManager.RotateEpoch` re-runs
-// `coronaThreshold.GenerateKeys(t, n, nil)` which generates a FRESH
+// `coronaThreshold.GenerateKeysTrustedDealer(t, n, nil)` which generates a FRESH
 // secret and a NEW group public key per epoch. With Reshare, the
 // master secret and group public key are PERSISTENT across epochs;
 // only the share distribution rotates. So:
@@ -177,7 +177,7 @@ func (i *RefreshEpochInputs) BuildTranscript() TranscriptInputs {
 //	    name but change the body). Caller code in quasar.go and the
 //	    `validator-rotation` consensus path need updates.
 //
-//	[2] Replace `coronaThreshold.GenerateKeys` call with a Reshare
+//	[2] Replace `coronaThreshold.GenerateKeysTrustedDealer` call with a Reshare
 //	    invocation: extract OldShares from current EpochShareState,
 //	    feed into Reshare(r, oldShares, tOld, newSet, tNew, randSource).
 //
@@ -220,7 +220,7 @@ func (i *RefreshEpochInputs) BuildTranscript() TranscriptInputs {
 //	     equivocation) is forwarded to the slashing module. The
 //	     slasher reverifies on-chain and emits the slashing tx.
 //
-//	[12] Backwards compatibility: `EpochManager.GenerateKeys` is
+//	[12] Backwards compatibility: `EpochManager.GenerateKeysTrustedDealer` is
 //	     KEPT as the genesis path (one-time bootstrap). Subsequent
 //	     epoch rotations go through ReshareEpoch only.
 //

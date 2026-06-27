@@ -13,7 +13,7 @@ import (
 )
 
 // deterministicReader is a SHA-256 keystream over a 32-byte seed,
-// suitable as an io.Reader for GenerateKeys. Two calls with the same
+// suitable as an io.Reader for GenerateKeysTrustedDealer. Two calls with the same
 // seed produce the same bytes, which fixes the trustedDealerKey across
 // the CPU and GPU legs of this test.
 type deterministicReader struct {
@@ -87,9 +87,9 @@ func TestThresholdSign_CPU_vs_GPU_ByteIdentical(t *testing.T) {
 		} else {
 			cgpu.DisableAccelerator()
 		}
-		shares, groupKey, err := GenerateKeys(thr, k, newDeterministicReader(seed))
+		shares, groupKey, err := GenerateKeysTrustedDealer(thr, k, newDeterministicReader(seed))
 		if err != nil {
-			t.Fatalf("GenerateKeys (gpu=%v): %v", gpuOn, err)
+			t.Fatalf("GenerateKeysTrustedDealer (gpu=%v): %v", gpuOn, err)
 		}
 
 		signers := make([]*Signer, k)

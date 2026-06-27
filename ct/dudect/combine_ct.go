@@ -60,7 +60,7 @@ var (
 // populated R2 data map ready for Finalize.
 func makeCombineFixture(msg string) (*combineFixture, error) {
 	const t, n = 2, 3
-	shares, gk, err := threshold.GenerateKeys(t, n, rand.Reader)
+	shares, gk, err := threshold.GenerateKeysTrustedDealer(t, n, rand.Reader)
 	if err != nil {
 		return nil, err
 	}

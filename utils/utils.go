@@ -307,22 +307,6 @@ func FormatBigIntSlice(slice []*big.Int) string {
 
 // UTIL FUNCTIONS FOR LAGRANGE INTERPOLATION TESTING
 
-// ReconstructSecret reconstructs the secret using the shares and Lagrange coefficients.
-func ReconstructSecret(r *ring.Ring, shares map[int]structs.Vector[ring.Poly], lagrangeCoeffs map[int]ring.Poly) structs.Vector[ring.Poly] {
-	reconstructed := make(structs.Vector[ring.Poly], len(shares[0]))
-
-	for i := range reconstructed {
-		reconstructed[i] = r.NewPoly()
-		for partyID, share := range shares {
-			temp := r.NewPoly()
-			MulPolyNTT(r, share[i], lagrangeCoeffs[partyID], temp)
-			r.Add(reconstructed[i], temp, reconstructed[i])
-		}
-	}
-
-	return reconstructed
-}
-
 // CompareSecrets compares the reconstructed secret with the original.
 func CompareSecrets(r *ring.Ring, reconstructed, original structs.Vector[ring.Poly]) bool {
 	for i := range reconstructed {
