@@ -13,7 +13,7 @@ import (
 
 // BenchmarkPulsarSign measures the wall-clock cost of the 2-round
 // Pulsar threshold protocol's *online* phase (Round1 + Round2 +
-// Finalize, given a fresh GenerateKeys epoch). The IEEE S&P 2025
+// Finalize, given a fresh GenerateKeysTrustedDealer epoch). The IEEE S&P 2025
 // Pulsar evaluation calls out a 0.6 s online phase across 5
 // continents at the production shape; this bench gives the local
 // upper bound (network RTT is excluded; the cost here is pure CPU /
@@ -62,7 +62,7 @@ func benchPulsarSign(b *testing.B, n, thr int, gpuOn bool) {
 	}
 	b.Cleanup(cgpu.DisableAccelerator)
 
-	shares, _, err := GenerateKeys(thr, n, rand.Reader)
+	shares, _, err := GenerateKeysTrustedDealer(thr, n, rand.Reader)
 	if err != nil {
 		b.Fatal(err)
 	}

@@ -29,7 +29,7 @@ func TestE2EThresholdVariants(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run("", func(t *testing.T) {
-			shares, gk, err := GenerateKeys(tc.t, tc.n, rand.Reader)
+			shares, gk, err := GenerateKeysTrustedDealer(tc.t, tc.n, rand.Reader)
 			if err != nil {
 				t.Fatalf("(%d,%d) GenerateKeys: %v", tc.t, tc.n, err)
 			}
@@ -153,7 +153,7 @@ func TestE2EKATReplayDeterminism(t *testing.T) {
 		return b
 	}
 
-	shares, _, err := GenerateKeys(2, 3, rand.Reader)
+	shares, _, err := GenerateKeysTrustedDealer(2, 3, rand.Reader)
 	if err != nil {
 		t.Fatalf("GenerateKeys: %v", err)
 	}
