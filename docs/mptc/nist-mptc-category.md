@@ -20,16 +20,16 @@ NIST MPTC subdivides threshold schemes into:
   - **N4**: ML keygen / DKG (Module-Lattice key generation, distributed)
 
 Corona aims for **N1 (construction-level threshold signing) + N4
-(distributed Ring-LWE keygen + reshare preservation)**.
+(distributed Module-LWE keygen + reshare preservation)**.
 
 ### N1 framing for Corona — HONEST distinction from Pulsar
 
 NIST's Class N is defined relative to a "NIST-specified primitive."
-**R-LWE threshold signing has no NIST standard at submission time.**
+**Module-LWE threshold signing has no NIST standard at submission time.**
 This makes Corona's N1 framing structurally different from Pulsar's
 (which targets FIPS 204 ML-DSA byte-equality):
 
-| Aspect | Pulsar (M-LWE) | Corona (R-LWE) |
+| Aspect | Pulsar (ML-DSA) | Corona (Module-LWE, Raccoon line) |
 |---|---|---|
 | NIST standard target | FIPS 204 ML-DSA-65 | **none** |
 | Verifier-side interchange | byte-equal with BoringSSL FIPS / AWS-LC / OpenSSL 3.0 PQ | construction-level only (Corona's own `sign.Verify`) |
@@ -59,7 +59,7 @@ Corona's submission package is structured to support **either reading**:
   injection) as the "novel threshold-friendly design" novelty.
 
 The downstream consumer story is identical either way: Quasar
-consensus uses Corona as the R-LWE finality kernel; threshold-emitted
+consensus uses Corona as the Module-LWE finality kernel; threshold-emitted
 signatures verify under `sign.Verify` regardless of whether NIST
 ultimately classifies the submission N or S.
 
@@ -123,7 +123,7 @@ bits of post-quantum security per lattice-estimator methodology.
 A second parameter set targeting NIST PQ Category 3 is roadmap
 v0.6.0. Concrete lattice-estimator output for the current parameter
 set is roadmap v0.6.0 — at submission scaffolding the security claim
-is qualitative (per Lux engineering's design choice against the R-LWE
+is qualitative (per Lux engineering's design choice against the Module-LWE
 literature) rather than quantitative.
 
 ## Class N vs Class S decision (deferred to NIST)
@@ -149,10 +149,11 @@ byte-equal to FIPS 204 ML-DSA-65 verified by unmodified BoringSSL
 FIPS / AWS-LC / OpenSSL 3.0 PQ. Pulsar's submission is at
 <https://github.com/luxfi/pulsar>.
 
-The R-LWE / M-LWE pair is intentional: Lux's primary-network
-QuasarCert may combine Corona + Pulsar as a **Double Lattice**
-layered defence (separate consumer-side design choice; not part of
-this submission).
+The Corona / Pulsar pair is intentional: both are Module-LWE but
+distinct constructions, so Lux's primary-network QuasarCert may combine
+them as a **Double Lattice** layered defence — construction- and
+implementation-diversity, not lattice-family diversity (separate
+consumer-side design choice; not part of this submission).
 
 ## Status
 

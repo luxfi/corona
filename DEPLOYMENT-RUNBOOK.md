@@ -1,6 +1,6 @@
 # Deployment Runbook — luxfi/corona
 
-> Operational guidance for deploying Corona (threshold Ring-LWE
+> Operational guidance for deploying Corona (threshold Module-LWE
 > signing + Pedersen DKG + proactive resharing) in production
 > validator sets. Discloses the v0.2 trust-model caveats and pins
 > the safe operating envelope.

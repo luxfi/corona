@@ -19,6 +19,15 @@
 > **Lagrange-reconstructed master secret**). They are now correctly
 > classified **C / OPEN**.
 
+> **Naming note.** Identifiers and EasyCrypt/Lean file names containing
+> `rlwe` / `RLWE` (e.g. `rlwe_sign_op`, `RLWE_Functional.ec`, the wrapper
+> bridges `*_eq_rlwe`, and the informal "centralised RLWE sign" reference
+> signer) are retained **proof identifiers** for the single-party reference
+> signer the threshold protocol refines against; they are deliberately not
+> renamed, to keep the EasyCrypt/Lean developments compiling. Corona is a
+> **Module-LWE** scheme (threshold-Raccoon/Ringtail; module dims M=8, N=7
+> over `Z_q[X]/(X^256+1)`).
+
 ## Buckets
 
 - **A — STANDARD-MATH-FACT.** Cited field/algebra/coding identity EC lacks
@@ -33,14 +42,14 @@
 
 ## §1 Construction-level assumptions (cryptographic substrate — NOT Lux-closable)
 
-These are the underlying hardness + soundness assumptions of the R-LWE
+These are the underlying hardness + soundness assumptions of the Module-LWE
 threshold construction, inherited from the literature. They are not closed
 in any Lux work and are not counted in the EC axiom histogram below.
 
 | Assumption | Reference | Rationale for non-closure |
 |---|---|---|
-| Module-LWE / Ring-LWE hardness | Lyubashevsky-Peikert-Regev (TOC 2013); Langlois-Stehlé (DCC 2015) | Standard PQ lattice hardness; same substrate as ML-DSA / ML-KEM. |
-| R-SIS hardness over `R_q` | Ajtai (1996); Micciancio-Regev (SIAM 2007) | Unforgeability reduces to R-SIS at `sign/config.go` parameters. |
+| Module-LWE hardness | Lyubashevsky-Peikert-Regev (TOC 2013); Langlois-Stehlé (DCC 2015) | Standard PQ lattice hardness; same substrate as ML-DSA / ML-KEM. |
+| Module-SIS hardness over `R_q` | Ajtai (1996); Micciancio-Regev (SIAM 2007); Langlois-Stehlé (DCC 2015) | Unforgeability reduces to Module-SIS at `sign/config.go` parameters. |
 | Boschini-Kaviani-Lai-Malavolta-Takahashi-Tibouchi soundness | IACR ePrint 2024/1113; IEEE S&P 2025 | The 2-round threshold protocol's UC-soundness is in the cited paper; Lux's fork inherits it. Note: this is the Ringtail/Corona-family paper, NOT a Pulsar citation. |
 | Pedersen-VSS soundness | Pedersen (CRYPTO 1991) | Corona's DKG (`dkg2/`) reduces to discrete-log hardness. |
 | cSHAKE256 / KMAC256 collision + preimage resistance | NIST SP 800-185 | Domain-separated hashing across DKG/signing/reshare. |
@@ -137,7 +146,7 @@ ADMIT key counts the *word* "admit" in comments and is informational.
 | A13 | `rnd_to_bits_id` | RLWE_Functional.ec:241 | As A10. | As A10. |
 | A14 | `bits_to_sig_id` | RLWE_Functional.ec:242 | As A10. | As A10. |
 | A15 | `poly_degree_nonneg` | Corona_N1.ec:245 | `0 <= poly_degree s` (abstract `poly_degree`). | Discharge after `share_t` concretization. |
-| A16 | `accept_signing_attempt_iff_components` | Corona_N1.ec:547 | accept ⇔ (l2-z ∧ l2-Δ ∧ full-rank): algebra of the R-LWE accept predicate. | Discharge with the concrete accept predicate. |
+| A16 | `accept_signing_attempt_iff_components` | Corona_N1.ec:547 | accept ⇔ (l2-z ∧ l2-Δ ∧ full-rank): algebra of the Module-LWE accept predicate. | Discharge with the concrete accept predicate. |
 | A17 | `compute_mu_injective` | Corona_N1.ec:563 | distinct (m,ctx) ⇒ distinct mu (transcript binder injectivity). | Discharge with concrete transcript_hash. |
 | A18 | `context_bytes_len_bound` | Corona_N1.ec:356 | `0 <= |context_bytes ctx| <= 65535`. | Discharge after `context_bytes` concretization. |
 
@@ -188,24 +197,24 @@ Corona's EC byte-equality (`corona_n1_byte_equality` /
 `CombineAbs.combine`, whose body (`wrapper_combine_refines_abs`, lines
 96–142 of Corona_N1_Combine_Wrapper.ec) reduces — via the bridge axioms
 below — to `rlwe_sign_op (reconstruct quorum shares) m ctx rho_rnd`: the
-**centralised R-LWE signer applied to the Lagrange-reconstructed master
+**centralised Module-LWE signer applied to the Lagrange-reconstructed master
 secret**. This is the **reconstruct-then-sign / CombineAbs reconstruct-then-
 sign abstraction**. The "steps 2–6" of the Boschini combine (the
 `CombineAbs.combine` open/aggregate/reject steps) are **opened**, not
 proved leak-free. The no-leak property of the production signer is
-**interop-tested (Go↔C++ KAT byte-equality; and the production R-LWE path's
+**interop-tested (Go↔C++ KAT byte-equality; and the production Module-LWE path's
 correctness is by code review against the paper), NOT EC-proven**.
 Tracked: `BLOCKERS.md` § "EC reconstruct-then-sign model".
 
 | # | Axiom | File:line | What is assumed (open) |
 |---|---|---|---|
-| C1 | `combine_body_axiom` (declare axiom) | Corona_N1.ec:697 | `T.combine ~ CombineAbs.combine` on honest-quorum inputs — the extracted threshold combine equals the centralised RLWE sign of the reconstructed secret. The module-contract form of the whole combine refinement; closure pathway is the Jasmin byte-walk (production target v0.8.0). |
+| C1 | `combine_body_axiom` (declare axiom) | Corona_N1.ec:697 | `T.combine ~ CombineAbs.combine` on honest-quorum inputs — the extracted threshold combine equals the centralised Module-LWE sign of the reconstructed secret. The module-contract form of the whole combine refinement; closure pathway is the Jasmin byte-walk (production target v0.8.0). |
 | C2 | `S_functional_spec` (declare axiom) | Corona_N1.ec:712 | `S.sign ~ CentralRLWESign.sign` on accepted inputs — the single-party module is a faithful Boschini signer. |
 | C3 | `combine_body_spec` | Corona_N1_Combine_Refinement.ec:63 | the Jasmin-extracted combine writes exactly `combine_abs_op(args)` to sig_out. Atomic byte-walk; **steps 2–6 are inside this axiom, unproved.** |
 | C4 | `sign_body_spec` | Corona_N1_Sign_Refinement.ec:42 | the Jasmin-extracted central sign writes exactly `sign_abs_op(args)` to sig_out. Atomic byte-walk. |
 | C5 | `combine_abs_op_lifted_bridge` | Corona_N1_Combine_Wrapper.ec:47 | the share-typed lifted combine op = the byte-level `combine_abs_op` modulo encoding. The bridge from the abstract module interface to the byte-walk; the security content rides here. |
 | C6 | `sign_abs_op_lifted_bridge` | Corona_N1_Sign_Wrapper.ec:27 | the share-typed lifted sign op = the byte-level `sign_abs_op` modulo encoding. |
-| C7 | `sign_abs_op_lifted_eq_rlwe` | Corona_N1_Sign_Wrapper.ec:38 | **the reconstruct-then-sign identity in its starkest form**: `sign_abs_op_lifted sk … = rlwe_sign_op sk …` — the lifted op IS the centralised Boschini signer (the analog of libjade's role for Pulsar, but in-house since R-LWE has no FIPS target). This is the open Boschini-conformance claim. |
+| C7 | `sign_abs_op_lifted_eq_rlwe` | Corona_N1_Sign_Wrapper.ec:38 | **the reconstruct-then-sign identity in its starkest form**: `sign_abs_op_lifted sk … = rlwe_sign_op sk …` — the lifted op IS the centralised Boschini signer (the analog of libjade's role for Pulsar, but in-house since Module-LWE threshold has no FIPS target). This is the open Boschini-conformance claim. |
 | C8 | `rlwe_sign_size` | RLWE_Functional.ec:204 | per-instance signature byte length under Boschini's rejection-sampling. Carries the construction's wire-size contract; classified C because it is a construction-level claim from the paper, not a pure layout identity. |
 | C9 | `sign_round1_constant_time` (declare axiom) | lemmas/Corona_CT.ec:80 | Round-1 commit is constant-time. A CT *contract*, discharged Jasmin-side via `jasminc -checkCT` (roadmap), NOT by EC; a timing property, so a name/EC claim cannot certify it (see `proof-by-rename.sh` rationale). |
 | C10 | `sign_round2_constant_time` (declare axiom) | lemmas/Corona_CT.ec:110 | Round-2 response is constant-time. As C9. |

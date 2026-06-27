@@ -10,10 +10,10 @@
 |---|---|
 | Submission name | **Corona** |
 | Submitting organisation | Lux Industries, Inc. |
-| Algorithm | Threshold Ring-LWE 2-round signing + Pedersen DKG + proactive resharing |
+| Algorithm | Threshold Module-LWE 2-round signing + Pedersen DKG + proactive resharing |
 | MPTC classes | **N1** (construction-level threshold signing) + **N4** (multi-party key generation with public-key preservation across resharing) |
 | Underlying construction | Boschini, Kaviani, Lai, Malavolta, Takahashi, Tibouchi. *Practical two-round threshold signatures from learning with errors.* IACR ePrint **2024/1113**, IEEE S&P 2025 |
-| Lattice family | Ring-LWE over `R_q = Z_q[X]/(X^N + 1)`, `N = 256`, `q = 0x1000000004A01` (48-bit NTT-friendly prime) |
+| Lattice family | Module-LWE over `R_q = Z_q[X]/(X^N + 1)`, `N = 256`, module dims `M = 8` × `N = 7`, `q = 0x1000000004A01` (48-bit NTT-friendly prime) |
 | Round count | 2 rounds per signature |
 | Hash suite | Corona-SHA3 (cSHAKE256 / KMAC256 / TupleHash256, FIPS 202 + SP 800-185) |
 | Repository | <https://github.com/luxfi/corona> |
@@ -31,17 +31,17 @@
 > a key era (Class N4 invariant).
 
 **Theorem framing**: construction-level interchangeability. Corona
-implements the published Boschini et al. 2-round R-LWE threshold
+implements the published Boschini et al. 2-round Module-LWE threshold
 signature scheme (IACR ePrint 2024/1113) on a fixed parameter set;
 Corona's contribution beyond the academic paper is the production
 lifecycle (Pedersen DKG over `R_q`, proactive resharing, identifiable
 abort, activation certs, KAT-deterministic Corona-SHA3 hash suite).
 
-**Verifier-side reality.** R-LWE threshold signatures have no NIST
+**Verifier-side reality.** Module-LWE threshold signatures have no NIST
 standard at submission time. The Boschini et al. construction
 verifier is the spec. Corona's `sign.Verify` is the canonical
 implementation of that verifier; there is no third-party
-FIPS-validated R-LWE verifier to cross-check against. This is the
+FIPS-validated Module-LWE verifier to cross-check against. This is the
 honest framing distinction from Pulsar (M-LWE / FIPS 204), which
 DOES cross-check against BoringSSL FIPS / AWS-LC / OpenSSL 3.0 PQ.
 
@@ -60,7 +60,7 @@ DOES cross-check against BoringSSL FIPS / AWS-LC / OpenSSL 3.0 PQ.
 
 ## What makes this submission different
 
-1. **Production-hardened R-LWE threshold** — beyond the Boschini et al.
+1. **Production-hardened Module-LWE threshold** — beyond the Boschini et al.
    academic construction, Corona adds Pedersen DKG over `R_q`
    (`dkg2/`), proactive resharing with two distinct primitives
    (`Refresh` for same-set; `ReshareToNewSet` for set rotation),
@@ -122,10 +122,10 @@ The trust base for Corona at submission time reduces to:
 
 | Out-of-scope claim | Why |
 |---|---|
-| Byte-equality with FIPS 204 ML-DSA | That is Pulsar's claim. Corona is R-LWE; ML-DSA is M-LWE. |
-| Mechanized refinement proof | Multi-month research project. No FIPS standard target exists for R-LWE threshold. See `PROOF-CLAIMS.md`. |
-| Post-quantum hardness of R-LWE | Assumed from Lyubashevsky-Peikert-Regev (2010) and follow-up analysis. |
-| ACVP/CAVP algorithm validation certificate | Not applicable — NIST has no ACVP test vector set for R-LWE threshold. |
+| Byte-equality with FIPS 204 ML-DSA | That is Pulsar's claim. Both are Module-LWE, but Corona is the Raccoon/Ringtail-line threshold, not FIPS-204 ML-DSA. |
+| Mechanized refinement proof | Multi-month research project. No FIPS standard target exists for Module-LWE threshold. See `PROOF-CLAIMS.md`. |
+| Post-quantum hardness of Module-LWE | Assumed from Lyubashevsky-Peikert-Regev (2010), the Langlois-Stehlé (2015) module generalisation, and follow-up analysis. |
+| ACVP/CAVP algorithm validation certificate | Not applicable — NIST has no ACVP test vector set for Module-LWE threshold. |
 | FIPS 140-3 module validation | Downstream — applies to packaged modules. |
 | Asynchronous identifiable abort | Synchronous only. |
 | 1-round signing | Construction is 2-round by design (Boschini et al.). |

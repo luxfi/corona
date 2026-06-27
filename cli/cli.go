@@ -23,7 +23,7 @@ func NewCmd() *cobra.Command {
 		Aliases: []string{"corona"},
 		Short:   "Corona threshold signing",
 		Long: `The rt (corona) command provides tools for Corona threshold signing,
-a post-quantum threshold signature scheme using Ring-LWE.
+a post-quantum threshold signature scheme using Module-LWE.
 
 Corona is part of the triple consensus (BLS + Corona + ML-DSA) used
 by Lux validators. It provides threshold signatures where t-of-n parties

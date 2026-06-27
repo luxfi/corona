@@ -175,24 +175,26 @@ Corona v0.4.1 ships a single parameter set:
 ### §9.2 Concrete security claim
 
 Target: ≥ 128 bits of post-quantum security against the best known
-R-LWE attacks per the lattice-estimator methodology of
+Module-LWE attacks per the lattice-estimator methodology of
 Albrecht-Player-Scott.
 
 **Roadmap**: a worksheet with concrete lattice-estimator output for
 the parameter set is roadmap item v0.6.0. At submission scaffolding
 this revision, the concrete bounds are NOT included; the parameter
-set was chosen by Lux engineering against the academic R-LWE
+set was chosen by Lux engineering against the academic Module-LWE
 literature, but the documented worksheet is pending.
 
-### §9.3 R-LWE prior art
+### §9.3 Module-LWE prior art
 
 Underlying construction: Boschini, Kaviani, Lai, Malavolta, Takahashi,
 Tibouchi. *Practical two-round threshold signatures from learning
 with errors.* IACR ePrint 2024/1113, IEEE S&P 2025. EUF-CMA reduction
 in §3 of the paper. Corona inherits the analysis.
 
-R-LWE primitive: Lyubashevsky, Peikert, Regev. *On ideal lattices and
-learning with errors over rings.* EUROCRYPT 2010.
+Module-LWE primitive: Langlois, Stehlé. *Worst-case to average-case
+reductions for module lattices.* Designs, Codes and Cryptography 2015,
+building on the Ring-LWE primitive of Lyubashevsky, Peikert, Regev.
+*On ideal lattices and learning with errors over rings.* EUROCRYPT 2010.
 
 Concrete cryptanalysis literature: Albrecht, Player, Scott. *On the
 concrete hardness of learning with errors.* J. Math. Cryptol. 2015
@@ -206,8 +208,9 @@ IACR ePrint archive 2015–2026.
 - Concrete lattice-estimator output for the parameter set (roadmap
   v0.6.0).
 - Comparison benchmarks against single-party FIPS 204 ML-DSA — Corona
-  and ML-DSA are different lattice families; like-for-like comparison
-  is not meaningful.
+  and ML-DSA are different constructions (both Module-LWE, but a
+  threshold Raccoon-line scheme vs single-party Dilithium); like-for-
+  like comparison is not meaningful.
 - Threshold-vs-single-party overhead measurements at specific (n, t)
   — these depend heavily on network conditions in production; the
   reference benchmark suite measures the local compute portion.

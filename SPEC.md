@@ -1,7 +1,7 @@
-# SPEC — Corona Threshold Ring-LWE Signature (v0.2)
+# SPEC — Corona Threshold Module-LWE Signature (v0.2)
 
 > **Standalone protocol specification** for **Corona** — a 2-round
-> threshold Ring-LWE signature scheme with Pedersen DKG over `R_q`
+> threshold Module-LWE signature scheme with Pedersen DKG over `R_q`
 > and proactive resharing.
 >
 > Companion to:
@@ -17,7 +17,7 @@
 
 ## §1 Scope
 
-This document specifies **Corona**, the Ring-LWE 2-round threshold
+This document specifies **Corona**, the Module-LWE 2-round threshold
 signature construction shipped at `github.com/luxfi/corona`. Corona
 implements the published construction of Boschini, Kaviani, Lai,
 Malavolta, Takahashi, and Tibouchi (IACR ePrint 2024/1113, IEEE S&P
@@ -27,10 +27,10 @@ proactive resharing, identifiable abort, activation certificates,
 KAT-deterministic Corona-SHA3 hash suite).
 
 This spec does NOT cover:
-- The single-party FIPS 204 ML-DSA algorithm (different lattice
-  family — see Pulsar at `~/work/lux/pulsar/`).
+- The single-party FIPS 204 ML-DSA algorithm (a different
+  Module-LWE construction — see Pulsar at `~/work/lux/pulsar/`).
 - Verifier implementations beyond the Corona reference verifier
-  (`sign/sign.go:Verify`). No third-party R-LWE threshold verifier
+  (`sign/sign.go:Verify`). No third-party Module-LWE threshold verifier
   exists at submission time.
 - Pulsar (Module-LWE sibling) — see `https://github.com/luxfi/pulsar`.
 - Magnetar (Tier 3 SLH-DSA research profile) — see
@@ -63,7 +63,7 @@ This spec does NOT cover:
 
 The single-set submission is intentional: Corona ships a fixed
 parameter set tuned to provide ≥ 128 bits of post-quantum security
-against the best known R-LWE attacks (per the lattice-estimator
+against the best known Module-LWE attacks (per the lattice-estimator
 methodology of Albrecht-Player-Scott). A second parameter set
 targeting NIST PQ Category 3 is on the roadmap but is NOT in this
 submission package.
@@ -78,8 +78,9 @@ Per `DESIGN.md` §"Three layers, one shipping path". Summary:
 - Pedersen DKG (`dkg2/`) provides hiding and binding; legacy `dkg/`
   (Feldman VSS without blinding) is documented as broken for public
   broadcast and is retained for historical reference only.
-- R-LWE hardness over the fixed parameter set (Lyubashevsky-Peikert-
-  Regev 2010 + follow-up analysis).
+- Module-LWE hardness over the fixed parameter set (Langlois-Stehlé
+  2015 module generalisation of Lyubashevsky-Peikert-Regev 2010 +
+  follow-up analysis).
 - cSHAKE256 / KMAC256 / TupleHash256 collision/preimage resistance
   per FIPS 202 + SP 800-185.
 
@@ -181,7 +182,7 @@ The verifier:
 3. Verifies `c' == c` via constant-time `r.Equal` (lattigo).
 4. Checks low-norm bound on `z` (`primitives.CheckL2Norm`).
 
-No third-party FIPS-validated verifier exists for R-LWE threshold
+No third-party FIPS-validated verifier exists for Module-LWE threshold
 signatures at submission time. Corona's verifier is the spec.
 
 ## §9 Proactive resharing

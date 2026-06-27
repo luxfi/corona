@@ -1,3 +1,7 @@
+(* NAMING NOTE: 'RLWE' / 'rlwe_*' identifiers and the RLWE_Functional    *)
+(* theory are the retained proof names for the single-party reference    *)
+(* signer; the scheme is Module-LWE (threshold-Raccoon/Ringtail; module  *)
+(* dims M=8, N=7 over Z_q[X]/(X^256+1)). Identifiers are not renamed.    *)
 (* -------------------------------------------------------------------- *)
 (* Corona -- Class N1 byte-equality reduction                           *)
 (* -------------------------------------------------------------------- *)

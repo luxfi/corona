@@ -17,7 +17,7 @@
 +--------------------------------------------------------------+
 | share storage / signing: sealed share -> Round1/Round2/Final  |  crypto
 +--------------------------------------------------------------+
-| Corona kernel: 2-round R-LWE signing                          |  math
+| Corona kernel: 2-round Module-LWE signing                     |  math
 +--------------------------------------------------------------+
 ```
 
@@ -287,7 +287,7 @@ unwrapped `KeyShare` struct.
 
 **Status**: NOT recommended. Intel SGX has a long published CVE
 record of micro-architectural side-channel attacks (Foreshadow,
-ZombieLoad, LVI, ÆPIC Leak). Corona's R-LWE arithmetic spends
+ZombieLoad, LVI, ÆPIC Leak). Corona's Module-LWE arithmetic spends
 significant time on `lattigo`'s NTT and Gaussian sampling — both
 data-dependent paths that have been demonstrated vulnerable to
 side-channel extraction on SGX in the published literature.

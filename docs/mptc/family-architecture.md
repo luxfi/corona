@@ -6,12 +6,13 @@
 
 ## §1 The three-library family
 
-Lux ships three post-quantum threshold signature libraries with
-distinct lattice families and use cases:
+Lux ships three post-quantum threshold signature libraries spanning
+two post-quantum families (Module-LWE lattice and hash-based) with
+distinct constructions and use cases:
 
-| Library | Lattice | Role | NIST MPTC class | Repository |
+| Library | Family / construction | Role | NIST MPTC class | Repository |
 |---|---|---|---|---|
-| **Corona** (this) | Ring-LWE (`R_q`) | Consensus-finality threshold (Quasar R-LWE finality kernel) | N1 + N4 (construction-level) | `luxfi/corona` |
+| **Corona** (this) | Module-LWE (`R_q^{8×7}`), Raccoon/Ringtail line | Consensus-finality threshold (Quasar Module-LWE finality kernel) | N1 + N4 (construction-level) | `luxfi/corona` |
 | **Pulsar** | Module-LWE (`R_q^k × R_q^l`) | Identity-layer threshold + FIPS 204 byte-equality | N1 + N4 (FIPS-anchored) | `luxfi/pulsar` |
 | **Magnetar** (research) | SLH-DSA (FIPS 205) | Hash-based fallback (research-stage) | not submitted at this writing | `luxfi/magnetar` |
 
@@ -23,9 +24,9 @@ layer (e.g., QuasarCert combines Corona + Pulsar + BLS).
 
 | Decomposition axis | Choice rationale |
 |---|---|
-| Per-lattice-family library | A break in one lattice family (R-LWE vs M-LWE vs hash-based) should not break the others. Independent libraries with no shared types is the safest decomposition for defence-in-depth. |
+| Per-construction library | A flaw in one library — whether a construction-specific cryptanalytic break or an implementation bug — should not break the others. Corona and Pulsar are both Module-LWE, so this isolates construction/implementation faults between them, not a break of Module-LWE itself; Magnetar's hash-based SLH-DSA additionally diversifies the hardness assumption. Independent libraries with no shared types is the safest decomposition for defence-in-depth. |
 | No shared types | Pulsar and Corona share NO Go types. If a vulnerability is found in Corona, the fix landing in Corona does not touch Pulsar (and vice versa). Each library's go.mod is independent. |
-| Separate KAT vectors | Pulsar's KATs target FIPS 204 byte-equality. Corona's KATs target Go ↔ C++ cross-runtime byte-equality. The two KAT formats are intentionally different (different lattice algebra; different signature byte layouts). |
+| Separate KAT vectors | Pulsar's KATs target FIPS 204 byte-equality. Corona's KATs target Go ↔ C++ cross-runtime byte-equality. The two KAT formats are intentionally different (different parameter sets and constructions; different signature byte layouts). |
 | Separate hash-suite registries | Pulsar uses SHAKE / cSHAKE / KMAC per FIPS 204 layouts. Corona uses cSHAKE256 / KMAC256 / TupleHash256 per FIPS 202 + SP 800-185 with `CORONA-*` customization strings. Even though the underlying primitives overlap, the domain-separation registries are disjoint. |
 
 ## §3 Composition surface — QuasarCert
@@ -36,10 +37,10 @@ Lattice** layered certificate:
 
 ```
 QuasarCert {
-    BLS         — classical fast-path (BLS-12-381 aggregate); pre-quantum
-    Corona      — Ring-LWE   threshold (this repo)            ; PQ kernel A
-    Pulsar      — Module-LWE threshold (luxfi/pulsar)         ; PQ kernel B
-    MLDSARollup — per-validator ML-DSA-65 rolled up via P3Q   ; PQ accountability
+    BLS         — classical fast-path (BLS-12-381 aggregate)       ; pre-quantum
+    Corona      — Module-LWE threshold, Raccoon line (this repo)   ; PQ kernel A
+    Pulsar      — Module-LWE threshold ML-DSA (luxfi/pulsar)       ; PQ kernel B
+    MLDSARollup — per-validator ML-DSA-65 rolled up via P3Q        ; PQ accountability
 }
 ```
 
@@ -107,15 +108,15 @@ Naming history (from `LLM.md` and `DESIGN.md`):
 - **Pulsar** — the M-LWE threshold ML-DSA library at `luxfi/pulsar`.
   Named for the rotating-neutron-star metaphor: persistent group
   key, rotating share distribution.
-- **Corona** — the R-LWE threshold library (this repo). Named for
-  the luminous ring of light surrounding a star, brand-paired with
-  Pulsar at a different lattice layer.
+- **Corona** — the Module-LWE threshold library (this repo). Named
+  for the luminous ring of light surrounding a star, brand-paired
+  with Pulsar at a different layer.
 
 A historical rename from `Pulsar` → `Corona` happened in 2026 when
-the M-LWE work picked up the `Pulsar` name and the R-LWE work
-retained the pulsar metaphor under the `Corona` brand. The
+the ML-DSA work picked up the `Pulsar` name and the Ringtail/Raccoon-line
+work retained the pulsar metaphor under the `Corona` brand. The
 `papers/lp-073-pulsar/` directory retains the old name; the LaTeX
-sections inside refer to the R-LWE construction (now called Corona)
+sections inside refer to the Module-LWE construction (now called Corona)
 under the historical paper name LP-073.
 
 ## §7 Two distinct primitives, one lifecycle
@@ -159,7 +160,7 @@ What is preserved across Reanchor:
 ## §9 Relationship to the upstream academic construction
 
 Boschini, Kaviani, Lai, Malavolta, Takahashi, Tibouchi (IACR ePrint
-2024/1113, IEEE S&P 2025) published the 2-round R-LWE threshold
+2024/1113, IEEE S&P 2025) published the 2-round Module-LWE threshold
 signature construction. The paper specifies:
 - The 2-round signing protocol (Round 1 commit + Round 2 response +
   Combine).

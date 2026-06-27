@@ -27,7 +27,7 @@ NOT the production residual (RE-SCOPED this pass).**
 `_extracted` prove the threshold combine equals `CombineAbs.combine`, whose
 body reduces — via `combine_abs_op_lifted_bridge` and
 `sign_abs_op_lifted_eq_rlwe` — to `rlwe_sign_op (reconstruct quorum
-shares) …`: the centralised R-LWE signer applied to the
+shares) …`: the centralised Module-LWE signer applied to the
 **Lagrange-reconstructed master secret**. The Boschini combine steps 2–6 are
 opened inside `combine_body_spec`, not proved. So Model 1 is machine-checked
 (0 admits) modulo a C-cone that **reconstructs-then-signs** — an idealised
@@ -54,7 +54,7 @@ pending EasyCrypt**; its Lean core is machine-checked now.
 **Disclosure 2 — the no-leak property is NOT independently interop-tested.**
 Corona's KAT cross-validation is **Go↔C++ of the SAME construction**
 (`luxcpp/crypto/corona`), not against an independent verifier. There is no
-CIRCL/pq-crystals analog for R-LWE (no NIST target). So Corona's combine
+CIRCL/pq-crystals analog for Module-LWE (no NIST target). So Corona's combine
 output byte-equality is **asserted + same-construction-KAT-tested**, NOT
 interop-tested in the ≥2-independent-implementations sense (unlike Pulsar's
 CIRCL + pq-crystals). We therefore do NOT claim Corona byte-equality is
@@ -138,27 +138,28 @@ secret). See §0 Disclosure 1.
 The implementation-backed N1 byte-equality theorem to cite is
 `Corona_N1_Extracted.corona_n1_byte_equality_extracted`.
 
-R-LWE threshold signing has no NIST standard target. The Boschini
+Module-LWE threshold signing has no NIST standard target. The Boschini
 et al. ePrint 2024/1113 construction IS the spec; the EC theories
 refine the Go implementation against the in-house mechanization of
 that spec (`lemmas/RLWE_Functional.ec`), which is the analog of
 Pulsar's libjade dependence on FIPS 204.
 
-### §3.2 NOT proved: lattice-hardness of R-LWE
+### §3.2 NOT proved: lattice-hardness of Module-LWE
 
 This submission says nothing about the post-quantum hardness of
-Ring-LWE itself. R-LWE security rests on Lyubashevsky-Peikert-Regev
-(2010) and follow-up cryptanalytic analysis. The parameter set
+Module-LWE itself. Module-LWE security rests on Lyubashevsky-Peikert-Regev
+(2010), the Langlois-Stehlé (2015) module generalisation, and follow-up
+cryptanalytic analysis. The parameter set
 (`N = 256`, `q = 0x1000000004A01`, 48-bit prime) was chosen to
 provide ≥ 128 bits of post-quantum security per lattice-estimator
 methodology — but Corona ships no parameter-set worksheet at this
 revision; that is roadmap item v0.6.0.
 
 **The defensible PQ-safety claim**:
-> Corona implements a published academic R-LWE threshold signature
+> Corona implements a published academic Module-LWE threshold signature
 > construction (Boschini et al. ePrint 2024/1113) on a parameter
 > set chosen to provide ≥ 128 bits of post-quantum security against
-> known R-LWE attacks per the lattice-estimator methodology of
+> known Module-LWE attacks per the lattice-estimator methodology of
 > Albrecht-Player-Scott. The construction's EUF-CMA reduction is in
 > the cited paper.
 
@@ -168,9 +169,10 @@ revision; that is roadmap item v0.6.0.
 ### §3.3 NOT proved: byte-equality with FIPS 204 ML-DSA
 
 Corona signatures are NOT byte-equal to FIPS 204 ML-DSA signatures.
-The two constructions use different lattice families (Corona is
-R-LWE; ML-DSA is M-LWE), different ring degrees, different
-parameter sets. Any reviewer expecting FIPS 204 byte-equality
+The two constructions are different schemes within the Module-LWE
+family (Corona is the Raccoon/Ringtail line; ML-DSA is the Dilithium
+line), with different moduli, module dimensions, and parameter sets.
+Any reviewer expecting FIPS 204 byte-equality
 should look at the Pulsar sibling at `~/work/lux/pulsar/`.
 
 ### §3.4 NOT proved: statistical constant-time validation (dudect)
@@ -273,7 +275,7 @@ same-construction Go↔C++ KAT only (§0 Disclosure 2).
 
 > Corona's submission package establishes that the Go reference
 > implementation faithfully implements the Boschini, Kaviani, Lai,
-> Malavolta, Takahashi, and Tibouchi 2-round R-LWE threshold
+> Malavolta, Takahashi, and Tibouchi 2-round Module-LWE threshold
 > signature construction (IACR ePrint 2024/1113, IEEE S&P 2025) on a
 > fixed parameter set, plus production lifecycle additions (Pedersen
 > DKG over `R_q`, proactive resharing with Refresh + ReshareToNewSet
@@ -282,7 +284,7 @@ same-construction Go↔C++ KAT only (§0 Disclosure 2).
 > suite). Unlike the Pulsar sibling submission (which ships a
 > mechanized EasyCrypt + Lean + Jasmin refinement chain against
 > FIPS 204), Corona ships NO machine-checked refinement at this
-> submission — R-LWE has no NIST standard target, the construction
+> submission — Module-LWE has no NIST standard target, the construction
 > IS the spec, and mechanizing the construction itself is a multi-
 > month research roadmap item. Corona's correctness evidence
 > reduces to code review of the Go reference against the published

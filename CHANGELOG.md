@@ -288,7 +288,7 @@ from the v0.6.0 sign-off.
 - `~/work/lux/proofs/lean/Crypto/Corona/OutputInterchange.lean` --
   Class N1 verifier-compatibility.
 - `~/work/lux/proofs/lean/Crypto/Corona/Unforgeability.lean` --
-  EUF-CMA reduction to Ring-LWE.
+  EUF-CMA reduction to Module-LWE.
 - `~/work/lux/proofs/lean/Crypto/Corona/dkg2.lean` -- Pedersen-VSS DKG.
 
 ### Jasmin sources
@@ -350,7 +350,7 @@ FIPS 204 sibling), adapted honestly to Corona's lighter proof tier.
 
 - `SUBMISSION.md` — NIST MPTC cover sheet. Cites Boschini et al. ePrint
   2024/1113 (IEEE S&P 2025) as the underlying construction. Declares
-  construction-level N1 (no FIPS standard target available for R-LWE
+  construction-level N1 (no FIPS standard target available for Module-LWE
   threshold) + N4 (`(A, bTilde)` preserved across reshare within key era).
   Two-variant honesty disclosure: Pedersen DKG (`dkg2/`) is the production
   path; legacy `dkg/` is retained for historical reference only.
@@ -380,7 +380,7 @@ FIPS 204 sibling), adapted honestly to Corona's lighter proof tier.
   Boschini et al. construction).
 - `docs/design-decisions.md`, `docs/family-architecture.md`,
   `docs/threat-model.md` — adapted from Pulsar's pattern to Corona's
-  R-LWE / `R_q` setting.
+  Module-LWE / `R_q` setting.
 
 ### Honest gaps documented
 
@@ -394,7 +394,7 @@ This submission EXPLICITLY does NOT include (per `PROOF-CLAIMS.md` §3):
   `papers/lp-073-pulsar/` are the current canonical material).
 - Parameter-set worksheet with concrete lattice-estimator bounds.
 - ACVP/CAVP algorithm validation certificate (no NIST ACVP test vector
-  set exists for R-LWE threshold).
+  set exists for Module-LWE threshold).
 - FIPS 140-3 module validation (downstream).
 - External cryptographic audit (engaged lab) — roadmap v0.8.0.
 

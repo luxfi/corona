@@ -22,7 +22,7 @@ auditable.
 
 **Maturity stamp**: v0.2 ready. This submission is **not**
 NIST-ratified, **not** FIPS 140-3 validated, **not** ACVP-validated,
-and explicitly **not anchored to a FIPS standard** (R-LWE threshold
+and explicitly **not anchored to a FIPS standard** (Module-LWE threshold
 signing has no NIST standard — the academic Boschini et al. paper is
 the construction spec). It is the algorithm-level reference plus
 production lifecycle additions plus reproducibility tooling.
@@ -33,10 +33,10 @@ production lifecycle additions plus reproducibility tooling.
 |---|---|
 | Submission name | **Corona** |
 | Submitting organisation | Lux Industries, Inc. |
-| Algorithm | Threshold Ring-LWE 2-round signing + DKG + proactive resharing |
+| Algorithm | Threshold Module-LWE 2-round signing + DKG + proactive resharing |
 | Target NIST MPTC classes | **N1** (threshold signing, single-party-output-compatible against the construction's own verifier) + **N4** (multi-party key generation with public-key preservation across resharing) |
 | Underlying construction | Boschini, Kaviani, Lai, Malavolta, Takahashi, Tibouchi. *Practical two-round threshold signatures from learning with errors.* IACR ePrint **2024/1113**, IEEE S&P 2025 |
-| Lattice family | Ring-LWE over `R_q = Z_q[X]/(X^N + 1)`, `N = 256`, `q = 0x1000000004A01` (48-bit NTT-friendly prime) |
+| Lattice family | Module-LWE over `R_q = Z_q[X]/(X^N + 1)`, `N = 256`, module dims `M = 8` × `N = 7`, `q = 0x1000000004A01` (48-bit NTT-friendly prime) |
 | Round count | 2 rounds per signature |
 | Signature output | Byte-compatible with the construction's own verifier (`sign.Verify`); **NOT byte-equal to FIPS 204 ML-DSA** — that property belongs to the M-LWE sibling [`luxfi/pulsar`](https://github.com/luxfi/pulsar) |
 | Hash suite | Corona-SHA3 (cSHAKE256 / KMAC256 / TupleHash256 per FIPS 202 + SP 800-185); legacy Corona-BLAKE3 retained for cross-port byte checks |
@@ -59,12 +59,12 @@ production lifecycle additions plus reproducibility tooling.
 > events within a key era (Class N4 invariant).
 
 This is a **construction-level interchangeability** claim, NOT a FIPS
-204 byte-equality claim. Corona uses Ring-LWE arithmetic that has no
+204 byte-equality claim. Corona uses Module-LWE arithmetic that has no
 NIST standard analogue at the time of submission; the Boschini et al.
 construction IS the spec.
 
 **Verifier-side story (load-bearing for N1 framing).** Because there
-is no NIST standard R-LWE threshold signature, the Class N1
+is no NIST standard Module-LWE threshold signature, the Class N1
 "output-interchangeability" axis is reduced to: any verifier that
 accepts a single-party run of the underlying Boschini et al.
 construction MUST accept a Corona threshold-aggregated signature on
@@ -75,7 +75,7 @@ in that respect. A reviewer evaluating the N1 claim should compare
 Corona's threshold-emitted bytes to the bytes a single-party run of
 the same parameter set would produce on the reconstructed secret —
 the comparison is via the same `Verify` routine, not via a third
-party FIPS-validated verifier (which does not exist for R-LWE
+party FIPS-validated verifier (which does not exist for Module-LWE
 threshold).
 
 ## Algorithm scope
@@ -169,7 +169,7 @@ tests, tars the entire submission checkout, and prints the SHA-256.
 
 The N1 claim is asserted at **three** levels of evidence (one fewer
 than Pulsar; the missing level is the machine-checked refinement
-chain, because R-LWE has no FIPS standard to refine against):
+chain, because Module-LWE threshold has no FIPS standard to refine against):
 
 | Evidence | Where |
 |---|---|
@@ -181,7 +181,7 @@ chain, because R-LWE has no FIPS standard to refine against):
 
 - No EasyCrypt refinement chain (Corona has no FIPS-standard target).
 - No Lean ↔ EC algebraic bridge files.
-- No Jasmin high-assurance implementation (libjade does not cover Corona's R-LWE parameter set).
+- No Jasmin high-assurance implementation (libjade does not cover Corona's Module-LWE parameter set).
 - No machine-checked `Class N1 byte-equality` theorem.
 
 The honest framing for Corona is: **production-hardened
@@ -216,7 +216,7 @@ delta:
 | 5/5 Lean ↔ EC algebraic-bridge files | none | NOT PRESENT |
 | 3/3 jasmin-ct blocking on threshold layer | none | NOT PRESENT — libjade does not target this parameter set |
 | Class N1 byte-equality theorem (mechanized) | construction-level claim only | NOT MECHANIZED — Boschini et al. paper is the spec, no FIPS target |
-| `pq-crystals` / BoringSSL / OpenSSL cross-validation | none possible | NOT APPLICABLE — no third-party R-LWE threshold verifier exists |
+| `pq-crystals` / BoringSSL / OpenSSL cross-validation | none possible | NOT APPLICABLE — no third-party Module-LWE threshold verifier exists |
 
 What Corona DOES offer at submission-time:
 
@@ -238,7 +238,7 @@ What Corona DOES offer at submission-time:
 ## What this submission does NOT claim
 
 - **No byte-equality with FIPS 204 ML-DSA** — that is Pulsar's claim.
-  Corona is an independent R-LWE construction with no NIST standard
+  Corona is an independent Module-LWE construction with no NIST standard
   to verify against.
 - **No mechanized refinement proof** — no EasyCrypt, no Lean, no
   Jasmin. The construction is the published academic paper; the Go
@@ -249,7 +249,7 @@ What Corona DOES offer at submission-time:
   cryptographic modules, not this reference implementation. Downstream
   of this submission.
 - **No ACVP / CAVP algorithm validation certificate** — no NIST ACVP
-  test vector set exists for R-LWE threshold signatures.
+  test vector set exists for Module-LWE threshold signatures.
 - **No identifiable abort under network partition** — synchronous
   network assumption only; asynchronous identifiable abort is a
   separate problem.
@@ -267,17 +267,21 @@ What Corona DOES offer at submission-time:
 
 | Submission | Lattice | Round count | Output story | NIST class |
 |---|---|---|---|---|
-| **Corona** (this) | Ring-LWE (R-LWE) | 2 | Construction-level interchangeable with single-party Corona verifier; no NIST standard target | N1 + N4 |
+| **Corona** (this) | Module-LWE (Raccoon/Ringtail line) | 2 | Construction-level interchangeable with single-party Corona verifier; no NIST standard target | N1 + N4 |
 | **Pulsar** ([`luxfi/pulsar`](https://github.com/luxfi/pulsar)) | Module-LWE (M-LWE) | 2 | Byte-equal to FIPS 204 ML-DSA-65 | N1 + N4 |
 | Raccoon (NIST PQC) | Module-LWE | 3 | Compatible verification | not MPTC |
-| Boschini et al. (academic upstream) | R-LWE | 2 | Construction-level; trusted-dealer Gen only | not submitted as MPTC |
+| Boschini et al. (academic upstream) | Module-LWE | 2 | Construction-level; trusted-dealer Gen only | not submitted as MPTC |
 
-The R-LWE / M-LWE pair is intentional. Lux's primary-network
-QuasarCert MAY combine Corona (R-LWE) and Pulsar (M-LWE) as a
-**Double Lattice** layered defence so a break in one lattice family
-does not break finality. That layered combination is the consumer's
-design choice and is not part of this submission. Corona stands
-alone as an MPTC Class N1 + N4 candidate.
+The Corona / Pulsar pair is intentional. Both are Module-LWE, but they
+are distinct constructions (Corona is the Ringtail/Raccoon-line threshold;
+Pulsar is FIPS-204 ML-DSA made threshold). Lux's primary-network
+QuasarCert MAY combine them as a **Double Lattice** layered defence so a
+break in one *construction or implementation* does not break finality.
+Because both legs are Module-LWE, a break of the shared Module-LWE problem
+would affect both — the diversity is at the construction/implementation
+layer, not the lattice family. That layered combination is the consumer's
+design choice and is not part of this submission. Corona stands alone as
+an MPTC Class N1 + N4 candidate.
 
 ## Contact
 

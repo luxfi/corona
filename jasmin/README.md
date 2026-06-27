@@ -1,6 +1,6 @@
 # Corona Jasmin sources
 
-Constant-time threshold layer + centralized R-LWE Sign reference,
+Constant-time threshold layer + centralized Module-LWE Sign reference,
 written in Jasmin (https://github.com/jasmin-lang/jasmin) for
 jasmin-ct verification + EasyCrypt extraction.
 
@@ -10,7 +10,7 @@ jasmin-ct verification + EasyCrypt extraction.
 jasmin/
   lib/                  -- Shared primitives (corona_params, seed,
                            transcript, mac, lagrange).
-  rlwe/                 -- Centralized R-LWE Sign (single-party).
+  rlwe/                 -- Centralized Module-LWE Sign (single-party).
   threshold/            -- Threshold round1.jazz, round2.jazz,
                            combine.jazz.
 ```

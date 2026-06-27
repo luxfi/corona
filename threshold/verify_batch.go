@@ -4,7 +4,7 @@
 package threshold
 
 // verify_batch.go -- parallel CPU batch verifier for Corona
-// (Ring-LWE 2-round threshold) signatures.
+// (Module-LWE 2-round threshold) signatures.
 //
 // Corona signatures are NOT FIPS 204 byte-equal (that's Pulsar's
 // Module-LWE sibling); the wire encoding is the (C, Z, Delta) ring

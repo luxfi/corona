@@ -1,4 +1,9 @@
-// Corona centralized R-LWE Sign reference (single-party).
+// Corona centralized Module-LWE Sign reference (single-party).
+//
+// NAMING NOTE: the jasmin/rlwe/ directory name is a retained build-path
+// identifier (referenced by scripts/checks/extraction.sh and jasmin.sh);
+// the scheme is Module-LWE (threshold-Raccoon/Ringtail). The path is kept
+// as-is so the high-assurance scripts keep resolving it.
 //
 // Mirrors the centralized signer for the Boschini construction (single
 // party holds the full secret). This is the dispatch target the

@@ -1,4 +1,4 @@
-# PATENTS — Corona Threshold Ring-LWE Signature
+# PATENTS — Corona Threshold Module-LWE Signature
 
 > **Statement of Intellectual Property and Royalty-Free Patent Grant**
 > for the Corona threshold-signing construction submitted to the NIST
@@ -15,7 +15,7 @@ interoperability test.
 
 The grant terminates automatically and prospectively against any
 party that asserts a patent claim against Corona, the underlying
-Boschini et al. R-LWE construction, FIPS 204 ML-DSA, or any other
+Boschini et al. Module-LWE construction, FIPS 204 ML-DSA, or any other
 NIST-standardized post-quantum signature scheme. Defensive
 termination mirrors Apache-2.0 §3.
 
@@ -38,8 +38,8 @@ It does NOT cover, and explicitly DISCLAIMS, the following prior art:
 
 | Component | Status |
 |---|---|
-| The base 2-round Ring-LWE threshold construction (Boschini, Kaviani, Lai, Malavolta, Takahashi, Tibouchi. *Practical two-round threshold signatures from learning with errors.* IACR ePrint 2024/1113, IEEE S&P 2025) | Academic prior art. Corona implements this construction unchanged in its math. Lux asserts no patents on the published Boschini et al. algorithm itself. |
-| Ring-LWE (R-LWE) primitive (Lyubashevsky, Peikert, Regev. *On ideal lattices and learning with errors over rings.* EUROCRYPT 2010) | Academic / public domain. |
+| The base 2-round Module-LWE threshold construction (Boschini, Kaviani, Lai, Malavolta, Takahashi, Tibouchi. *Practical two-round threshold signatures from learning with errors.* IACR ePrint 2024/1113, IEEE S&P 2025) | Academic prior art. Corona implements this construction unchanged in its math. Lux asserts no patents on the published Boschini et al. algorithm itself. |
+| Module-LWE primitive (Langlois, Stehlé. *Worst-case to average-case reductions for module lattices.* Designs, Codes and Cryptography 2015), building on the Ring-LWE primitive (Lyubashevsky, Peikert, Regev. *On ideal lattices and learning with errors over rings.* EUROCRYPT 2010) | Academic / public domain. |
 | Shamir secret sharing (1979) | Public domain. |
 | Lagrange polynomial interpolation | Classical mathematics. |
 | Pedersen verifiable secret sharing (Pedersen 1991) | Academic prior art. Corona's `dkg2/` adapts the Pedersen VSS construction to `R_q^M` lattice commits; the adaptation pattern is generic. |
@@ -55,7 +55,7 @@ Subject to attorney review (see `docs/patent-claims.md` for the
 detailed numbered claim drafts), Lux considers the following Corona
 contributions to be candidates for patent protection. Note: this
 list is intentionally narrower than Pulsar's because the underlying
-2-round R-LWE construction is published academic prior art (Boschini
+2-round Module-LWE construction is published academic prior art (Boschini
 et al. 2024/1113). Corona's novel contributions are the production
 lifecycle layers atop the published construction.
 
@@ -79,14 +79,14 @@ implementation in `dkg2/`.
 
 Proactive secret-sharing protocol that rotates shares across
 committee changes while preserving the group public key `(A, bTilde)`
-in the R-LWE setting. Permits long-lived public identity with
+in the Module-LWE setting. Permits long-lived public identity with
 rotating custodians. Two distinct primitives:
 
 - `Refresh` — same committee, fresh shares (HJKY97 lineage adapted
-  to R-LWE).
+  to Module-LWE).
 - `ReshareToNewSet` — set rotation with `t_old → t_new` threshold
   changes (Desmedt-Jajodia / Wong-Wang-Wing lineage adapted to
-  R-LWE).
+  Module-LWE).
 
 Detailed in `papers/lp-073-pulsar/lp-073-pulsar-resharing.tex`;
 implementation in `reshare/`.
@@ -179,7 +179,7 @@ injection into Sign"; implementation in `primitives/hash.go` +
 >
 > (i) The Corona construction; or
 > (ii) The underlying Boschini-Kaviani-Lai-Malavolta-Takahashi-Tibouchi
->      2-round R-LWE threshold signature construction (IACR ePrint
+>      2-round Module-LWE threshold signature construction (IACR ePrint
 >      2024/1113); or
 > (iii) FIPS 204 ML-DSA, or any other NIST-standardized post-quantum
 >       signature scheme; or
@@ -229,7 +229,7 @@ lifecycle additions as follows:
    for §102 purposes; filing before submission preserves priority).
 
 2. **PCT international application** within 12 months of the
-   provisional, designating jurisdictions where R-LWE deployment is
+   provisional, designating jurisdictions where Module-LWE deployment is
    anticipated (EU, JP, CN, KR, IN, AU, CA, UK, BR).
 
 3. **EPO and major-jurisdiction national-phase entries** at the PCT
@@ -273,7 +273,7 @@ signature schemes.
 
 ### §5.3 Compatibility with the published Boschini et al. construction
 
-The underlying 2-round R-LWE threshold protocol is published in the
+The underlying 2-round Module-LWE threshold protocol is published in the
 academic literature (IACR ePrint 2024/1113, IEEE S&P 2025). Lux
 asserts no patents on the published academic construction itself;
 Corona's claims are limited to the production-lifecycle additions.

@@ -1,11 +1,11 @@
-# IETF Internet-Draft Skeleton — Corona Threshold Ring-LWE Signature
+# IETF Internet-Draft Skeleton — Corona Threshold Module-LWE Signature
 
 > **HONEST FRAMING**: this document is a **draft skeleton**, not a
 > submitted Internet-Draft. The CFRG submission timing is contingent
 > on the v0.7.0 mechanized refinement work and the v0.8.0 external
 > audit landing. At submission scaffolding this revision, the
 > skeleton enumerates the sections an eventual `draft-luxfi-cfrg-
-> corona-threshold-rlwe-XX.txt` would carry; it does NOT claim CFRG
+> corona-threshold-mlwe-XX.txt` would carry; it does NOT claim CFRG
 > adoption, working-group status, or any timeline.
 >
 > The canonical algorithmic spec at this submission revision is
@@ -21,14 +21,14 @@ Internet-Draft                                       Lux Industries, Inc.
 Intended status: Informational                                 [draft-XX]
 Expires: [TBD]                                                 [date-XX]
 
-       Corona: a 2-round threshold Ring-LWE signature scheme
+       Corona: a 2-round threshold Module-LWE signature scheme
                  with proactive resharing
-              draft-luxfi-cfrg-corona-threshold-rlwe-XX
+              draft-luxfi-cfrg-corona-threshold-mlwe-XX
 
 Abstract
 
    This document specifies Corona, a 2-round threshold signature
-   scheme over Ring-LWE for use in post-quantum threshold signing
+   scheme over Module-LWE for use in post-quantum threshold signing
    deployments. Corona implements the construction of Boschini,
    Kaviani, Lai, Malavolta, Takahashi, and Tibouchi (IACR ePrint
    2024/1113, IEEE S&P 2025) on a fixed parameter set, plus
@@ -41,8 +41,9 @@ Abstract
 
 - §1.1 Motivation — threshold PQ signatures for blockchain finality
   (Quasar consensus reference).
-- §1.2 Relationship to FIPS 204 ML-DSA — Corona is R-LWE; ML-DSA is
-  M-LWE; the two are independent. The M-LWE sibling is Pulsar
+- §1.2 Relationship to FIPS 204 ML-DSA — Corona and ML-DSA are both
+  Module-LWE but distinct constructions (Corona is the Raccoon/Ringtail
+  line); the two are independent. The ML-DSA sibling is Pulsar
   (`luxfi/pulsar`).
 - §1.3 Document scope — algorithm specification + reference
   parameter set; deployment specifics (HSM, validator orchestration)
@@ -157,7 +158,7 @@ See `SPEC.md` §13 + `hash/sp800_185.go`.
 
 ## §13 Security considerations
 
-- §13.1 R-LWE hardness assumption.
+- §13.1 Module-LWE hardness assumption.
 - §13.2 EUF-CMA reduction — inherited from Boschini et al. ePrint
   2024/1113 §3.
 - §13.3 Constant-time guarantees on threshold + dkg2 paths.
@@ -212,7 +213,7 @@ revisions may request:
   Dynamic and Resilient Threshold Signatures.* August 2025.
 - [FIPS204] NIST. *Module-Lattice-Based Digital Signature Standard
   (ML-DSA).* August 2024. (For context — Pulsar (M-LWE) targets
-  byte-equality with FIPS 204; Corona (R-LWE) does NOT.)
+  byte-equality with FIPS 204; Corona (Module-LWE) does NOT.)
 
 ## Appendix A — Test vectors
 

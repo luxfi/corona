@@ -7,7 +7,7 @@ N4 reshare / code-review-against-Boschini claims are at the disclosed
 v0.7.0/v0.8.0-roadmap tier; the EasyCrypt byte-equality proof rests on an
 OPEN reconstruct-then-sign axiom cone, the constant-time evidence is a
 static audit (dudect-submission-grade pending), and there is no independent
-interop verifier for the R-LWE construction. None of these is hidden — they
+interop verifier for the Module-LWE construction. None of these is hidden — they
 are the honest proof-tier of a published-construction implementation. See
 `PROOF-CLAIMS.md` §0 and `AXIOM-INVENTORY.md` §C.
 
@@ -43,7 +43,7 @@ admits) **relative to** the bucket-C-idealised axioms:
   steps 2–6 are INSIDE it, unproved.
 - `combine_abs_op_lifted_bridge` + `sign_abs_op_lifted_eq_rlwe` — the
   wrapper bridges pinning the lifted op to
-  `rlwe_sign_op (reconstruct quorum shares) …`, i.e. the centralised R-LWE
+  `rlwe_sign_op (reconstruct quorum shares) …`, i.e. the centralised Module-LWE
   signer on the **Lagrange-reconstructed master secret**.
 - `combine_body_axiom` / `S_functional_spec` — the section-local contracts.
 
@@ -126,7 +126,7 @@ residual C11′ and the unchanged B-bucket codec bridges.
 Remaining OPEN:
 
 - The production no-leak path's correctness is ALSO established by code
-  review + cross-runtime KAT (Go↔C++); there is no independent R-LWE
+  review + cross-runtime KAT (Go↔C++); there is no independent Module-LWE
   verifier (CORONA-NO-INDEP-VERIFIER — by design, no NIST target).
 - `no_leak_reduction`'s full simulation-soundness proof (the v0.8.0
   EC/paper artifact) is not written; disclosed as a Module-LWE/MSIS reduction.
@@ -180,18 +180,18 @@ dudect harness (`ct/dudect/`) is wired at smoke-budget.
 
 ### CORONA-NO-INDEP-VERIFIER (MEDIUM — interop disclosure)
 
-**Status: OPEN by design (no NIST target for R-LWE).** Corona's signature
+**Status: OPEN by design (no NIST target for Module-LWE).** Corona's signature
 byte-equality is cross-validated only **Go↔C++ of the SAME construction**
 (`luxcpp/crypto/corona` via `scripts/regen-kats.sh --verify`), NOT against
 an independent verifier. Unlike Pulsar (CIRCL + pq-crystals FIPS 204), the
-Boschini R-LWE construction has no second independent implementation to
+Boschini Module-LWE construction has no second independent implementation to
 diff against. Therefore Corona's combine byte-equality is **asserted +
 same-construction-KAT-tested**, never "proven/verified" in the
 ≥2-independent-implementations sense. `PROOF-CLAIMS.md` is worded to never
 claim otherwise.
 
 **Resolution criteria:**
-- [ ] An independent R-LWE verifier (third-party or a from-the-paper
+- [ ] An independent Module-LWE verifier (third-party or a from-the-paper
       re-implementation) is stood up and the KAT manifest diffs against it, OR
 - [ ] External review accepts the same-construction KAT + code-review
       posture as sufficient for the disclosed tier (shared external-review
