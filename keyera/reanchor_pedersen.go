@@ -12,8 +12,9 @@ import (
 // ReanchorPedersen opens a new key era WITHOUT a trusted dealer.
 //
 // This is the public-BFT-safe Reanchor entrypoint: the keygen ceremony
-// for the new era routes through dkg2/ (Pedersen-DKG over R_q) + Path
-// (a) noise flooding, exactly like BootstrapPedersen does at chain
+// for the new era routes through the shared github.com/luxfi/dkg
+// Pedersen-VSS (vss) + Path (a) noise flooding, exactly like
+// BootstrapPedersen does at chain
 // genesis. No party ever holds the master secret s for the new era at
 // any point in the rotation. The previous era's GroupKey is discarded
 // (Reanchor is the only lifecycle operation that may do so).

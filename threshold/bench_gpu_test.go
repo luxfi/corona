@@ -34,7 +34,8 @@ import (
 // engine layer, bypassing the per-poly r.NTT() pinch point. That
 // kernel slot exists (see lattice/gpu/gpu_cgo.go::BatchNTT) but is
 // not yet plumbed through r.NTT — that's the v0.6+ NIST submission
-// pipeline work referenced in corona/dkg2/dkg2_gpu_accel.go.
+// pipeline work (the dealerless DKG GPU path now lives in the shared
+// github.com/luxfi/dkg library).
 //
 // CPU vs GPU pairs (one bench function each) let `go test -bench .`
 // emit a side-by-side comparison without bench-fixture trickery; the
