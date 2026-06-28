@@ -259,7 +259,7 @@ func TestBootstrapPedersen_NoMasterSecretInMemory(t *testing.T) {
 		// "mastersecret" or "masters".
 		lower := lowercase(f.Name)
 		if contains(lower, "mastersecret") || contains(lower, "fullsecret") {
-			t.Fatalf("dkg2.DKGSession has a forbidden field %q — master-secret state leaks", f.Name)
+			t.Fatalf("dkgvss.Party has a forbidden field %q — master-secret state leaks", f.Name)
 		}
 	}
 
