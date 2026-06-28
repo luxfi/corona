@@ -135,15 +135,16 @@ type EpochShareState struct {
 // Bootstrap opens a new key era WITHOUT a trusted dealer.
 //
 // TRUST MODEL — PUBLIC-BFT-SAFE (default).
-// This function routes the keygen ceremony through `dkg2/` (Pedersen-
-// DKG over R_q) + Path (a) noise flooding so no single party ever
-// holds the master secret s at any point in the ceremony. Every
-// validator runs `dkg2.Round1` independently; the per-party noise
-// contributions aggregate into a Corona-Sign-shaped public key
+// This function routes the keygen ceremony through the shared
+// github.com/luxfi/dkg Pedersen-VSS (vss, parameterized by
+// ring.Ringtail()) + corona's Path (a) noise flooding so no single
+// party ever holds the master secret s at any point in the ceremony.
+// Every validator runs the vss Round 1 independently; the per-party
+// noise contributions aggregate into a Corona-Sign-shaped public key
 // `bTilde = Round_Xi(A·s + e”)` where each party adds one Gaussian
 // `e_j'` slice under σ” = κ·σ_E·√n. Identifiable abort: a
-// misbehaving sender is named in a signed `dkg2.Complaint` carrying
-// re-checkable Pedersen evidence; the chain commits the abort
+// misbehaving sender is named in a signed luxfi/dkg blame complaint
+// carrying re-checkable Pedersen evidence; the chain commits the abort
 // transcript and stays at the previous epoch.
 //
 // On success returns (era, transcript, nil). The transcript is the
@@ -376,11 +377,12 @@ func (era *KeyEra) Reshare(newValidators []string, newThreshold int, randSource 
 // Corona-SHA3) call ReanchorWithSuite.
 //
 // TRUST MODEL — PUBLIC-BFT-SAFE.
-// This function routes through dkg2/ (Pedersen-DKG over R_q) so no
-// party ever holds the master secret s for the new era at any point
-// in the rotation. The dealer that previously held s for the prior
-// era is NOT re-trusted; every validator runs dkg2.Round1
-// independently and Path (a) noise flooding aggregates the result.
+// This function routes through the shared github.com/luxfi/dkg
+// Pedersen-VSS (vss) so no party ever holds the master secret s for
+// the new era at any point in the rotation. The dealer that previously
+// held s for the prior era is NOT re-trusted; every validator runs the
+// vss Round 1 independently and Path (a) noise flooding aggregates the
+// result.
 //
 // LEGACY ALTERNATIVE: use ReanchorTrustedDealer, which runs the
 // single-dealer Shamir share-out (byte-equivalent to the v0.7.3 and

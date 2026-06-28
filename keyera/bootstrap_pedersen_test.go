@@ -8,10 +8,13 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/luxfi/corona/dkg2"
 	"github.com/luxfi/corona/hash"
 	"github.com/luxfi/corona/sign"
 	"github.com/luxfi/corona/threshold"
+
+	dkgblame "github.com/luxfi/dkg/blame"
+	dkgring "github.com/luxfi/dkg/ring"
+	dkgvss "github.com/luxfi/dkg/vss"
 )
 
 // TestBootstrapPedersen_RoundTrip — 5 parties run Pedersen DKG with
@@ -126,41 +129,27 @@ func TestBootstrapPedersen_DishonestDealer(t *testing.T) {
 	validators := []string{"v1", "v2", "v3", "v4", "v5"}
 	suite := hash.NewCoronaSHA3()
 
-	// Reproduce Round1 outputs via the dkg2 API so we can tamper one.
-	dkgParams, err := dkg2.NewParams()
-	if err != nil {
-		t.Fatalf("dkg2.NewParams: %v", err)
-	}
-	sessions := make([]*dkg2.DKGSession, n)
-	round1 := make([]*dkg2.Round1Output, n)
+	// Run the share-dealing half (vss Round 1 + envelope opening) so we can
+	// tamper one opened share before the verify/aggregate round.
 	rng := deterministicRand("bootstrap-pedersen-dishonest")
+	seeds := make([][]byte, n)
 	for i := 0; i < n; i++ {
-		sess, err := dkg2.NewDKGSession(dkgParams, i, n, thr, suite)
-		if err != nil {
-			t.Fatalf("NewDKGSession[%d]: %v", i, err)
-		}
-		sessions[i] = sess
-		seed := make([]byte, sign.KeySize)
-		if _, err := rng.Read(seed); err != nil {
+		seeds[i] = make([]byte, sign.KeySize)
+		if _, err := rng.Read(seeds[i]); err != nil {
 			t.Fatalf("rng.Read[%d]: %v", i, err)
 		}
-		out, err := sess.Round1WithSeed(seed)
-		if err != nil {
-			t.Fatalf("Round1WithSeed[%d]: %v", i, err)
-		}
-		round1[i] = out
+	}
+	contribs, err := DealPedersen(suite, thr, validators, seeds)
+	if err != nil {
+		t.Fatalf("DealPedersen: %v", err)
 	}
 
-	// Tamper sender 2's share-to-recipient-0. Round2Identify run from
-	// the perspective of recipient 0 must name sender 2 as the bad
-	// actor. The orchestrator runs every recipient in order, so
-	// recipient 0 detects the abort first.
-	round1[2].Shares[0][0].Coeffs[0][0] ^= 0x42
+	// Tamper sender 2's share as recipient 0 opened it. Round 3 from the
+	// perspective of recipient 0 (processed first) must name sender 2 as the
+	// bad actor via the Pedersen identity.
+	contribs.inputs[0][2].Share[0].Coeffs[0][0] ^= 0x42
 
-	era, transcript, err := FinishBootstrapPedersen(
-		suite, thr, validators, 0, 0,
-		dkgParams, sessions, round1,
-	)
+	era, transcript, err := FinishBootstrapPedersen(suite, thr, validators, 0, 0, contribs)
 	if era != nil || transcript != nil {
 		t.Fatal("expected (nil, nil) on abort")
 	}
@@ -181,11 +170,25 @@ func TestBootstrapPedersen_DishonestDealer(t *testing.T) {
 	if len(ev.Complaints) == 0 {
 		t.Fatal("expected at least one Complaint in evidence")
 	}
-	if ev.Complaints[0].SenderID != 2 {
-		t.Fatalf("complaint.SenderID: want 2 got %d", ev.Complaints[0].SenderID)
-	}
-	if ev.Complaints[0].Reason != dkg2.ComplaintBadDelivery {
+	if ev.Complaints[0].Reason != dkgblame.ReasonBadDelivery {
 		t.Fatalf("complaint.Reason: want bad-delivery got %v", ev.Complaints[0].Reason)
+	}
+	if ev.Complaints[0].Accused != pedersenNodeID(2) {
+		t.Fatalf("complaint.Accused: want NodeID of dealer 2, got %x", ev.Complaints[0].Accused)
+	}
+
+	// Third-party re-check: the complaint's evidence confirms the share is
+	// malformed without trusting the accuser.
+	prof, err := dkgring.Ringtail()
+	if err != nil {
+		t.Fatalf("ring.Ringtail: %v", err)
+	}
+	justified, err := dkgvss.RecheckBadDelivery(prof, ev.Complaints[0])
+	if err != nil {
+		t.Fatalf("RecheckBadDelivery: %v", err)
+	}
+	if !justified {
+		t.Fatal("RecheckBadDelivery says the accusation is unjustified — tamper not detected")
 	}
 
 	// The transcript hash on the evidence is non-zero — chain can
@@ -247,16 +250,16 @@ func TestBootstrapPedersen_NoMasterSecretInMemory(t *testing.T) {
 		t.Fatalf("BootstrapPedersen: %v", err)
 	}
 
-	// Structural assertion 1: dkg2.DKGSession exposes no "master secret"
-	// accessor.
-	dkgType := reflect.TypeOf((*dkg2.DKGSession)(nil)).Elem()
+	// Structural assertion 1: the vss.Party exposes no "master secret"
+	// accessor (no-reconstruct: a party retains only its own aggregated share).
+	dkgType := reflect.TypeOf((*dkgvss.Party)(nil)).Elem()
 	for i := 0; i < dkgType.NumField(); i++ {
 		f := dkgType.Field(i)
 		// Reject any field whose lower-cased name contains the substring
 		// "mastersecret" or "masters".
 		lower := lowercase(f.Name)
 		if contains(lower, "mastersecret") || contains(lower, "fullsecret") {
-			t.Fatalf("dkg2.DKGSession has a forbidden field %q — master-secret state leaks", f.Name)
+			t.Fatalf("dkgvss.Party has a forbidden field %q — master-secret state leaks", f.Name)
 		}
 	}
 
