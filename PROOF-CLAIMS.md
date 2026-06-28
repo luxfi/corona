@@ -51,6 +51,23 @@ single-party Boschini signature — a STANDARD PQ assumption, **not** an
 implementation reconstruct. Model 2's EC side is **written, machine-recheck
 pending EasyCrypt**; its Lean core is machine-checked now.
 
+*Code-level conformance gate (added v0.10.0).* The same no-reconstruct
+property is pinned at the IMPLEMENTATION level by
+`threshold/no_reconstruct_sign_test.go`: (GATE A) a `go/ast` scan of every
+signing/verify function proving none calls an across-party reconstruction
+primitive (`reconstruct`/`interpolate`/`combineShares`/`recover*`/
+`ShamirSecretSharing`/`lagrangeAtZero`) nor the trusted-dealer keygen
+(`Gen`/`GenerateKeysTrustedDealer`) — per-party `party.Lambda` on the party's
+OWN share is the legitimate no-reconstruct mechanism and is deliberately NOT
+forbidden; the gate's teeth are negative-control-verified (injecting a
+reconstruct call into `SignFinalize` trips it); (GATE B) a `reflect` gate
+proving the inter-party messages `Round1Data`/`Round2Data` and the final
+`Signature` carry no share/sk/seed/λ, so the aggregator never holds a second
+party's secret; (GATE C) a real (3,5) no-reconstruct ceremony verifying under
+the independent Corona verifier. This is a **test gate** (assurance tag:
+code-review/interop-tested at the construction level), NOT a proof-assistant
+artifact — it complements, and does not replace, the Lean core.
+
 **Disclosure 2 — the no-leak property is NOT independently interop-tested.**
 Corona's KAT cross-validation is **Go↔C++ of the SAME construction**
 (`luxcpp/crypto/corona`), not against an independent verifier. There is no
