@@ -1,7 +1,7 @@
 # Corona -- Agent Knowledge Base
 
 **Repository**: github.com/luxfi/corona
-**Latest Tag**: v0.8.0 (dealerless Pedersen DKG is the production keygen default; signing never reconstructs the master secret)
+**Latest Tag**: v0.10.0 (Corona certified a STRICT trustless lane: dealerless Pedersen DKG keygen + no-reconstruct signing — the no-reconstruct signing property is now PINNED by a code-level structural+behavioural gate, `threshold/no_reconstruct_sign_test.go`)
 **Status**: Production (consensus path); NIST MPTC submission package included. Sibling submission `luxfi/pulsar` is the M-LWE byte-equal FIPS 204 path.
 
 ## Purpose (one-liner)
@@ -52,6 +52,8 @@ Pulsar does; Corona's Module-LWE construction has no FIPS standard target to ref
 
 | SHA | Tag | Impact |
 |-----|-----|--------|
+| `500d319` | v0.10.0 | threshold: pin Corona NO-RECONSTRUCT signing (gate 5, trustless-by-default law). `threshold/no_reconstruct_sign_test.go` — GATE A go/ast scan (no signing function recombines shares into s nor invokes the trusted-dealer keygen; per-party `party.Lambda` allowed; negative-control verified), GATE B reflect (Round1Data/Round2Data/Signature carry no share), GATE C independent-verifier ceremony. Complements the Lean-4 `secret_aggregate_no_reconstruct` proof at the code level. Audit verdict: Corona is a STRICT trustless lane for STRICT_DUAL_PQ / POLARIS_MAX |
+| `7996ad7` | v0.9.0 | merge Phase-3a: corona keyera DKG cutover onto `luxfi/dkg` v0.2.0 (shared dealerless no-reconstruct VSS); `dkg2` package deleted |
 | `f08e2b5` | v0.8.0 | threshold: trusted-dealer keygen made explicit/footgun-only; dead `ReconstructSecret` dropped; sub-quorum soundness pinned — signing sums partials, master secret never formed |
 | `7c102d2` | v0.7.9 | threshold: reject duplicate PartyID in Round2/Finalize combine (kernel-boundary uniq guard) |
 | `6b4d5d5` | v0.7.8 | docs: correct stale 'no EC toolchain' claims; combine bridge discharged to lemma + jasminc available |
