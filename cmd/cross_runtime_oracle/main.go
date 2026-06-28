@@ -1,7 +1,7 @@
 // Package main is the Corona cross-runtime KAT oracle.
 //
 // Emits a single JSON manifest at <out>/cross_runtime_kat.json that ties
-// together the three canonical Corona KATs (sign, reshare, dkg2) with
+// together the canonical Corona KATs (sign, reshare) with
 // the SHA-256 of each individual KAT file. The C++ side
 // (luxcpp/crypto/corona/test/cross_runtime_test.cpp) replays each KAT
 // in C++ and verifies byte-equality; running this oracle first then
@@ -73,12 +73,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "sign_oracle: %v\n", err)
 		os.Exit(1)
 	}
-	// reshare_oracle and dkg2_oracle don't expose --out; they write to
-	// hardcoded locations in luxcpp/crypto. For the cross-runtime gate
-	// we hash the canonical paths.
+	// reshare_oracle doesn't expose --out; it writes to a hardcoded location
+	// in luxcpp/crypto. For the cross-runtime gate we hash the canonical path.
+	//
+	// The Pedersen-DKG KAT is no longer emitted here: corona's DKG share-dealing
+	// now runs on github.com/luxfi/dkg (vss), which owns its own ring/vss KATs.
+	// The luxcpp C++ dkg2 cross-runtime leg migrates to luxfi/dkg separately.
 	signPath := filepath.Join(*out, "sign_kat.json")
 	resharePath := filepath.Join(luxcppDir(), "crypto/corona/test/kat/reshare_kat.json")
-	dkg2Path := filepath.Join(luxcppDir(), "crypto/corona/dkg2/test/kat/dkg2_kat.json")
 
 	files := []struct {
 		name string
@@ -86,7 +88,6 @@ func main() {
 	}{
 		{"sign", signPath},
 		{"reshare", resharePath},
-		{"dkg2", dkg2Path},
 	}
 
 	m := manifest{
