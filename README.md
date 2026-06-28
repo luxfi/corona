@@ -47,10 +47,15 @@ gaps:
 Corona is independently usable: a chain can pick Corona as its
 sole PQ threshold layer, no cross-dependency on Pulsar. Lux primary-
 network QuasarCert combines both Module-LWE schemes as a **Double Lattice**
-layered defence so a break in one *construction or implementation* does not
-break finality. (Both legs are Module-LWE, so this is construction- and
-implementation-diversity, not lattice-family diversity — a break of the
-shared Module-LWE problem would affect both legs):
+layered defence: Pulsar and Corona are distinct schemes at different
+parameter regimes (Pulsar = FIPS-204 ML-DSA; Corona = the Ringtail/Raccoon
+threshold, parameters tuned for threshold signing), so an adversary must
+break **both** independently — a construction-, parameter-, or
+implementation-specific flaw in one does not break finality (both have to be
+cracked). This is construction/parameter/implementation diversity, not
+hardness-assumption diversity — both rest on Module-LWE, so a break of
+Module-LWE itself would affect both legs; assumption-disjoint diversity
+comes from the hash-based Magnetar (SLH-DSA) leg:
 
 ```
 QuasarCert {

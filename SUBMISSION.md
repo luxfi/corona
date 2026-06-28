@@ -273,13 +273,17 @@ What Corona DOES offer at submission-time:
 | Boschini et al. (academic upstream) | Module-LWE | 2 | Construction-level; trusted-dealer Gen only | not submitted as MPTC |
 
 The Corona / Pulsar pair is intentional. Both are Module-LWE, but they
-are distinct constructions (Corona is the Ringtail/Raccoon-line threshold;
+are distinct schemes at different parameter regimes (Corona is the
+Ringtail/Raccoon-line threshold, parameters tuned for threshold signing;
 Pulsar is FIPS-204 ML-DSA made threshold). Lux's primary-network
-QuasarCert MAY combine them as a **Double Lattice** layered defence so a
-break in one *construction or implementation* does not break finality.
-Because both legs are Module-LWE, a break of the shared Module-LWE problem
-would affect both — the diversity is at the construction/implementation
-layer, not the lattice family. That layered combination is the consumer's
+QuasarCert MAY combine them as a **Double Lattice** layered defence: an
+adversary must forge **both**, and a construction-, parameter-, or
+implementation-specific flaw in one does not transfer to the other, so the
+pair is strictly stronger than either leg alone (both have to be cracked).
+Because both legs are Module-LWE, a fundamental break of the shared
+Module-LWE problem would affect both — so this is construction/parameter/
+implementation diversity, not hardness-assumption diversity (the
+assumption-disjoint leg is hash-based Magnetar, SLH-DSA). That layered combination is the consumer's
 design choice and is not part of this submission. Corona stands alone as
 an MPTC Class N1 + N4 candidate.
 
