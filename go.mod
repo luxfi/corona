@@ -6,6 +6,7 @@ require (
 	github.com/luxfi/dkg v0.2.0
 	github.com/luxfi/lattice/v7 v7.1.0
 	github.com/luxfi/math v1.4.0
+	github.com/luxfi/mlwe v0.2.1
 	github.com/luxfi/zap v0.7.2
 	github.com/montanaflynn/stats v0.9.0
 	github.com/spf13/cobra v1.10.2

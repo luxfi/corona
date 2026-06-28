@@ -9,6 +9,7 @@ import (
 
 	"github.com/luxfi/lattice/v7/ring"
 	"github.com/luxfi/lattice/v7/utils/structs"
+	"github.com/luxfi/mlwe/share"
 
 	"github.com/zeebo/blake3"
 )
@@ -198,26 +199,35 @@ func ShamirSecretSharing(r *ring.Ring, s []ring.Poly, k int, lambdas []ring.Poly
 	return shares
 }
 
-// ComputeLagrangeCoefficients computes the Lagrange coefficients for interpolation based on the indices of available shares.
+// ComputeLagrangeCoefficients computes the Lagrange reconstruction
+// coefficients lambda_i = prod_{j!=i} (-x_j)/(x_i - x_j) over GF(modulus)
+// for the party points x_i = T[i]+1, i.e. the basis that interpolates a
+// shared secret back to x=0.
+//
+// The interpolation and field arithmetic are the shared Module-LWE
+// primitive github.com/luxfi/mlwe/share.Lagrange (evaluated at point 0);
+// this function is only the adapter that lifts each scalar coefficient
+// into the Corona R_q wire (a constant-term ring.Poly). modulus is
+// Corona's prime q in every production call. Invalid input (non-prime
+// modulus, or x_i that are zero/duplicated) is a caller-side invariant
+// violation and panics — matching the prior nil-inverse crash, never a
+// silent wrong answer on a signing path.
 func ComputeLagrangeCoefficients(r *ring.Ring, T []int, modulus *big.Int) []ring.Poly {
+	field, err := share.NewPrimeField(modulus.Uint64())
+	if err != nil {
+		panic("corona/primitives: ComputeLagrangeCoefficients needs a prime field modulus: " + err.Error())
+	}
+	xs := make([]uint64, len(T))
+	for i, ti := range T {
+		xs[i] = uint64(ti + 1)
+	}
+	lambda, err := share.Lagrange(xs, 0, field)
+	if err != nil {
+		panic("corona/primitives: ComputeLagrangeCoefficients invalid evaluation points: " + err.Error())
+	}
 	lagrangeCoefficients := make([]ring.Poly, len(T))
-	for i := 0; i < len(T); i++ {
-		xi := big.NewInt(int64(T[i] + 1))
-		numerator := big.NewInt(1)
-		denominator := big.NewInt(1)
-		for j := 0; j < len(T); j++ {
-			if i != j {
-				xj := big.NewInt(int64(T[j] + 1))
-				numerator.Mul(numerator, new(big.Int).Neg(xj))
-				numerator.Mod(numerator, modulus)
-				temp := new(big.Int).Sub(xi, xj)
-				denominator.Mul(denominator, temp)
-				denominator.Mod(denominator, modulus)
-			}
-		}
-		denomInv := new(big.Int).ModInverse(denominator, modulus)
-		coeff := new(big.Int).Mul(numerator, denomInv)
-		coeff.Mod(coeff, modulus)
+	for i := range T {
+		coeff := new(big.Int).SetUint64(lambda[i])
 		lagrangePoly := r.NewPoly()
 		r.SetCoefficientsBigint([]*big.Int{coeff}, lagrangePoly)
 		lagrangeCoefficients[i] = lagrangePoly

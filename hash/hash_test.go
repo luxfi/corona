@@ -5,8 +5,6 @@ package hash
 
 import (
 	"bytes"
-	"encoding/hex"
-	"strings"
 	"testing"
 )
 
@@ -149,75 +147,12 @@ func TestPairwiseDistinctEras(t *testing.T) {
 	}
 }
 
-// ─── NIST SP 800-185 vector smoke tests ─────────────────────────────
-
-func TestLeftEncode(t *testing.T) {
-	cases := []struct {
-		x    uint64
-		want string
-	}{
-		{0, "0100"},
-		{12, "010c"},
-		{255, "01ff"},
-		{256, "020100"},
-		{65535, "02ffff"},
-		{65536, "03010000"},
-	}
-	for _, c := range cases {
-		got := hex.EncodeToString(leftEncode(c.x))
-		if got != c.want {
-			t.Errorf("leftEncode(%d): want %s got %s", c.x, c.want, got)
-		}
-	}
-}
-
-func TestRightEncode(t *testing.T) {
-	cases := []struct {
-		x    uint64
-		want string
-	}{
-		{0, "0001"},
-		{12, "0c01"},
-		{256, "010002"},
-	}
-	for _, c := range cases {
-		got := hex.EncodeToString(rightEncode(c.x))
-		if got != c.want {
-			t.Errorf("rightEncode(%d): want %s got %s", c.x, c.want, got)
-		}
-	}
-}
-
-// TestKMAC256NISTVector — Sample #4 from NIST SP 800-185 KMAC-Samples.
-func TestKMAC256NISTVector(t *testing.T) {
-	K, _ := hex.DecodeString("404142434445464748494A4B4C4D4E4F505152535455565758595A5B5C5D5E5F")
-	X, _ := hex.DecodeString("00010203")
-	S := "My Tagged Application"
-	want := "20C570C31346F703C9AC36C61C03CB64C3970D0CFC787E9B79599D273A68D2F7" +
-		"F69D4CC3DE9D104A351689F27CF6F5951F0103F33F4F24871024D9C27773A8DD"
-
-	got := hex.EncodeToString(kmac256(K, X, 64, S))
-	wantLower := strings.ToLower(want[:128])
-	if got != wantLower {
-		t.Errorf("KMAC256: \nwant %s\n got %s", wantLower, got)
-	}
-}
-
-// TestTupleHash256NISTVector — Sample #4 from NIST SP 800-185 TupleHash-Samples.
-func TestTupleHash256NISTVector(t *testing.T) {
-	x1, _ := hex.DecodeString("000102")
-	x2, _ := hex.DecodeString("101112131415")
-	x3, _ := hex.DecodeString("202122232425262728")
-	S := "My Tuple App"
-	want := "45000BE63F9B6BFD89F54717670F69A9BC763591A4F05C50D68891A744BCC6E7" +
-		"D6D5B5E82C018DA999ED35B0BB49C9678E526ABD8E85C13ED254021DB9E790CE"
-
-	got := hex.EncodeToString(tupleHash256([][]byte{x1, x2, x3}, 64, S))
-	wantLower := strings.ToLower(want[:128])
-	if got != wantLower {
-		t.Errorf("TupleHash256:\nwant %s\n got %s", wantLower, got)
-	}
-}
+// NIST SP 800-185 primitive vectors (left/right_encode, KMAC256,
+// TupleHash256) are owned and tested by github.com/luxfi/mlwe/transcript
+// (transcript_test.go: cSHAKE256 NIST Sample #3, the §2.3 encoders, and
+// the KMAC/TupleHash spec-construction KATs). Corona no longer carries a
+// parallel copy of those primitive tests — it tests only its own suite
+// composition (tags, domain separation, determinism) below.
 
 // TestSuiteDeterminism — same input, two calls, identical bytes.
 func TestSuiteDeterminism(t *testing.T) {
