@@ -126,6 +126,15 @@ func seededRound1Rng(seed []byte) io.Reader {
 // of n fresh identities (identities affect only the sealed envelopes, never the
 // public commits). Returns the party ready for Round1.
 func buildVSSParty0(t *testing.T, prof *dkgring.Profile, n, thr int) *dkgvss.Party {
+	return buildVSSPartyAt(t, prof, 0, n, thr)
+}
+
+// buildVSSPartyAt constructs party idx of an n-party vss committee with a fresh
+// identity directory. Identities affect only sealed envelopes; gate E drives
+// Round3 with DealerInputs built directly from dkg2's (gate-B/C-proven identical)
+// cleartext contributions, so envelope decryption is not exercised — only vss's
+// real verifyPedersen + aggregateShare.
+func buildVSSPartyAt(t *testing.T, prof *dkgring.Profile, idx, n, thr int) *dkgvss.Party {
 	t.Helper()
 	ids := make([]*dkgchannel.IdentityKey, n)
 	nodes := make([]dkgchannel.NodeID, n)
@@ -143,7 +152,7 @@ func buildVSSParty0(t *testing.T, prof *dkgring.Profile, n, thr int) *dkgvss.Par
 	if err != nil {
 		t.Fatalf("NewIdentityDirectory: %v", err)
 	}
-	p, err := dkgvss.NewParty(prof, nodes[0], ids[0], 0, n, thr, nodes, dir, [32]byte{0xCA, 0xFE})
+	p, err := dkgvss.NewParty(prof, nodes[idx], ids[idx], idx, n, thr, nodes, dir, [32]byte{0xCA, 0xFE})
 	if err != nil {
 		t.Fatalf("NewParty: %v", err)
 	}
@@ -339,4 +348,93 @@ func TestCutover_GroupKeyConvention(t *testing.T) {
 	}
 	t.Log("PIN 4 confirmed: dkg2 b_ped (IMForm+INTT) = vss T (INTT-only) scaled by R^{-1}; " +
 		"production keyera Path-(a) key is the TRUE A·s+e'' (R-cancelled), convention-aligned with vss T")
+}
+
+// TestCutover_Round3AggregationByteIdentical — gate (E), the LAST byte-equality
+// the production swap rests on. Feeding dkg2's (gate-B/C-proven byte-identical)
+// per-dealer commits/shares/blinds into vss's REAL Round3 must:
+//
+//	(1) pass vss's verifyPedersen for EVERY dealer — proving vss's verify accepts
+//	    dkg2's contributions cross-implementation (despite dkg2's "NTT-Montgomery"
+//	    vs vss's "plain-NTT" commit-domain comments, the bytes and the Pedersen
+//	    identity agree); and
+//	(2) produce the aggregated secret share s_j = Σ_i f_i(j) BYTE-IDENTICAL to
+//	    dkg2's Round2Identify.
+//
+// gate C proved each per-dealer share f_i(j) is identical; this pins the
+// AGGREGATION + VERIFY step (vss.aggregateShare / vss.verifyPedersen ==
+// dkg2.Round2Identify). With gates A–E green, BootstrapPedersen can drive vss
+// (Round1 → OpenDealerShare → Round3.ShareResult.Share) for the share-dealing DKG
+// and keep corona's own Path-(a) noise-flooding finalize, preserving the group
+// key + per-party shares byte-for-byte — i.e. deployed corona signatures survive.
+func TestCutover_Round3AggregationByteIdentical(t *testing.T) {
+	const n, thr = 5, 3
+	suite := hash.NewCoronaSHA3()
+
+	// dkg2 reference: full Round1 for all n parties.
+	dkgParams, err := dkg2.NewParams()
+	if err != nil {
+		t.Fatalf("dkg2.NewParams: %v", err)
+	}
+	sessions := make([]*dkg2.DKGSession, n)
+	round1 := make([]*dkg2.Round1Output, n)
+	for i := 0; i < n; i++ {
+		sess, err := dkg2.NewDKGSession(dkgParams, i, n, thr, suite)
+		if err != nil {
+			t.Fatalf("NewDKGSession[%d]: %v", i, err)
+		}
+		sessions[i] = sess
+		seed := make([]byte, sign.KeySize)
+		for k := range seed {
+			seed[k] = byte(0x07*i + 0x13*k + 1)
+		}
+		out, err := sess.Round1WithSeed(seed)
+		if err != nil {
+			t.Fatalf("Round1WithSeed[%d]: %v", i, err)
+		}
+		round1[i] = out
+	}
+
+	prof, err := dkgring.Ringtail()
+	if err != nil {
+		t.Fatalf("ring.Ringtail: %v", err)
+	}
+
+	for j := 0; j < n; j++ {
+		// dkg2 aggregated, verified share s_j (the production Round 2 path).
+		shares := map[int]structs.Vector[lring.Poly]{}
+		blinds := map[int]structs.Vector[lring.Poly]{}
+		commits := map[int][]structs.Vector[lring.Poly]{}
+		for i := 0; i < n; i++ {
+			shares[i] = round1[i].Shares[j]
+			blinds[i] = round1[i].Blinds[j]
+			commits[i] = round1[i].Commits
+		}
+		dkg2Sj, _, _, badID, err := sessions[j].Round2Identify(shares, blinds, commits)
+		if err != nil {
+			t.Fatalf("dkg2 Round2Identify[%d] (badID=%d): %v", j, badID, err)
+		}
+
+		// vss real Round3 over the SAME (commits, share, blind) inputs.
+		party := buildVSSPartyAt(t, prof, j, n, thr)
+		inputs := make(map[int]*dkgvss.DealerInput, n)
+		for i := 0; i < n; i++ {
+			inputs[i] = &dkgvss.DealerInput{
+				Commits: round1[i].Commits,
+				Share:   round1[i].Shares[j],
+				Blind:   round1[i].Blinds[j],
+			}
+		}
+		res, fault, err := party.Round3(inputs)
+		if err != nil {
+			if fault != nil {
+				t.Fatalf("vss Round3[%d]: verifyPedersen REJECTED dkg2 dealer %d — commit-domain conventions diverge (blocker)", j, fault.DealerIndex)
+			}
+			t.Fatalf("vss Round3[%d]: %v", j, err)
+		}
+		if !vecsEqual(res.Share, dkg2Sj) {
+			t.Fatalf("aggregated s_%d byte-divergent: vss Round3 aggregateShare != dkg2 Round2Identify", j)
+		}
+	}
+	t.Logf("vss Round3 (verifyPedersen + aggregateShare) byte-identical to dkg2 Round2Identify for all %d recipients", n)
 }
