@@ -1,7 +1,7 @@
 # Corona -- Agent Knowledge Base
 
 **Repository**: github.com/luxfi/corona
-**Latest Tag**: v0.10.0 (Corona certified a STRICT trustless lane: dealerless Pedersen DKG keygen + no-reconstruct signing — the no-reconstruct signing property is now PINNED by a code-level structural+behavioural gate, `threshold/no_reconstruct_sign_test.go`)
+**Latest Tag**: v0.10.2 (Phase-2 onto `luxfi/mlwe`: SP 800-185 transcript `hash/sha3.go` + `ComputeLagrangeCoefficients` routed onto `github.com/luxfi/mlwe` v0.2.1 — a BYTE-PRESERVING de-dup, proven 19/19 KAT oracle files byte-identical old==new. Corona + Pulsar now both consume the single mlwe base. v0.10.0/v0.10.1: Corona certified a STRICT trustless lane — dealerless Pedersen DKG keygen + no-reconstruct signing PINNED by `threshold/no_reconstruct_sign_test.go`)
 **Status**: Production (consensus path); NIST MPTC submission package included. Sibling submission `luxfi/pulsar` is the M-LWE byte-equal FIPS 204 path.
 
 ## Purpose (one-liner)
@@ -52,6 +52,7 @@ Pulsar does; Corona's Module-LWE construction has no FIPS standard target to ref
 
 | SHA | Tag | Impact |
 |-----|-----|--------|
+| `c85b5cf` | v0.10.2 | merge Phase-2: route SP 800-185 transcript (`hash/sha3.go`; deletes local `hash/sp800_185.go`) + `ComputeLagrangeCoefficients` (`primitives/shamir.go`) onto `github.com/luxfi/mlwe` v0.2.1. BYTE-PRESERVING de-dup — Corona keeps ONLY its domain-sep tags + the R_q scalar-lift adapter; cSHAKE256/KMAC256/TupleHash256/EncodeString come from `mlwe/transcript`, field arithmetic + Lagrange@0 from `mlwe/share`. KEPT Lattigo 48-bit ring; KEPT the seeded Shamir deal Corona-specific. Correctness gate: 19/19 KAT oracle files byte-identical old(Corona-local)==new(mlwe), e2e threshold (3,2)(5,3)(7,4)(10,7) pass, `go build/test ./...` green. C++ cross-runtime byte gate (`cmd/cross_runtime_verify`, needs luxcpp) runs in CI as a POST-MERGE confirmation (transitivity: Go old==new + disjoint C++ build inputs ⇒ C++ bytes invariant). mlwe v0.2.0→v0.2.1 is test-only delta (bench files), zero production-byte change. One-and-one-way: Corona + Pulsar share the single mlwe base |
 | `500d319` | v0.10.0 | threshold: pin Corona NO-RECONSTRUCT signing (gate 5, trustless-by-default law). `threshold/no_reconstruct_sign_test.go` — GATE A go/ast scan (no signing function recombines shares into s nor invokes the trusted-dealer keygen; per-party `party.Lambda` allowed; negative-control verified), GATE B reflect (Round1Data/Round2Data/Signature carry no share), GATE C independent-verifier ceremony. Complements the Lean-4 `secret_aggregate_no_reconstruct` proof at the code level. Audit verdict: Corona is a STRICT trustless lane for STRICT_DUAL_PQ / POLARIS_MAX |
 | `7996ad7` | v0.9.0 | merge Phase-3a: corona keyera DKG cutover onto `luxfi/dkg` v0.2.0 (shared dealerless no-reconstruct VSS); `dkg2` package deleted |
 | `f08e2b5` | v0.8.0 | threshold: trusted-dealer keygen made explicit/footgun-only; dead `ReconstructSecret` dropped; sub-quorum soundness pinned — signing sums partials, master secret never formed |
