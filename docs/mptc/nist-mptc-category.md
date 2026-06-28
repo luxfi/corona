@@ -150,10 +150,12 @@ FIPS / AWS-LC / OpenSSL 3.0 PQ. Pulsar's submission is at
 <https://github.com/luxfi/pulsar>.
 
 The Corona / Pulsar pair is intentional: both are Module-LWE but
-distinct constructions, so Lux's primary-network QuasarCert may combine
-them as a **Double Lattice** layered defence — construction- and
-implementation-diversity, not lattice-family diversity (separate
-consumer-side design choice; not part of this submission).
+distinct schemes at different parameter regimes, so Lux's primary-network
+QuasarCert may combine them as a **Double Lattice** layered defence — an
+adversary must break both independently (construction/parameter/
+implementation diversity; both have to be cracked), though not hardness-
+assumption diversity since both rest on Module-LWE (separate consumer-side
+design choice; not part of this submission).
 
 ## Status
 
