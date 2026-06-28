@@ -8,9 +8,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/luxfi/corona/dkg2"
 	"github.com/luxfi/corona/hash"
 	"github.com/luxfi/corona/sign"
+
+	dkgblame "github.com/luxfi/dkg/blame"
+	dkgvss "github.com/luxfi/dkg/vss"
 )
 
 // TestReanchorPedersen_RoundTrip — open a Pedersen-DKG era, rotate to a
@@ -130,16 +132,16 @@ func TestReanchorPedersen_NoMasterSecret(t *testing.T) {
 		t.Fatalf("ReanchorPedersen: %v", err)
 	}
 
-	// Structural assertion 1: dkg2.DKGSession exposes no master-secret
+	// Structural assertion 1: the vss.Party exposes no master-secret
 	// accessor field. This is shared with BootstrapPedersen but worth
 	// re-asserting on the Reanchor path so a future regression on
 	// either is caught.
-	dkgType := reflect.TypeOf((*dkg2.DKGSession)(nil)).Elem()
+	dkgType := reflect.TypeOf((*dkgvss.Party)(nil)).Elem()
 	for i := 0; i < dkgType.NumField(); i++ {
 		f := dkgType.Field(i)
 		lower := lowercase(f.Name)
 		if contains(lower, "mastersecret") || contains(lower, "fullsecret") {
-			t.Fatalf("dkg2.DKGSession has a forbidden field %q — master-secret state leaks", f.Name)
+			t.Fatalf("dkgvss.Party has a forbidden field %q — master-secret state leaks", f.Name)
 		}
 	}
 
@@ -187,42 +189,28 @@ func TestReanchorPedersen_DishonestParty(t *testing.T) {
 	validators := []string{"v1", "v2", "v3", "v4", "v5"}
 	suite := hash.NewCoronaSHA3()
 
-	dkgParams, err := dkg2.NewParams()
-	if err != nil {
-		t.Fatalf("dkg2.NewParams: %v", err)
-	}
-	sessions := make([]*dkg2.DKGSession, n)
-	round1 := make([]*dkg2.Round1Output, n)
 	rng := deterministicRand("reanchor-pedersen-dishonest")
+	seeds := make([][]byte, n)
 	for i := 0; i < n; i++ {
-		sess, err := dkg2.NewDKGSession(dkgParams, i, n, thr, suite)
-		if err != nil {
-			t.Fatalf("NewDKGSession[%d]: %v", i, err)
-		}
-		sessions[i] = sess
-		seed := make([]byte, sign.KeySize)
-		if _, err := rng.Read(seed); err != nil {
+		seeds[i] = make([]byte, sign.KeySize)
+		if _, err := rng.Read(seeds[i]); err != nil {
 			t.Fatalf("rng.Read[%d]: %v", i, err)
 		}
-		out, err := sess.Round1WithSeed(seed)
-		if err != nil {
-			t.Fatalf("Round1WithSeed[%d]: %v", i, err)
-		}
-		round1[i] = out
+	}
+	contribs, err := DealPedersen(suite, thr, validators, seeds)
+	if err != nil {
+		t.Fatalf("DealPedersen: %v", err)
 	}
 
-	// Tamper sender 4's share-to-recipient-1. Round2Identify from
+	// Tamper sender 4's share as recipient 1 opened it. Round 3 from
 	// recipient 1's perspective must name sender 4 as the bad actor.
-	round1[4].Shares[1][0].Coeffs[0][0] ^= 0x42
+	contribs.inputs[1][4].Share[0].Coeffs[0][0] ^= 0x42
 
 	// The Reanchor abort path shares its semantics with the Bootstrap
 	// abort path: FinishBootstrapPedersen is the kernel entrypoint and
 	// the wrapping for era-id / epoch adjustments in ReanchorPedersen
 	// occurs strictly AFTER a successful return.
-	era, transcript, err := FinishBootstrapPedersen(
-		suite, thr, validators, 0, 1,
-		dkgParams, sessions, round1,
-	)
+	era, transcript, err := FinishBootstrapPedersen(suite, thr, validators, 0, 1, contribs)
 	if era != nil || transcript != nil {
 		t.Fatal("expected (nil, nil) on Reanchor abort")
 	}
@@ -242,10 +230,10 @@ func TestReanchorPedersen_DishonestParty(t *testing.T) {
 	if len(ev.Complaints) == 0 {
 		t.Fatal("expected at least one Complaint in evidence")
 	}
-	if ev.Complaints[0].SenderID != 4 {
-		t.Fatalf("complaint.SenderID: want 4 got %d", ev.Complaints[0].SenderID)
+	if ev.Complaints[0].Accused != pedersenNodeID(4) {
+		t.Fatalf("complaint.Accused: want NodeID of dealer 4, got %x", ev.Complaints[0].Accused)
 	}
-	if ev.Complaints[0].Reason != dkg2.ComplaintBadDelivery {
+	if ev.Complaints[0].Reason != dkgblame.ReasonBadDelivery {
 		t.Fatalf("complaint.Reason: want bad-delivery got %v", ev.Complaints[0].Reason)
 	}
 	if ev.TranscriptHash == [32]byte{} {

@@ -4,25 +4,47 @@
 package keyera
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"math"
-	"math/big"
 
-	"github.com/luxfi/corona/dkg2"
 	"github.com/luxfi/corona/hash"
-	"github.com/luxfi/corona/primitives"
 	"github.com/luxfi/corona/sign"
 	"github.com/luxfi/corona/threshold"
 	"github.com/luxfi/corona/utils"
 
-	"github.com/luxfi/lattice/v7/ring"
+	dkgblame "github.com/luxfi/dkg/blame"
+	dkgchannel "github.com/luxfi/dkg/channel"
+	dkgring "github.com/luxfi/dkg/ring"
+	dkgvss "github.com/luxfi/dkg/vss"
+
+	lring "github.com/luxfi/lattice/v7/ring"
 	"github.com/luxfi/lattice/v7/utils/sampling"
 	"github.com/luxfi/lattice/v7/utils/structs"
+
+	"github.com/zeebo/blake3"
 )
+
+// bootstrap_pedersen.go — dealerless key-era bootstrap.
+//
+// The no-reconstruct Pedersen-VSS share-dealing (commit & deal, equivocation
+// gate, Pedersen verification, identifiable abort) is provided by the shared
+// github.com/luxfi/dkg library, parameterized by ring.Ringtail(). corona keeps
+// ONLY its scheme-specific finalize: Path (a) noise flooding + Round_Xi, which
+// turns the per-party secret shares s_j into the LWE-shaped Ringtail public key
+// bTilde = Round_Xi(A·s + e″). The Pedersen aggregate T = A·s1+B·u that vss
+// produces is NOT used as the group key (its B·u term is not a small LWE error);
+// vss is used purely for the no-reconstruct share distribution + blame.
+//
+// Byte-stability (golden_bootstrap_kat_test.go): the per-party sampling seed is
+// threaded into vss's Round1 so the χ draws — hence the Pedersen commits and the
+// secret shares — are byte-identical to the prior dkg2 path; the commit digests
+// are recomputed under the corona HashSuite over the same commit bytes. So the
+// group key, shares, and transcript are PRESERVED, not re-baselined.
 
 // BootstrapTranscript is the public, byte-stable record produced by a
 // BootstrapPedersen run. Every honest validator that observes the same
@@ -59,9 +81,14 @@ type BootstrapTranscript struct {
 // AbortEvidence captures the signed Complaint set that aborted a
 // BootstrapPedersen run. The chain stays at the previous era and the
 // returned error wraps ErrBootstrapPedersenAbort.
+//
+// Complaints are the shared library's scheme-agnostic blame records (a bad
+// share is named by the accused validator's NodeID, re-checkable by any third
+// party via vss.RecheckBadDelivery). Disqualified maps the committee index of
+// each named dealer.
 type AbortEvidence struct {
 	TranscriptHash [32]byte
-	Complaints     []*dkg2.Complaint
+	Complaints     []*dkgblame.Complaint
 	Disqualified   map[int]struct{}
 }
 
@@ -72,7 +99,7 @@ var (
 	ErrBootstrapPedersenAbort = errors.New("keyera: bootstrap-pedersen aborted with identifiable evidence")
 
 	// ErrBootstrapPedersenShape is returned when input parameters violate
-	// the (1 ≤ t ≤ n) and (n ≥ 2) constraints required by dkg2.
+	// the (1 ≤ t ≤ n) and (n ≥ 2) constraints required by the DKG.
 	ErrBootstrapPedersenShape = errors.New("keyera: bootstrap-pedersen parameter shape")
 )
 
@@ -88,57 +115,88 @@ const noiseFloodTag = "CORONA-BOOTSTRAP-PEDERSEN-NOISEFLOOD-v1"
 // transcript so two suites can never collide on a single era.
 const transcriptTag = "CORONA-BOOTSTRAP-PEDERSEN-TRANSCRIPT-v1"
 
-// PedersenContributions is the raw output of all parties' Round 1 plus
-// the per-recipient share/blind tables, suitable for direct injection
-// into the FinishBootstrapPedersen orchestrator. Tests use this to
-// simulate identifiable-abort scenarios where a single party is
-// dishonest: they tamper one entry and then call FinishBootstrapPedersen
-// to drive the abort path.
+// tagCommitDigest is the customization tag bound into the Round 1.5 commit
+// digest under the active HashSuite. The suite ID is bound into the digest
+// input as well so two suites can never produce a colliding digest for the
+// same commit vector. The string is the historical corona/dkg2 tag, kept
+// verbatim so the digest — hence the noise seed and the transcript hash —
+// is byte-identical across the move to luxfi/dkg.
+const tagCommitDigest = "CORONA-DKG2-COMMIT-DIGEST-v1"
+
+// identityDomainTag derives the per-party long-term DKG channel identities
+// deterministically. The identities authenticate the sealed share envelopes;
+// they do NOT influence the public commits, the secret shares, or the group
+// key (those are functions of the per-party sampling seed only), so a fixed
+// derivation keeps the whole in-process run replayable without perturbing any
+// byte-stable output.
+const identityDomainTag = "CORONA-BOOTSTRAP-PEDERSEN-IDENTITY-v1"
+
+// kemStreamTag derives the per-party KEM-encapsulation randomness stream that
+// vss.Round1 consumes after the 32-byte sampling seed. Like the identities,
+// this affects only the (immediately-opened, then-discarded) envelope
+// ciphertext, never any byte-stable output.
+const kemStreamTag = "CORONA-BOOTSTRAP-PEDERSEN-KEMSTREAM-v1"
+
+// pedersenSession bundles the in-process vss machinery for one bootstrap: the
+// Ringtail profile, the n party sessions, their deterministic identities, the
+// committee NodeIDs, and the era/committee context. corona drives every party
+// itself (in-process reference path); production wraps each party over an
+// authenticated network at the consensus layer.
+type pedersenSession struct {
+	profile *dkgring.Profile
+	parties []*dkgvss.Party
+	ids     []*dkgchannel.IdentityKey
+	nodes   []dkgchannel.NodeID
+	context [32]byte
+	cr      *lring.Ring // corona ring (== profile.Ring.Base()) for Path (a)
+	crXi    *lring.Ring // post-rounding ring for Round_Xi
+}
+
+// PedersenContributions is the raw share-dealing output of all parties' Round 1
+// plus, per recipient, the opened (share, blind, commits) it verifies in
+// Round 3. It feeds FinishBootstrapPedersen. Tests use it to simulate an
+// identifiable-abort: they tamper one opened share and call
+// FinishBootstrapPedersen to drive the blame path.
 //
-// In production the per-party contributions arrive over the network and
-// the consensus layer assembles them; the kernel exists for tests +
-// integration suite.
+// In production the per-party Round-1 broadcasts + sealed envelopes arrive over
+// the network and the consensus layer assembles them; this kernel exists for
+// tests + the single-process integration suite.
 type PedersenContributions struct {
-	// Round1 outputs indexed by sender party ID 0..n-1.
-	Round1 []*dkg2.Round1Output
-	// dkg2 ring (matches Round1's sessions). The caller may build a fresh
-	// dkg2.NewParams() and pass its .R.
-	Sessions []*dkg2.DKGSession
+	session *pedersenSession
+	// commits[i] is dealer i's broadcast Pedersen commit vector (plain-NTT).
+	commits [][]dkgring.Vector
+	// digests[i] is the corona-HashSuite commit digest of dealer i's commits.
+	digests [][32]byte
+	// inputs[j][i] is recipient j's opened contribution from dealer i.
+	inputs []map[int]*dkgvss.DealerInput
 }
 
 // BootstrapPedersen opens a new key era WITHOUT a trusted dealer.
 //
 // The construction follows Path (a) of papers/lp-073-pulsar §07:
 //
-//  1. Each party runs dkg2.Round1 → broadcasts Pedersen commits, sends
-//     (share_{i→j}, blind_{i→j}) privately to every recipient j.
+//  1. Each party runs the shared Pedersen-VSS Round 1 → broadcasts Pedersen
+//     commits, KEM-seals (share_{i→j}, blind_{i→j}) privately to recipient j.
 //  2. Each party verifies all incoming Pedersen pairs (constant-time
 //     comparison; identifiable abort on mismatch).
-//  3. Each party runs dkg2.Round2 → obtains its share s_j of the master
-//     secret s. NO PARTY ever holds s in memory.
-//  4. Each party samples a fresh Gaussian e_j' ~ D(σ”) locally with
-//     σ” = κ · σ_E · √n (the slack reservation of LP-073 §5) and
+//  3. Each party aggregates its share s_j of the master secret s. NO PARTY
+//     ever holds s in memory (no-reconstruct: vss never sums the contributions).
+//  4. Each party samples a fresh Gaussian e_j' ~ D(σ″) locally with
+//     σ″ = κ · σ_E · √n (the slack reservation of LP-073 §5) and
 //     broadcasts β_j = A · NTT(λ_j · s_j) + e_j'. The published β_j is
 //     LWE-protected by e_j' so no party learns more than its own share.
-//  5. All parties aggregate b = Σ_j β_j = A · s + e” in NTT-Mont; the
+//  5. All parties aggregate b = Σ_j β_j = A · s + e″ in NTT-Mont; the
 //     Corona-Sign-shaped public key is bTilde = Round_Xi(b).
 //
-// On success returns:
+// On success returns (era, transcript, nil). On identifiable abort returns
+// (nil, nil, ErrBootstrapPedersenAbort) with the AbortEvidence wrapped into
+// the error (extract via ExtractAbortEvidence).
 //
-//   - era — fully populated *KeyEra with the noise-flooded GroupKey;
-//   - transcript — the public BootstrapTranscript suitable for chain commit;
-//   - nil error.
-//
-// On identifiable abort returns (nil, nil, ErrBootstrapPedersenAbort) and
-// the AbortEvidence is wrapped into the returned error via errors.As.
-//
-// In production each party drives its own dkg2.DKGSession over an
-// authenticated network. This in-process kernel drives every party
-// itself; it exists to (a) be the trusted-collaborator path for the
-// single-process integration tests and (b) provide a reference against
-// which the distributed protocol can be byte-equality checked. The
-// distributed wrapper at the consensus layer reuses every primitive
-// imported here.
+// In production each party drives its own vss session over an authenticated
+// network. This in-process kernel drives every party itself; it exists to (a)
+// be the trusted-collaborator path for the single-process integration tests
+// and (b) provide a reference against which the distributed protocol can be
+// byte-equality checked.
 //
 // Pass nil for the production suite default (Corona-SHA3).
 func BootstrapPedersen(suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, entropy io.Reader) (*KeyEra, *BootstrapTranscript, error) {
@@ -149,14 +207,14 @@ func BootstrapPedersen(suite hash.HashSuite, t int, validators []string, groupID
 	if t < 1 || t > n {
 		return nil, nil, fmt.Errorf("%w: t=%d n=%d", ErrInvalidThreshold, t, n)
 	}
-	// dkg2 requires n ≥ 2 and 1 ≤ t < n (strictly less than for honest-
-	// abort detection). For t == n we fall back to the trusted-dealer
-	// path because dkg2 cannot guard a corruption-free quorum below 1.
+	// The Pedersen DKG requires n ≥ 2 and 1 ≤ t < n (strictly less than for
+	// honest-abort detection). For t == n callers must use the trusted-dealer
+	// path because the DKG cannot guard a corruption-free quorum below 1.
 	if n < 2 {
-		return nil, nil, fmt.Errorf("%w: n=%d (dkg2 requires n >= 2)", ErrBootstrapPedersenShape, n)
+		return nil, nil, fmt.Errorf("%w: n=%d (dkg requires n >= 2)", ErrBootstrapPedersenShape, n)
 	}
 	if t >= n {
-		return nil, nil, fmt.Errorf("%w: t=%d n=%d (dkg2 requires t < n)", ErrBootstrapPedersenShape, t, n)
+		return nil, nil, fmt.Errorf("%w: t=%d n=%d (dkg requires t < n)", ErrBootstrapPedersenShape, t, n)
 	}
 	if entropy == nil {
 		entropy = rand.Reader
@@ -164,24 +222,11 @@ func BootstrapPedersen(suite hash.HashSuite, t int, validators []string, groupID
 	suite = hash.Resolve(suite)
 	suiteID := suite.ID()
 
-	// Initialize dkg2 ring + matrices. The matrices A, B are
-	// nothing-up-my-sleeve; every party derives them deterministically.
-	dkgParams, err := dkg2.NewParams()
-	if err != nil {
-		return nil, nil, fmt.Errorf("keyera: bootstrap-pedersen dkg2 params: %w", err)
-	}
-
-	// Create one session per party. Each session needs an independent
-	// random seed for its Round1WithSeed input; we draw all of them up
-	// front so the entropy stream is sequenced canonically.
-	sessions := make([]*dkg2.DKGSession, n)
+	// Draw the per-party sampling seeds from the ceremony entropy, canonically
+	// sequenced (matches the prior dkg2 path's entropy consumption exactly, so
+	// the χ draws — hence commits, shares, and bTilde — are byte-stable).
 	round1Seeds := make([][]byte, n)
 	for i := 0; i < n; i++ {
-		sess, err := dkg2.NewDKGSession(dkgParams, i, n, t, suite)
-		if err != nil {
-			return nil, nil, fmt.Errorf("keyera: bootstrap-pedersen NewDKGSession[%d]: %w", i, err)
-		}
-		sessions[i] = sess
 		seed := make([]byte, sign.KeySize)
 		if _, err := io.ReadFull(entropy, seed); err != nil {
 			return nil, nil, fmt.Errorf("keyera: bootstrap-pedersen entropy[%d]: %w", i, err)
@@ -189,86 +234,171 @@ func BootstrapPedersen(suite hash.HashSuite, t int, validators []string, groupID
 		round1Seeds[i] = seed
 	}
 
-	// Round 1 — produce per-party Pedersen commits + shares/blinds.
-	round1 := make([]*dkg2.Round1Output, n)
+	contribs, err := dealPedersen(suite, t, n, round1Seeds)
+	if err != nil {
+		return nil, nil, err
+	}
+	return finishPedersenContribs(suite, suiteID, t, n, validators, groupID, eraID, contribs)
+}
+
+// newPedersenSession builds the in-process committee: the Ringtail profile, n
+// deterministic channel identities, NodeIDs, the identity directory, the
+// corona rings, and one vss.Party per committee position.
+func newPedersenSession(t, n int) (*pedersenSession, error) {
+	profile, err := dkgring.Ringtail()
+	if err != nil {
+		return nil, fmt.Errorf("keyera: bootstrap-pedersen ring.Ringtail: %w", err)
+	}
+	crXi, _ := lring.NewRing(1<<sign.LogN, []uint64{sign.QXi}) // non-prime modulus; error deliberately ignored (RoundVector container only)
+
+	ids := make([]*dkgchannel.IdentityKey, n)
+	nodes := make([]dkgchannel.NodeID, n)
+	entries := make(map[dkgchannel.NodeID]*dkgchannel.IdentityPublicKey, n)
 	for i := 0; i < n; i++ {
-		out, err := sessions[i].Round1WithSeed(round1Seeds[i])
+		id, err := dkgchannel.GenerateIdentity(derivedStream(identityDomainTag, uint32(i)))
 		if err != nil {
-			return nil, nil, fmt.Errorf("keyera: bootstrap-pedersen Round1[%d]: %w", i, err)
+			return nil, fmt.Errorf("keyera: bootstrap-pedersen identity[%d]: %w", i, err)
+		}
+		ids[i] = id
+		nodes[i] = pedersenNodeID(i)
+		entries[nodes[i]] = id.PublicKey()
+	}
+	dir, err := dkgchannel.NewIdentityDirectory(entries)
+	if err != nil {
+		return nil, fmt.Errorf("keyera: bootstrap-pedersen directory: %w", err)
+	}
+
+	// The era/committee context binds every envelope to this ceremony. It is
+	// public and deterministic from (t, n); the consensus layer overrides it
+	// with a chain transcript root in the distributed deployment.
+	var context [32]byte
+	ctx := blake3.New()
+	_, _ = ctx.Write([]byte("CORONA-BOOTSTRAP-PEDERSEN-CONTEXT-v1"))
+	_, _ = ctx.Write(u32be(uint32(t)))
+	_, _ = ctx.Write(u32be(uint32(n)))
+	copy(context[:], ctx.Sum(nil))
+
+	parties := make([]*dkgvss.Party, n)
+	for i := 0; i < n; i++ {
+		p, err := dkgvss.NewParty(profile, nodes[i], ids[i], i, n, t, nodes, dir, context)
+		if err != nil {
+			return nil, fmt.Errorf("keyera: bootstrap-pedersen NewParty[%d]: %w", i, err)
+		}
+		parties[i] = p
+	}
+
+	return &pedersenSession{
+		profile: profile,
+		parties: parties,
+		ids:     ids,
+		nodes:   nodes,
+		context: context,
+		cr:      profile.Ring.Base(),
+		crXi:    crXi,
+	}, nil
+}
+
+// dealPedersen drives the shared Pedersen-VSS Round 1 for every party (with the
+// per-party sampling seed threaded so the χ draws are byte-identical to the
+// prior dkg2 path), computes the corona commit digests, then opens every sealed
+// envelope so each recipient holds its (share, blind, commits) from each dealer.
+// The honest-path Pedersen verification + aggregation happens in
+// finishPedersenContribs (so a test can tamper an opened share first).
+func dealPedersen(suite hash.HashSuite, t, n int, round1Seeds [][]byte) (*PedersenContributions, error) {
+	if len(round1Seeds) != n {
+		return nil, fmt.Errorf("%w: seeds=%d n=%d", ErrBootstrapPedersenShape, len(round1Seeds), n)
+	}
+	sess, err := newPedersenSession(t, n)
+	if err != nil {
+		return nil, err
+	}
+
+	// Round 1: each party samples χ, builds Pedersen commits, seals shares.
+	round1 := make([]*dkgvss.Round1Out, n)
+	for i := 0; i < n; i++ {
+		out, err := sess.parties[i].Round1(seededRound1Rng(round1Seeds[i], i))
+		if err != nil {
+			return nil, fmt.Errorf("keyera: bootstrap-pedersen Round1[%d]: %w", i, err)
 		}
 		round1[i] = out
 	}
 
-	return finishBootstrapPedersen(suite, suiteID, t, n, validators, groupID, eraID, dkgParams, sessions, round1)
-}
-
-// finishBootstrapPedersen drives Rounds 1.5/2 and the Path (a) noise-
-// flooding on a pre-computed set of Round 1 outputs. Tests use this
-// entrypoint (via FinishBootstrapPedersen) to inject deliberately
-// dishonest contributions and exercise the identifiable-abort path.
-//
-// The in-process orchestrator owns the dkg2 sessions and the round1
-// outputs; in production each party drives its own. The transcript bytes
-// are independent of which side runs the loop because every input is
-// deterministic given the round1 outputs and the validator list.
-func finishBootstrapPedersen(suite hash.HashSuite, suiteID string, t, n int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, dkgParams *dkg2.Params, sessions []*dkg2.DKGSession, round1 []*dkg2.Round1Output) (*KeyEra, *BootstrapTranscript, error) {
-	r := dkgParams.R
-
-	// Round 1.5 — each recipient computes its sender digests under the
-	// active suite. In a distributed deployment each digest is broadcast
-	// and cross-checked. The kernel runs in-process so digests are
-	// deterministic and pinned into the transcript.
+	// Commit digests under the corona HashSuite (Round 1.5 equivocation gate +
+	// transcript binding). Computed over the lattigo wire bytes of each dealer's
+	// commits — byte-identical to the prior dkg2 CommitDigest.
+	commits := make([][]dkgring.Vector, n)
 	digests := make([][32]byte, n)
 	for i := 0; i < n; i++ {
-		d, err := round1[i].CommitDigest(suite)
+		commits[i] = round1[i].Commits
+		d, err := coronaCommitDigest(suite, round1[i].Commits)
 		if err != nil {
-			return nil, nil, fmt.Errorf("keyera: bootstrap-pedersen CommitDigest[%d]: %w", i, err)
+			return nil, fmt.Errorf("keyera: bootstrap-pedersen CommitDigest[%d]: %w", i, err)
 		}
 		digests[i] = d
 	}
 
-	// Round 2 — each recipient verifies every share/blind pair against
-	// the commits, then aggregates to its own (s_j, u_j, b_ped). On any
-	// identifiable abort we collect signed complaints and return.
-	//
-	// s shares per recipient (standard form, dimension sign.N).
-	sShares := make([]structs.Vector[ring.Poly], n)
+	// Open every sealed envelope: recipient j recovers (share, blind) from each
+	// dealer i. The opened values are byte-identical to the dealer's Horner
+	// evaluation f_i(j+1) / g_i(j+1).
+	inputs := make([]map[int]*dkgvss.DealerInput, n)
 	for j := 0; j < n; j++ {
-		shares := map[int]structs.Vector[ring.Poly]{}
-		blinds := map[int]structs.Vector[ring.Poly]{}
-		commits := map[int][]structs.Vector[ring.Poly]{}
+		row := make(map[int]*dkgvss.DealerInput, n)
 		for i := 0; i < n; i++ {
-			shares[i] = round1[i].Shares[j]
-			blinds[i] = round1[i].Blinds[j]
-			commits[i] = round1[i].Commits
-		}
-		sj, _, _, badID, err := sessions[j].Round2Identify(shares, blinds, commits)
-		if err != nil {
-			abortEv, abortErr := buildAbortEvidence(suite, digests, suiteID, n, t,
-				validators, j, badID, shares, blinds, commits)
-			if abortErr != nil {
-				return nil, nil, fmt.Errorf("keyera: bootstrap-pedersen Round2[%d] + abort-evidence: %v / %w", j, abortErr, err)
+			share, blind, err := sess.parties[j].OpenDealerShare(i, round1[i].Envelopes[j])
+			if err != nil {
+				return nil, fmt.Errorf("keyera: bootstrap-pedersen open[%d<-%d]: %w", j, i, err)
 			}
-			return nil, nil, fmt.Errorf("%w: %w", ErrBootstrapPedersenAbort,
-				abortEvidenceWrap(abortEv, err))
+			row[i] = &dkgvss.DealerInput{Commits: round1[i].Commits, Share: share, Blind: blind}
 		}
-		sShares[j] = sj
+		inputs[j] = row
 	}
 
-	// Path (a) noise flooding. Compute Lagrange weights at X=0 for the
-	// full committee T = {0, ..., n-1}; each party's contribution scales
-	// its share by λ_j so the aggregate equals s. Each party then adds a
-	// fresh Gaussian e_j' under σ'' = κ · σ_E · √n.
-	//
-	// The deterministic noise seed for e_j' is derived from the active
-	// HashSuite over the canonical transcript prefix so a KAT replay can
-	// reproduce the bootstrap byte-for-byte from a single entropy source.
-	A := sessions[0].APublic()
-	lagrange := computeFullCommitteeLagrange(r, n)
+	return &PedersenContributions{
+		session: sess,
+		commits: commits,
+		digests: digests,
+		inputs:  inputs,
+	}, nil
+}
 
-	// Build aggregated b in NTT-Mont form by summing per-party β_j.
-	// We also serialize each β_j for the transcript.
-	bSum := utils.InitializeVector(r, sign.M)
+// finishPedersenContribs runs Round 3 (Pedersen verify + aggregate) for every
+// recipient over the opened contributions, then the Path (a) noise flooding and
+// KeyShare assembly. On the first dealer whose contribution fails verification
+// it returns ErrBootstrapPedersenAbort with re-checkable blame evidence.
+func finishPedersenContribs(suite hash.HashSuite, suiteID string, t, n int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, contribs *PedersenContributions) (*KeyEra, *BootstrapTranscript, error) {
+	sess := contribs.session
+	cr := sess.cr
+	digests := contribs.digests
+
+	// Round 3 — each recipient verifies every dealer's (share, blind) against
+	// the commits and aggregates its own secret share s_j. On any identifiable
+	// abort we mint a signed complaint and return.
+	sShares := make([]structs.Vector[lring.Poly], n)
+	for j := 0; j < n; j++ {
+		res, fault, err := sess.parties[j].Round3(contribs.inputs[j])
+		if err != nil {
+			if fault == nil {
+				return nil, nil, fmt.Errorf("keyera: bootstrap-pedersen Round3[%d]: %w", j, err)
+			}
+			abortEv, abortErr := buildAbortEvidence(sess, suite, suiteID, digests, n, t, validators, fault)
+			if abortErr != nil {
+				return nil, nil, fmt.Errorf("keyera: bootstrap-pedersen Round3[%d] + abort-evidence: %v / %w", j, abortErr, err)
+			}
+			return nil, nil, fmt.Errorf("%w: %w", ErrBootstrapPedersenAbort, abortEvidenceWrap(abortEv, err))
+		}
+		sShares[j] = res.Share
+	}
+
+	// Path (a) noise flooding. Compute Lagrange weights at X=0 for the full
+	// committee T = {0, ..., n-1}; each party scales its share by λ_j so the
+	// aggregate equals s. Each party then adds a fresh Gaussian e_j' under
+	// σ″ = κ · σ_E · √n. The deterministic noise seed is derived from the
+	// active HashSuite over the canonical transcript prefix so a KAT replay can
+	// reproduce the bootstrap byte-for-byte from a single entropy source.
+	A := sess.profile.A
+	lagrange := computeFullCommitteeLagrange(cr, n)
+
+	bSum := utils.InitializeVector(cr, sign.M)
 	betaSerialized := make([][]byte, n)
 	noiseSigma, noiseBound := pathANoiseParameters(n)
 
@@ -282,35 +412,35 @@ func finishBootstrapPedersen(suite hash.HashSuite, suiteID string, t, n int, val
 
 	for j := 0; j < n; j++ {
 		// λ_j in NTT-Mont form for the multiplication.
-		lambda := r.NewPoly()
+		lambda := cr.NewPoly()
 		lambda.Copy(lagrange[j])
-		r.NTT(lambda, lambda)
-		r.MForm(lambda, lambda)
+		cr.NTT(lambda, lambda)
+		cr.MForm(lambda, lambda)
 
 		// NTT-Mont share s_j scaled by λ_j: λ_j · NTT-Mont(s_j).
 		// sShares[j] is in standard coefficient form; convert to NTT-Mont.
-		sNTT := make(structs.Vector[ring.Poly], sign.N)
+		sNTT := make(structs.Vector[lring.Poly], sign.N)
 		for vi := 0; vi < sign.N; vi++ {
 			sNTT[vi] = *sShares[j][vi].CopyNew()
-			r.NTT(sNTT[vi], sNTT[vi])
-			r.MForm(sNTT[vi], sNTT[vi])
+			cr.NTT(sNTT[vi], sNTT[vi])
+			cr.MForm(sNTT[vi], sNTT[vi])
 		}
 
 		// (λ_j · s_j) coordinate-wise.
-		scaled := make(structs.Vector[ring.Poly], sign.N)
+		scaled := make(structs.Vector[lring.Poly], sign.N)
 		for vi := 0; vi < sign.N; vi++ {
-			scaled[vi] = r.NewPoly()
-			r.MulCoeffsMontgomery(sNTT[vi], lambda, scaled[vi])
+			scaled[vi] = cr.NewPoly()
+			cr.MulCoeffsMontgomery(sNTT[vi], lambda, scaled[vi])
 		}
 
-		// β_j = A · (λ_j · s_j) + e_j' where e_j' ~ D(σ'').
-		Aprod := utils.InitializeVector(r, sign.M)
-		utils.MatrixVectorMul(r, A, scaled, Aprod)
+		// β_j = A · (λ_j · s_j) + e_j' where e_j' ~ D(σ″).
+		Aprod := utils.InitializeVector(cr, sign.M)
+		utils.MatrixVectorMul(cr, A, scaled, Aprod)
 
-		ePrime := samplePathANoise(r, suite, noiseSeedTranscript, j, noiseSigma, noiseBound)
+		ePrime := samplePathANoise(cr, suite, noiseSeedTranscript, j, noiseSigma, noiseBound)
 		// ePrime is in NTT-Mont; β_j = Aprod + ePrime.
-		beta := utils.InitializeVector(r, sign.M)
-		utils.VectorAdd(r, Aprod, ePrime, beta)
+		beta := utils.InitializeVector(cr, sign.M)
+		utils.VectorAdd(cr, Aprod, ePrime, beta)
 
 		// Serialize β_j for the transcript.
 		buf, serr := serializeVector(beta)
@@ -320,17 +450,17 @@ func finishBootstrapPedersen(suite hash.HashSuite, suiteID string, t, n int, val
 		betaSerialized[j] = buf
 
 		// Accumulate.
-		utils.VectorAdd(r, bSum, beta, bSum)
+		utils.VectorAdd(cr, bSum, beta, bSum)
 	}
 
-	// b = Σ_j β_j = A·s + e'' in NTT-Mont. Convert to standard form,
-	// then round to bTilde under the QXi ring.
-	utils.ConvertVectorFromNTT(r, bSum)
-	bTilde := utils.RoundVector(r, dkgParams.RXi, bSum, sign.Xi)
+	// b = Σ_j β_j = A·s + e″ in NTT-Mont. Convert to standard form, then round
+	// to bTilde under the QXi ring.
+	utils.ConvertVectorFromNTT(cr, bSum)
+	bTilde := utils.RoundVector(cr, sess.crXi, bSum, sign.Xi)
 
-	// Build Corona threshold.GroupKey. The matrix A is the dkg2 A
-	// (nothing-up-my-sleeve), so the era is reproducible from the
-	// transcript alone.
+	// Build Corona threshold.GroupKey. The matrix A is the Ringtail A
+	// (nothing-up-my-sleeve, byte-identical to the prior dkg2 A), so the era is
+	// reproducible from the transcript alone.
 	thParams, err := threshold.NewParams()
 	if err != nil {
 		return nil, nil, fmt.Errorf("keyera: bootstrap-pedersen threshold params: %w", err)
@@ -341,11 +471,11 @@ func finishBootstrapPedersen(suite hash.HashSuite, suiteID string, t, n int, val
 		Params: thParams,
 	}
 
-	// Pairwise seeds and MAC keys. In a distributed deployment these come
-	// from authenticated pairwise KEX (reshare/pairwise.go); the kernel
-	// derives them deterministically from the transcript so KATs can
-	// replay. The bytes are independent of any secret share material —
-	// they form a public symmetric mask that the cohort agrees on.
+	// Pairwise seeds and MAC keys. In a distributed deployment these come from
+	// authenticated pairwise KEX (reshare/pairwise.go); the kernel derives them
+	// deterministically from the transcript so KATs can replay. The bytes are
+	// independent of any secret share material — they form a public symmetric
+	// mask the cohort agrees on (protection comes from each party's SkShare).
 	seedTranscript := suite.TranscriptHash(
 		[]byte("CORONA-BOOTSTRAP-PEDERSEN-PAIRWISE-v1"),
 		noiseSeedTranscript[:],
@@ -366,9 +496,9 @@ func finishBootstrapPedersen(suite hash.HashSuite, suiteID string, t, n int, val
 	}
 	for j, v := range validators {
 		// sShares[j] is in standard form; convert to NTT-Mont for the
-		// signing-time multiplication path (matches threshold.GenerateKeysTrustedDealer
+		// signing-time multiplication path (matches the trusted-dealer
 		// convention).
-		skNTT := make(structs.Vector[ring.Poly], sign.N)
+		skNTT := make(structs.Vector[lring.Poly], sign.N)
 		for vi := 0; vi < sign.N; vi++ {
 			skNTT[vi] = *sShares[j][vi].CopyNew()
 		}
@@ -417,21 +547,38 @@ func finishBootstrapPedersen(suite hash.HashSuite, suiteID string, t, n int, val
 	}, transcript, nil
 }
 
-// FinishBootstrapPedersen is the kernel entrypoint that takes a fully
-// pre-computed set of Round1 outputs (one per party) and drives the
-// remainder of the protocol: Round 1.5 digest computation, Round 2
+// DealPedersen runs the share-dealing half of BootstrapPedersen (Round 1 +
+// envelope opening) over the supplied per-party sampling seeds and returns the
+// opened contributions. Tests use this to tamper one opened share before
+// calling FinishBootstrapPedersen, exercising the identifiable-abort path.
+//
+// seeds must have exactly n = len(validators) entries of sign.KeySize bytes.
+func DealPedersen(suite hash.HashSuite, t int, validators []string, seeds [][]byte) (*PedersenContributions, error) {
+	if len(validators) == 0 {
+		return nil, ErrEmptyValidators
+	}
+	n := len(validators)
+	if t < 1 || t > n {
+		return nil, fmt.Errorf("%w: t=%d n=%d", ErrInvalidThreshold, t, n)
+	}
+	if n < 2 || t >= n {
+		return nil, fmt.Errorf("%w: t=%d n=%d", ErrBootstrapPedersenShape, t, n)
+	}
+	if len(seeds) != n {
+		return nil, fmt.Errorf("%w: seeds=%d n=%d", ErrBootstrapPedersenShape, len(seeds), n)
+	}
+	return dealPedersen(hash.Resolve(suite), t, n, seeds)
+}
+
+// FinishBootstrapPedersen takes a fully assembled set of opened contributions
+// (produced by DealPedersen) and drives the remainder of the protocol: Round 3
 // verification, Path (a) noise flooding, and KeyShare assembly.
 //
-// The caller is responsible for producing the dkg2.Round1Output array;
-// in production this is the per-party network broadcast. In tests, the
-// caller may deliberately tamper a Round1 output to exercise the
-// identifiable-abort path.
-//
-// The dkgParams and sessions arrays MUST correspond to the supplied
-// round1 outputs (same n, same t, same A, B matrices).
+// In production the contributions arrive over the network; in tests the caller
+// may tamper one opened share to exercise the identifiable-abort path.
 //
 // suite=nil resolves to the production default (Corona-SHA3).
-func FinishBootstrapPedersen(suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, dkgParams *dkg2.Params, sessions []*dkg2.DKGSession, round1 []*dkg2.Round1Output) (*KeyEra, *BootstrapTranscript, error) {
+func FinishBootstrapPedersen(suite hash.HashSuite, t int, validators []string, groupID CoronaGroupID, eraID CoronaKeyEraID, contribs *PedersenContributions) (*KeyEra, *BootstrapTranscript, error) {
 	if len(validators) == 0 {
 		return nil, nil, ErrEmptyValidators
 	}
@@ -442,11 +589,11 @@ func FinishBootstrapPedersen(suite hash.HashSuite, t int, validators []string, g
 	if n < 2 || t >= n {
 		return nil, nil, fmt.Errorf("%w: t=%d n=%d", ErrBootstrapPedersenShape, t, n)
 	}
-	if len(sessions) != n || len(round1) != n {
-		return nil, nil, fmt.Errorf("%w: sessions=%d round1=%d, expected %d", ErrBootstrapPedersenShape, len(sessions), len(round1), n)
+	if contribs == nil || contribs.session == nil || len(contribs.inputs) != n {
+		return nil, nil, fmt.Errorf("%w: malformed contributions", ErrBootstrapPedersenShape)
 	}
 	suite = hash.Resolve(suite)
-	return finishBootstrapPedersen(suite, suite.ID(), t, n, validators, groupID, eraID, dkgParams, sessions, round1)
+	return finishPedersenContribs(suite, suite.ID(), t, n, validators, groupID, eraID, contribs)
 }
 
 // BootstrapTrustedDealer is the legacy single-trusted-party bootstrap
@@ -482,7 +629,7 @@ func BootstrapTrustedDealerWithSuite(suite hash.HashSuite, t int, validators []s
 
 // pathANoiseParameters returns the (σ, bound) pair for the Path (a)
 // noise-flooding sub-protocol over a committee of n parties. The slack
-// reservation σ” = κ · σ_E · √n is the LP-073 §5 bound: it is large
+// reservation σ″ = κ · σ_E · √n is the LP-073 §5 bound: it is large
 // enough that the published β_j = A · (λ_j · s_j) + e_j' leaks no more
 // information about s_j than a fresh LWE sample (the standard MLWE
 // noise-flooding argument under DDH/MLWE).
@@ -499,10 +646,10 @@ func pathANoiseParameters(n int) (sigma, bound float64) {
 //
 // The Gaussian PRNG is seeded by HashSuite(noise-tag || party-index) so
 // every honest party that re-derives the bootstrap transcript can verify
-// the broadcast β_j byte-for-byte. In the production distributed
-// protocol the seed comes from each party's own private RNG; here we
-// derive deterministically for KAT-replay.
-func samplePathANoise(r *ring.Ring, suite hash.HashSuite, transcript [32]byte, partyID int, sigma, bound float64) structs.Vector[ring.Poly] {
+// the broadcast β_j byte-for-byte. In the production distributed protocol
+// the seed comes from each party's own private RNG; here we derive
+// deterministically for KAT-replay.
+func samplePathANoise(r *lring.Ring, suite hash.HashSuite, transcript [32]byte, partyID int, sigma, bound float64) structs.Vector[lring.Poly] {
 	var partyBuf [4]byte
 	binary.BigEndian.PutUint32(partyBuf[:], uint32(partyID))
 	seed := suite.TranscriptHash(
@@ -511,8 +658,8 @@ func samplePathANoise(r *ring.Ring, suite hash.HashSuite, transcript [32]byte, p
 		partyBuf[:],
 	)
 	prng, _ := sampling.NewKeyedPRNG(seed[:])
-	gauss := ring.NewGaussianSampler(prng, r,
-		ring.DiscreteGaussian{Sigma: sigma, Bound: bound}, false)
+	gauss := lring.NewGaussianSampler(prng, r,
+		lring.DiscreteGaussian{Sigma: sigma, Bound: bound}, false)
 	return utils.SamplePolyVector(r, sign.M, gauss, true, true)
 }
 
@@ -551,35 +698,27 @@ func derivePairwisePedersen(n int, transcriptSeed [32]byte) (map[int][][]byte, [
 	return seeds, macKeys
 }
 
-// buildAbortEvidence packages a single recipient's Round2Identify
-// failure into a signed-complaint-shaped AbortEvidence record. The
-// senderID, when ≥ 0, names the misbehaving sender that recipient j
-// observed.
-//
-// The kernel does not sign the complaints (signing requires the wire-
-// identity ed25519 key, which lives at the consensus layer); it
-// constructs unsigned complaints that the consensus layer signs and
-// broadcasts. Tests inject an in-memory wire key via the AbortEvidence
-// callers, which is fine because the bootstrap is in-process.
-func buildAbortEvidence(suite hash.HashSuite, digests [][32]byte, suiteID string, n, t int, validators []string, complainerID, senderID int, shares, blinds map[int]structs.Vector[ring.Poly], commits map[int][]structs.Vector[ring.Poly]) (*AbortEvidence, error) {
-	if senderID < 0 || senderID >= n {
-		// Wrap missing-input failures as ComplaintMissing — the recipient
-		// can still drive disqualification without naming a specific
-		// commit/share pair.
-		return &AbortEvidence{
-			TranscriptHash: suite.TranscriptHash(
-				[]byte(transcriptTag),
-				[]byte(suiteID),
-				framedJoinValidators(validators),
-				framedJoinUint32([]uint32{uint32(t), uint32(n)}),
-				framedJoin(digests),
-			),
-			Complaints: nil,
-			Disqualified: map[int]struct{}{
-				complainerID: {},
-			},
-		}, nil
+// coronaCommitDigest computes the Round 1.5 commit digest of a dealer's commit
+// vector under the corona HashSuite. The digest is taken over the lattigo wire
+// bytes of the commits, byte-identical to the prior dkg2 Round1Output.CommitDigest
+// (same tag, same suite-ID binding, same serialization), so the noise seed and
+// transcript hash are preserved across the move to luxfi/dkg.
+func coronaCommitDigest(suite hash.HashSuite, commits []dkgring.Vector) ([32]byte, error) {
+	var buf bytes.Buffer
+	for _, v := range commits {
+		if _, err := v.WriteTo(&buf); err != nil {
+			return [32]byte{}, err
+		}
 	}
+	return suite.TranscriptHash([]byte(tagCommitDigest), []byte(suite.ID()), buf.Bytes()), nil
+}
+
+// buildAbortEvidence packages a recipient's Round-3 VerifyFault into a signed
+// blame complaint naming the offending dealer by NodeID, plus the disqualified
+// committee index. The accuser is the recipient that observed the fault; it
+// signs with its deterministic in-process identity. Any third party re-checks
+// the accusation with vss.RecheckBadDelivery — no trust in the accuser.
+func buildAbortEvidence(sess *pedersenSession, suite hash.HashSuite, suiteID string, digests [][32]byte, n, t int, validators []string, fault *dkgvss.VerifyFault) (*AbortEvidence, error) {
 	transcriptHash := suite.TranscriptHash(
 		[]byte(transcriptTag),
 		[]byte(suiteID),
@@ -587,20 +726,19 @@ func buildAbortEvidence(suite hash.HashSuite, digests [][32]byte, suiteID string
 		framedJoinUint32([]uint32{uint32(t), uint32(n)}),
 		framedJoin(digests),
 	)
-	c, err := dkg2.NewBadDeliveryComplaint(
-		transcriptHash,
-		senderID,
-		complainerID,
-		shares[senderID], blinds[senderID], commits[senderID],
+	accused := sess.nodes[fault.DealerIndex]
+	accuser := sess.nodes[fault.RecipientIndex]
+	c, err := dkgvss.NewBadDeliveryComplaint(
+		sess.profile, fault, transcriptHash, accused, accuser, sess.ids[fault.RecipientIndex],
 	)
 	if err != nil {
 		return nil, err
 	}
 	return &AbortEvidence{
 		TranscriptHash: transcriptHash,
-		Complaints:     []*dkg2.Complaint{c},
+		Complaints:     []*dkgblame.Complaint{c},
 		Disqualified: map[int]struct{}{
-			senderID: {},
+			fault.DealerIndex: {},
 		},
 	}, nil
 }
@@ -679,9 +817,44 @@ func asBootstrapAbortErr(err error, out **bootstrapAbortErr) bool {
 	return false
 }
 
+// pedersenNodeID returns the deterministic committee NodeID for index i. The
+// first two bytes encode the 1-based position; the rest are a fixed domain tag
+// byte. NodeIDs are public committee labels, not secrets.
+func pedersenNodeID(i int) dkgchannel.NodeID {
+	var id dkgchannel.NodeID
+	binary.BigEndian.PutUint16(id[:2], uint16(i+1))
+	id[2] = 0xC0
+	return id
+}
+
+// derivedStream returns a deterministic unbounded byte stream from a domain tag
+// and a 32-bit selector (party index). Used to seed channel identities and KEM
+// randomness reproducibly.
+func derivedStream(tag string, sel uint32) io.Reader {
+	h := blake3.New()
+	_, _ = h.Write([]byte(tag))
+	_, _ = h.Write(u32be(sel))
+	return h.Digest()
+}
+
+// seededRound1Rng returns the reader vss.Round1 consumes: the exact 32-byte
+// sampling seed first (so the χ draws — hence commits and shares — match the
+// prior dkg2 path byte-for-byte), then a deterministic KEM-randomness tail
+// (which affects only the immediately-opened envelope ciphertext).
+func seededRound1Rng(seed []byte, partyIndex int) io.Reader {
+	return io.MultiReader(bytes.NewReader(seed), derivedStream(kemStreamTag, uint32(partyIndex)))
+}
+
+// u32be returns the 4-byte big-endian encoding of x.
+func u32be(x uint32) []byte {
+	var b [4]byte
+	binary.BigEndian.PutUint32(b[:], x)
+	return b[:]
+}
+
 // serializeVector returns the canonical wire bytes of a vector via the
 // lattigo WriteTo. Length-prefixed so concatenation is unambiguous.
-func serializeVector(v structs.Vector[ring.Poly]) ([]byte, error) {
+func serializeVector(v structs.Vector[lring.Poly]) ([]byte, error) {
 	var inner []byte
 	buf := bytesBuffer{}
 	if _, err := v.WriteTo(&buf); err != nil {
@@ -695,7 +868,7 @@ func serializeVector(v structs.Vector[ring.Poly]) ([]byte, error) {
 }
 
 // bTildeBytes returns the canonical wire bytes of the final bTilde.
-func bTildeBytes(bTilde structs.Vector[ring.Poly]) []byte {
+func bTildeBytes(bTilde structs.Vector[lring.Poly]) []byte {
 	buf := bytesBuffer{}
 	if _, err := bTilde.WriteTo(&buf); err != nil {
 		// WriteTo on a valid Vector cannot fail with a bytesBuffer.
@@ -764,14 +937,3 @@ func (b *bytesBuffer) Write(p []byte) (int, error) {
 }
 
 func (b *bytesBuffer) Bytes() []byte { return b.b }
-
-// computeFullCommitteeLagrange (re-exported here for the path-(a) noise-
-// flood path) computes Lagrange coefficients λ_j evaluated at X = 0 for
-// the full committee {0, 1, ..., n-1} (1-indexed evaluation points
-// 1..n). The result is in standard coefficient form; callers convert to
-// NTT-Mont as needed.
-//
-// Defined in keyera.go alongside the trusted-dealer Bootstrap; redeclared
-// here so the function reads as one cohesive Pedersen module.
-var _ = primitives.ComputeLagrangeCoefficients
-var _ = (*big.Int)(nil)

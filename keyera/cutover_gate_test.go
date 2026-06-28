@@ -108,12 +108,12 @@ func TestCutover_RingtailMatricesByteIdentical(t *testing.T) {
 	t.Logf("Ringtail() A,B byte-identical to dkg2.DeriveA/DeriveB over all %dx%d slots", len(coronaA), len(coronaA[0]))
 }
 
-// seededRound1Rng returns a reader that yields seed first (the 32 bytes vss
+// seededGateRng returns a reader that yields seed first (the 32 bytes vss
 // Party.Round1 consumes as its sampling seed) then a deterministic tail (KEM
 // encapsulation randomness — does NOT affect the commits, which are computed
 // before any sealing). This makes vss's χ draws identical to a corona/dkg2
 // Round1WithSeed(seed) run.
-func seededRound1Rng(seed []byte) io.Reader {
+func seededGateRng(seed []byte) io.Reader {
 	tail := make([]byte, 1<<16)
 	// deterministic, distinct from seed; KEM randomness only.
 	for i := range tail {
@@ -191,7 +191,7 @@ func TestCutover_Round1CommitsByteIdentical(t *testing.T) {
 		t.Fatalf("ring.Ringtail: %v", err)
 	}
 	party := buildVSSParty0(t, prof, n, thr)
-	vssOut, err := party.Round1(seededRound1Rng(seed))
+	vssOut, err := party.Round1(seededGateRng(seed))
 	if err != nil {
 		t.Fatalf("vss Party.Round1: %v", err)
 	}
