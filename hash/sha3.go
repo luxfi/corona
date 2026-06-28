@@ -4,7 +4,12 @@
 package hash
 
 // CoronaSHA3 is the production hash suite for Corona. Built on
-// cSHAKE256 / KMAC256 / TupleHash256 from FIPS 202 and NIST SP 800-185.
+// cSHAKE256 / KMAC256 / TupleHash256 from FIPS 202 and NIST SP 800-185,
+// vended by the shared github.com/luxfi/mlwe/transcript package — the
+// single SP 800-185 surface for the Lux Module-LWE stack (Corona and
+// Pulsar). Corona owns only the domain-separation tags below; the
+// primitive byte encodings live in mlwe/transcript, so there is exactly
+// one implementation of each construction across the stack.
 //
 // Customization tags pin every operation to the Corona protocol:
 //
@@ -23,6 +28,8 @@ package hash
 
 import (
 	"encoding/binary"
+
+	"github.com/luxfi/mlwe/transcript"
 )
 
 const (
@@ -42,27 +49,30 @@ func NewCoronaSHA3() HashSuite { return coronaSHA3{} }
 
 func (coronaSHA3) ID() string { return "Corona-SHA3" }
 
-func (coronaSHA3) Hc(transcript []byte) []byte {
-	return cshake256Stream(tagHC, transcript, 32)
+// Hc is cSHAKE256 with an empty function name and the Hc domain tag.
+// (The transcript bytes are named tr here to avoid shadowing the
+// imported transcript package.)
+func (coronaSHA3) Hc(tr []byte) []byte {
+	return transcript.CShake256("", tagHC, tr, 32)
 }
 
-func (coronaSHA3) Hu(transcript []byte, outLen int) []byte {
-	return cshake256Stream(tagHU, transcript, outLen)
+func (coronaSHA3) Hu(tr []byte, outLen int) []byte {
+	return transcript.CShake256("", tagHU, tr, outLen)
 }
 
 func (coronaSHA3) TranscriptHash(parts ...[]byte) [32]byte {
-	out := tupleHash256(parts, 32, tagTranscript)
+	out := transcript.TupleHash256(parts, 32, tagTranscript)
 	var fixed [32]byte
 	copy(fixed[:], out)
 	return fixed
 }
 
 func (coronaSHA3) PRF(key, msg []byte, outLen int) []byte {
-	return kmac256(key, msg, outLen, tagPRF)
+	return transcript.KMAC256(key, msg, outLen, tagPRF)
 }
 
 func (coronaSHA3) MAC(key, msg []byte, outLen int) []byte {
-	return kmac256(key, msg, outLen, tagMAC)
+	return transcript.KMAC256(key, msg, outLen, tagMAC)
 }
 
 func (coronaSHA3) DerivePairwise(
@@ -77,18 +87,18 @@ func (coronaSHA3) DerivePairwise(
 		a, b = b, a
 	}
 	var msg []byte
-	msg = append(msg, encodeString(chainID)...)
-	msg = append(msg, encodeString(groupID)...)
+	msg = append(msg, transcript.EncodeString(chainID)...)
+	msg = append(msg, transcript.EncodeString(groupID)...)
 	var u8 [8]byte
 	binary.BigEndian.PutUint64(u8[:], eraID)
-	msg = append(msg, encodeString(u8[:])...)
+	msg = append(msg, transcript.EncodeString(u8[:])...)
 	binary.BigEndian.PutUint64(u8[:], generation)
-	msg = append(msg, encodeString(u8[:])...)
+	msg = append(msg, transcript.EncodeString(u8[:])...)
 	var u4 [4]byte
 	binary.BigEndian.PutUint32(u4[:], uint32(a))
-	msg = append(msg, encodeString(u4[:])...)
+	msg = append(msg, transcript.EncodeString(u4[:])...)
 	binary.BigEndian.PutUint32(u4[:], uint32(b))
-	msg = append(msg, encodeString(u4[:])...)
+	msg = append(msg, transcript.EncodeString(u4[:])...)
 
-	return kmac256(kex, msg, outLen, tagPairwise)
+	return transcript.KMAC256(kex, msg, outLen, tagPairwise)
 }
