@@ -3,7 +3,7 @@ module github.com/luxfi/corona
 go 1.26.4
 
 require (
-	github.com/luxfi/dkg v0.2.0
+	github.com/luxfi/dkg v0.3.5
 	github.com/luxfi/lattice/v7 v7.1.0
 	github.com/luxfi/math v1.4.0
 	github.com/luxfi/mlwe v0.2.1
