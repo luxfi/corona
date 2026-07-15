@@ -5,9 +5,9 @@ go 1.26.4
 require (
 	github.com/luxfi/dkg v0.3.5
 	github.com/luxfi/lattice/v7 v7.1.0
-	github.com/luxfi/math v1.4.0
+	github.com/luxfi/math v1.5.1
 	github.com/luxfi/mlwe v0.2.1
-	github.com/luxfi/zap v0.7.2
+	github.com/luxfi/zap v1.2.6
 	github.com/montanaflynn/stats v0.9.0
 	github.com/spf13/cobra v1.10.2
 	github.com/zeebo/blake3 v0.2.4
@@ -25,7 +25,8 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/luxfi/accel v1.1.9 // indirect
-	github.com/luxfi/crypto v1.19.17 // indirect
+	github.com/luxfi/crypto v1.20.2 // indirect
+	github.com/luxfi/geth v1.20.1
 	github.com/luxfi/mdns v0.1.1 // indirect
 	github.com/miekg/dns v1.1.72 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
