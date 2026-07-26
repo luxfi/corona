@@ -53,7 +53,7 @@
 //
 // defaultThreshold = 1024 keeps corona's N=256 on the CPU path while
 // leaving the dispatcher armed for any future caller working at
-// N>=1024 (e.g. FHE bootstraps in thresholdvm sharing this library).
+// N>=1024 (e.g. FHE bootstraps in mpcvm sharing this library).
 package gpu
 
 import (
