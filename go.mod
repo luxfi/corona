@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/luxfi/dkg v0.3.5
-	github.com/luxfi/lattice/v7 v7.1.0
+	github.com/luxfi/lattice/v7 v7.1.4
 	github.com/luxfi/math v1.5.1
 	github.com/luxfi/mlwe v0.2.1
 	github.com/luxfi/zap v1.2.6
@@ -23,16 +23,14 @@ require (
 	github.com/grandcat/zeroconf v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/kr/text v0.2.0 // indirect
-	github.com/luxfi/accel v1.1.9 // indirect
+	github.com/luxfi/accel v1.2.4 // indirect
 	github.com/luxfi/crypto v1.20.2 // indirect
-	github.com/luxfi/geth v1.20.1
 	github.com/luxfi/mdns v0.1.1 // indirect
 	github.com/miekg/dns v1.1.72 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
-	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
+	golang.org/x/exp v0.0.0-20260529124908-c761662dc8c9 // indirect
 	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
