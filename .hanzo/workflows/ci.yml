@@ -1,0 +1,147 @@
+name: CI
+
+# Lint, test, cross-compile and scan, on the native runners
+# (git.hanzo.ai → git-runner).
+#
+# This replaces .github/workflows/ci.yml, whose jobs ran on `ubuntu-latest` and
+# whose test and build matrices additionally named `macos-latest` and
+# `windows-latest`. No runner on this forge carries any of those labels, and a
+# job naming a label nothing carries does not fail — it waits. Every push left
+# the whole file queued, the matrices multiplying it.
+#
+# The macOS and Windows coverage is not simply dropped. Those matrix entries
+# only ever set GOOS from `runner.os` and then ran `go build`, so the same
+# breakage is caught by cross-compiling from one Linux runner — which is what
+# the build job below does, over the same platform set. What genuinely does not
+# survive is running the TESTS on macOS and Windows; that needs runners on
+# those platforms, not a label in a matrix, and it is gone until we own them.
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer commit makes the older run irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: gofmt
+        run: |
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "The following files are not formatted:"
+            gofmt -s -l .
+            exit 1
+          fi
+      - run: go vet ./...
+
+  test:
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go mod download
+      - run: go mod verify
+      # The `|| true` is carried over unchanged. It means this job reports
+      # rather than gates; removing it is a decision about what blocks a merge,
+      # not part of moving where the job runs.
+      - run: go test -v -race -timeout 30s . || true
+      - run: go build -v ./...
+
+  build:
+    # Cross-compilation, all from the one Linux runner. This is the same
+    # coverage the old three-OS matrix gave the build step, without naming a
+    # runner label for each OS.
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          ext=''
+          [ "${GOOS}" = windows ] && ext='.exe'
+          go build -v -ldflags "-s -w" -o "bin/corona-${GOOS}-${GOARCH}${ext}" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: corona-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: bin/
+
+  security:
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec -exclude=G104,G115,G304,G401,G501,G502 -fmt=text ./... || true
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  # The Makefile's own build path, which the `build` job above does not
+  # exercise — it calls `go build` directly.
+  make-build:
+    needs: [lint, test, build]
+    runs-on: [lux-build-linux-amd64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make build
+      - name: Verify the binary exists
+        run: |
+          set -euo pipefail
+          test -f ./bin/corona
+          ls -la ./bin/corona
