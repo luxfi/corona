@@ -62,11 +62,11 @@ const CoronaServiceType = "_corona._tcp"
 // Send goes through zap.Node.Send; receive blocks on a FIFO of message
 // bodies pushed by the ZAP handler.
 type peerStream struct {
-	mu      sync.Mutex
-	cond    *sync.Cond
-	queue   [][]byte
-	closed  bool
-	peerID  string // ZAP peer ID (string-form of integer party ID)
+	mu     sync.Mutex
+	cond   *sync.Cond
+	queue  [][]byte
+	closed bool
+	peerID string // ZAP peer ID (string-form of integer party ID)
 }
 
 func newPeerStream() *peerStream {
@@ -286,4 +286,3 @@ func CalculatePortOffset(partyID, otherID int) int {
 	}
 	return otherID*100 + partyID
 }
-
