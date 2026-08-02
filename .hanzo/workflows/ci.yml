@@ -104,7 +104,11 @@ jobs:
           ext=''
           [ "${GOOS}" = windows ] && ext='.exe'
           go build -v -ldflags "-s -w" -o "bin/corona-${GOOS}-${GOARCH}${ext}" .
-      - uses: actions/upload-artifact@v4
+      # v3, not v4+: this runs on git.hanzo.ai, which presents as GHES, and the
+      # v4 action refuses outright -- "@actions/artifact v2.0.0+ ... not currently
+      # supported on GHES". Every matrix leg built its binary and then discarded
+      # it at the last step, so five successful builds read as five failures.
+      - uses: actions/upload-artifact@v3
         with:
           name: corona-${{ matrix.goos }}-${{ matrix.goarch }}
           path: bin/
