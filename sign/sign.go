@@ -1,7 +1,6 @@
 package sign
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
@@ -262,7 +261,9 @@ func (party *Party) SignRound2Preprocess(A structs.Matrix[ring.Poly], b structs.
 		if j != party.ID {
 			MAC := MACs[j][party.ID]
 			expectedMAC := primitives.GenerateMAC(party.Suite, D[j], party.MACKeys[j], party.ID, sid, T, j, true)
-			if !bytes.Equal(MAC, expectedMAC) {
+			// Constant-time so a peer probing MACs cannot learn the matching prefix
+			// length from the comparison's timing. MAC length is fixed and public.
+			if subtle.ConstantTimeCompare(MAC, expectedMAC) != 1 {
 				return false, nil, nil
 			}
 		}
