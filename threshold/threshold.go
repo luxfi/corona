@@ -13,9 +13,10 @@
 package threshold
 
 import (
-	"fmt"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 
@@ -78,8 +79,16 @@ func (gk *GroupKey) Bytes() []byte {
 	if gk == nil || gk.BTilde == nil {
 		return nil
 	}
-	// Return size info as a simple representation
-	return []byte{byte(len(gk.A)), byte(len(gk.BTilde))}
+	// A content fingerprint over the canonical serialization, so distinct group
+	// keys have distinct identifiers. The previous value was only the (A, BTilde)
+	// dimensions, which every key of one parameter set shares — anything keyed on
+	// it collapsed every Corona group into one.
+	canonical, err := gk.MarshalBinary()
+	if err != nil {
+		return nil
+	}
+	sum := sha256.Sum256(canonical)
+	return sum[:]
 }
 
 // KeyShare holds a party's secret share data.

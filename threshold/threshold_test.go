@@ -4,6 +4,8 @@
 package threshold
 
 import (
+	"bytes"
+	"crypto/rand"
 	"testing"
 )
 
@@ -246,5 +248,29 @@ func TestInvalidThreshold(t *testing.T) {
 	_, _, err = GenerateKeysTrustedDealer(1, 1, nil)
 	if err != ErrInvalidPartyCount {
 		t.Errorf("expected ErrInvalidPartyCount, got %v", err)
+	}
+}
+
+// TestGroupKeyBytes_IsAContentFingerprint pins that the group-key identifier
+// distinguishes distinct keys. It was only the (A, BTilde) dimensions, which
+// every key of one parameter set shares, so anything keyed on it collapsed
+// every Corona group into one.
+func TestGroupKeyBytes_IsAContentFingerprint(t *testing.T) {
+	_, a, err := GenerateKeysTrustedDealer(1, 2, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, b, err := GenerateKeysTrustedDealer(1, 2, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(a.Bytes(), b.Bytes()) {
+		t.Fatalf("two distinct group keys share the identifier %x", a.Bytes())
+	}
+	if !bytes.Equal(a.Bytes(), a.Bytes()) {
+		t.Fatal("group-key identifier is not stable across calls")
+	}
+	if len(a.Bytes()) != 32 {
+		t.Fatalf("identifier length = %d, want a 32-byte content hash", len(a.Bytes()))
 	}
 }
