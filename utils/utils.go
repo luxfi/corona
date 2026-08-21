@@ -177,10 +177,14 @@ func VectorPolyMul(r *ring.Ring, vec structs.Vector[ring.Poly], poly ring.Poly, 
 }
 
 // MatrixAdd adds two matrices of ring.Poly element-wise and stores the result in a given result matrix.
-func MatrixAdd(r *ring.Ring, M1, M2, result structs.Matrix[ring.Poly]) {
+func MatrixAdd(r *ring.Ring, M1, M2, result structs.Matrix[ring.Poly]) error {
 	if M1 == nil || M2 == nil || len(M1) == 0 || len(M2) == 0 || len(M1) != len(M2) || len((M1)[0]) != len((M2)[0]) {
-		log.Fatalf("Matrix dimensions must match for element-wise addition.")
-		return
+		// A shape mismatch is a fact about the INPUT — and one input here is a
+		// commitment a peer sent. It must be an error the caller refuses on, never
+		// os.Exit: log.Fatalf killed an honest validator whenever a peer delivered
+		// a malformed matrix. Nothing that touches peer data may take the process
+		// down with it.
+		return fmt.Errorf("corona: matrix dimensions must match for element-wise addition")
 	}
 
 	m := len(M1)
@@ -191,6 +195,7 @@ func MatrixAdd(r *ring.Ring, M1, M2, result structs.Matrix[ring.Poly]) {
 			r.Add(M1[i][j], M2[i][j], result[i][j])
 		}
 	}
+	return nil
 }
 
 // VectorAdd adds two vectors of ring.Poly element-wise and stores the result in a result vector.

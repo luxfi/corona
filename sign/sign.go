@@ -201,7 +201,9 @@ func (party *Party) SignRound1(A structs.Matrix[ring.Poly], sid int, PRFKey []by
 	D := utils.InitializeMatrix(r, M, Dbar+1)
 
 	utils.MatrixMatrixMul(r, A, concatenatedR, D)
-	utils.MatrixAdd(r, concatenatedE, D, D)
+	if err := utils.MatrixAdd(r, concatenatedE, D, D); err != nil {
+		return nil, nil, err
+	}
 
 	party.D = D
 
@@ -267,8 +269,19 @@ func (party *Party) SignRound2Preprocess(A structs.Matrix[ring.Poly], b structs.
 	}
 
 	DSum := utils.InitializeMatrix(party.Ring, M, Dbar+1)
-	for _, D_j := range D {
-		utils.MatrixAdd(party.Ring, D_j, DSum, DSum)
+	// Range T, not the whole map. The MAC loop above authenticates only the
+	// entries named by T; ranging D folded in every commitment a peer sent,
+	// including one keyed by a party id outside T that no MAC ever checked. A
+	// non-member's matrix — of any shape, since nothing validated it — then
+	// reached the adder, where a mismatch used to take the process down.
+	for _, j := range T {
+		D_j, ok := D[j]
+		if !ok {
+			return false, nil, nil
+		}
+		if err := utils.MatrixAdd(party.Ring, D_j, DSum, DSum); err != nil {
+			return false, nil, nil
+		}
 	}
 
 	if !FullRankCheck(DSum, party.Ring) {
