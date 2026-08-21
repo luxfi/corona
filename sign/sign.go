@@ -399,6 +399,27 @@ func Verify(r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, z structs.Vector[rin
 // VerifyWithSuite is the suite-explicit form of Verify. suite=nil resolves
 // to the production default (Corona-SHA3).
 func VerifyWithSuite(suite hash.HashSuite, r *ring.Ring, r_xi *ring.Ring, r_nu *ring.Ring, z structs.Vector[ring.Poly], A structs.Matrix[ring.Poly], mu string, bTilde structs.Vector[ring.Poly], c ring.Poly, roundedDelta structs.Vector[ring.Poly]) bool {
+	// A signature verifies only at the exact dimensions the key implies: A is the
+	// M-row public matrix, z has one polynomial per column, and Delta has M. Below,
+	// MatrixVectorMul reads z over the columns and VectorAdd reads Delta over M, so
+	// without this guard a longer z or Delta leaves a fixed prefix verifying while
+	// the appended polynomials are ignored — a second byte string that verifies for
+	// one key and message — and a shorter one indexes past its end and panics on
+	// the bus surface. Deriving the column count from A keeps the check exact for
+	// whatever shape the key declares.
+	if len(A) != M || len(roundedDelta) != M {
+		return false
+	}
+	cols := len(A[0])
+	for i := range A {
+		if len(A[i]) != cols {
+			return false
+		}
+	}
+	if len(z) != cols {
+		return false
+	}
+
 	// Make a copy of z to avoid modifying the input signature
 	zCopy := make(structs.Vector[ring.Poly], len(z))
 	for i := range z {

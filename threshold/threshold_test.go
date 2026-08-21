@@ -7,6 +7,9 @@ import (
 	"bytes"
 	"crypto/rand"
 	"testing"
+
+	"github.com/luxfi/lattice/v7/ring"
+	"github.com/luxfi/lattice/v7/utils/structs"
 )
 
 func TestGenerateKeysTrustedDealer(t *testing.T) {
@@ -272,5 +275,70 @@ func TestGroupKeyBytes_IsAContentFingerprint(t *testing.T) {
 	}
 	if len(a.Bytes()) != 32 {
 		t.Fatalf("identifier length = %d, want a 32-byte content hash", len(a.Bytes()))
+	}
+}
+
+// TestVerify_RejectsResizedZAndDelta pins that a signature verifies only at the
+// exact Z and Delta dimensions the key implies. Appending a polynomial must not
+// verify (otherwise a second byte string is a valid cert for one key+message —
+// malleability), and a truncated or emptied vector must be refused, not panic
+// (Verify is a bus surface).
+func TestVerify_RejectsResizedZAndDelta(t *testing.T) {
+	shares, groupKey, err := GenerateKeysTrustedDealer(2, 3, nil)
+	if err != nil {
+		t.Fatalf("keygen: %v", err)
+	}
+	signers := make([]*Signer, 3)
+	for i, share := range shares {
+		signers[i] = NewSigner(share)
+	}
+	sessionID := 1
+	prfKey := []byte("test-prf-key-32-bytes-long!!!!!!")
+	signerIDs := []int{0, 1, 2}
+	message := "corona malleability regression"
+
+	round1 := make(map[int]*Round1Data)
+	for _, s := range signers {
+		d, err := s.Round1(sessionID, prfKey, signerIDs)
+		if err != nil {
+			t.Fatalf("round1: %v", err)
+		}
+		round1[d.PartyID] = d
+	}
+	round2 := make(map[int]*Round2Data)
+	for _, s := range signers {
+		d, err := s.Round2(sessionID, message, prfKey, signerIDs, round1)
+		if err != nil {
+			t.Fatalf("round2: %v", err)
+		}
+		round2[d.PartyID] = d
+	}
+	sig, err := signers[0].Finalize(round2)
+	if err != nil {
+		t.Fatalf("finalize: %v", err)
+	}
+	if !Verify(groupKey, message, sig) {
+		t.Fatal("positive control: the valid signature must verify")
+	}
+
+	r := groupKey.Params.R
+	grow := func(v structs.Vector[ring.Poly]) structs.Vector[ring.Poly] {
+		out := make(structs.Vector[ring.Poly], len(v)+1)
+		copy(out, v)
+		out[len(v)] = r.NewPoly()
+		return out
+	}
+	for name, resize := range map[string]func(*Signature){
+		"Z appended":     func(s *Signature) { s.Z = grow(s.Z) },
+		"Z truncated":    func(s *Signature) { s.Z = s.Z[:len(s.Z)-1] },
+		"Z emptied":      func(s *Signature) { s.Z = s.Z[:0] },
+		"Delta appended": func(s *Signature) { s.Delta = grow(s.Delta) },
+		"Delta emptied":  func(s *Signature) { s.Delta = s.Delta[:0] },
+	} {
+		variant := *sig
+		resize(&variant)
+		if Verify(groupKey, message, &variant) {
+			t.Errorf("%s: a resized signature must not verify", name)
+		}
 	}
 }
