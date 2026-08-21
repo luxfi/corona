@@ -205,9 +205,14 @@ func Hash(suite hash.HashSuite, A structs.Matrix[ring.Poly], b structs.Vector[ri
 		must("binary.Write(T-elem)", binary.Write(buf, binary.BigEndian, int32(t)))
 	}
 
-	for i := 0; i < len(D); i++ {
-		_, err = D[i].WriteTo(buf)
-		must(fmt.Sprintf("D[%d].WriteTo", i), err)
+	// Walk D by the agreed set T, not by dense index 0..len(D)-1. D is keyed by
+	// party id, so a signer set that is not {0,1,...,k-1} would otherwise read
+	// absent low indices and skip the present high ones, leaving those parties
+	// free to replace their round-1 commitment without moving the digest. T is
+	// already written above, so its order fixes the layout.
+	for _, id := range T {
+		_, err = D[id].WriteTo(buf)
+		must(fmt.Sprintf("D[%d].WriteTo", id), err)
 	}
 
 	out := s.TranscriptHash(buf.Bytes())
