@@ -137,6 +137,23 @@ const identityDomainTag = "CORONA-BOOTSTRAP-PEDERSEN-IDENTITY-v1"
 // ciphertext, never any byte-stable output.
 const kemStreamTag = "CORONA-BOOTSTRAP-PEDERSEN-KEMSTREAM-v1"
 
+// pairwiseSecretTag binds a pair's key-derivation seed to the two Pedersen
+// shares the ceremony sealed between them (s_{i→j} and s_{j→i}). Both parties
+// hold both shares; a transcript observer holds neither, so the round-1 tag
+// keyed off this seed cannot be reconstructed from the wire.
+const pairwiseSecretTag = "CORONA-BOOTSTRAP-PEDERSEN-PAIRWISE-SECRET-v1"
+
+// selfSeedTag binds a party's diagonal PRF seed to its own aggregate share s_i,
+// which no other party holds. Only party i reads its self-seed.
+const selfSeedTag = "CORONA-BOOTSTRAP-PEDERSEN-SELFSEED-v1"
+
+// pairwiseSeedLabel and pairwiseMACLabel separate the directional PRF seeds
+// from the symmetric MAC key drawn out of a single pair's keyed stream.
+const (
+	pairwiseSeedLabel = "seed"
+	pairwiseMACLabel  = "mac"
+)
+
 // pedersenSession bundles the in-process vss machinery for one bootstrap: the
 // Ringtail profile, the n party sessions, their deterministic identities, the
 // committee NodeIDs, and the era/committee context. corona drives every party
@@ -472,16 +489,13 @@ func finishPedersenContribs(suite hash.HashSuite, suiteID string, t, n int, vali
 	}
 
 	// Pairwise seeds and MAC keys. In a distributed deployment these come from
-	// authenticated pairwise KEX (reshare/pairwise.go); the kernel derives them
-	// deterministically from the transcript so KATs can replay. The bytes are
-	// independent of any secret share material — they form a public symmetric
-	// mask the cohort agrees on (protection comes from each party's SkShare).
-	seedTranscript := suite.TranscriptHash(
-		[]byte("CORONA-BOOTSTRAP-PEDERSEN-PAIRWISE-v1"),
-		noiseSeedTranscript[:],
-		bTildeBytes(bTilde),
-	)
-	seeds, macKeysByParty := derivePairwisePedersen(n, seedTranscript)
+	// authenticated pairwise KEX (reshare/pairwise.go); the in-process kernel
+	// derives the same shape from the secret material the ceremony already
+	// sealed between each pair — the Pedersen shares s_{i→j}, held only by their
+	// dealer and recipient, and each party's own aggregate share for the
+	// self-seed. The round-1 tag these keys authenticate is thereby bound to a
+	// secret that no observer of the public transcript can reproduce.
+	seeds, macKeysByParty := derivePairwiseFromShares(suite, suiteID, n, contribs.inputs, sShares)
 
 	// Assemble per-party KeyShares.
 	state := &EpochShareState{
@@ -663,11 +677,99 @@ func samplePathANoise(r *lring.Ring, suite hash.HashSuite, transcript [32]byte, 
 	return utils.SamplePolyVector(r, sign.M, gauss, true, true)
 }
 
-// derivePairwisePedersen builds the per-pair PRF seeds and MAC keys for
-// a committee of size n. The bytes are derived deterministically from a
-// transcript-bound seed and contain no secret material (they form a
-// public symmetric mask that the cohort agrees on; the protection comes
-// from each party's own SkShare, not from the seeds).
+// derivePairwiseFromShares builds the per-pair PRF seeds and MAC keys for a
+// committee of size n, keyed by the secret material the Pedersen VSS already
+// dealt rather than by any field of the public transcript. It produces the
+// same n×n layout as derivePairwiseMaterial (the trusted-dealer path) and
+// stands in for the authenticated-KEX derivation the distributed deployment
+// runs in reshare/pairwise.go.
+//
+// The keying seed for a pair {i, j} is a suite-bound hash of the two shares the
+// ceremony sealed between them — s_{i→j} = inputs[j][i].Share and
+// s_{j→i} = inputs[i][j].Share. Dealer and recipient each hold both; a
+// transcript observer holds neither.
+//
+//	macKeys[i][j] (i < j)  one key per pair, shared symmetrically — the form
+//	                       GenerateMAC checks a peer's round-1 tag under.
+//	seeds[i][j]  (i ≠ j)   ordered: the signing mask cancels only across the
+//	                       committee sum, so the two directions must differ.
+//	seeds[i][i]            self-mask keyed by party i's own aggregate share;
+//	                       only party i ever reads it.
+func derivePairwiseFromShares(suite hash.HashSuite, suiteID string, n int, inputs []map[int]*dkgvss.DealerInput, sShares []structs.Vector[lring.Poly]) (map[int][][]byte, []map[int][]byte) {
+	seeds := make(map[int][][]byte, n)
+	macKeys := make([]map[int][]byte, n)
+	for i := 0; i < n; i++ {
+		seeds[i] = make([][]byte, n)
+		macKeys[i] = make(map[int][]byte, n-1)
+	}
+
+	// pairKex is the 32-byte secret both endpoints of {i, j} can form and no
+	// observer can. sealedShare(d, r) is the share dealer d sealed to recipient
+	// r; the pair is folded in canonical order so both sides agree on the seed.
+	sealedShare := func(dealer, recipient int) []byte {
+		return shareBytes(inputs[recipient][dealer].Share)
+	}
+	pairKex := func(i, j int) []byte {
+		a, b := i, j
+		if a > b {
+			a, b = b, a
+		}
+		k := suite.TranscriptHash(
+			[]byte(pairwiseSecretTag),
+			[]byte(suiteID),
+			sealedShare(a, b),
+			sealedShare(b, a),
+		)
+		return k[:]
+	}
+
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
+			if i == j {
+				self := suite.TranscriptHash([]byte(selfSeedTag), []byte(suiteID), shareBytes(sShares[i]))
+				seeds[i][j] = suite.PRF(self[:], seedLabel(i, j), sign.KeySize)
+				continue
+			}
+			seeds[i][j] = suite.PRF(pairKex(i, j), seedLabel(i, j), sign.KeySize)
+		}
+	}
+	for i := 0; i < n; i++ {
+		for j := i + 1; j < n; j++ {
+			mac := suite.PRF(pairKex(i, j), []byte(pairwiseMACLabel), sign.KeySize)
+			macKeys[i][j] = mac
+			macKeys[j][i] = mac
+		}
+	}
+	return seeds, macKeys
+}
+
+// seedLabel domain-separates one directional PRF seed within a pair's keyed
+// stream: carrying the ordered (i, j) makes seeds[i][j] and seeds[j][i]
+// independent, which the signing-mask cancellation depends on.
+func seedLabel(i, j int) []byte {
+	out := make([]byte, 0, len(pairwiseSeedLabel)+8)
+	out = append(out, []byte(pairwiseSeedLabel)...)
+	out = append(out, u32be(uint32(i))...)
+	out = append(out, u32be(uint32(j))...)
+	return out
+}
+
+// shareBytes returns the canonical wire bytes of a secret share vector. Used
+// only to key the pairwise derivation; the bytes never leave this package.
+func shareBytes(v structs.Vector[lring.Poly]) []byte {
+	buf := bytesBuffer{}
+	if _, err := v.WriteTo(&buf); err != nil {
+		return nil
+	}
+	return buf.Bytes()
+}
+
+// derivePairwisePedersen builds a per-pair PRF-seed and MAC-key table for a
+// committee of size n from a single seed alone. Every byte is a function of
+// that seed, so when the seed is a public transcript value the whole table is
+// reconstructable off the wire — which is exactly what the secrecy tests feed
+// it to model an observer, and what the production path (derivePairwiseFromShares)
+// no longer does.
 //
 // Layout matches derivePairwiseMaterial (used by trusted-dealer
 // Bootstrap): seeds[i][j] for every (i, j); macKeys[i][j] symmetric for
