@@ -13,6 +13,7 @@
 package threshold
 
 import (
+	"fmt"
 	"crypto/rand"
 	"errors"
 	"io"
@@ -256,9 +257,23 @@ func (s *Signer) Round2(sessionID int, message string, prfKey []byte, signers []
 	// overwrite, corrupting the aggregate. The LP-020 quorum invariant is
 	// meant to guarantee uniqueness upstream; this is kernel-boundary
 	// defense-in-depth.
+	// The agreed signing set. A round-1 message from a party OUTSIDE it is
+	// refused here, at the boundary, before its matrix touches any kernel: the
+	// MAC loop downstream only authenticates the members of `signers`, so a
+	// non-member's D was never checked and — carrying any shape, or none —
+	// reached the matrix routines, where a malformed one used to take the process
+	// down. Membership is the authentication precondition, so it is checked
+	// first.
+	inSet := make(map[int]struct{}, len(signers))
+	for _, id := range signers {
+		inSet[id] = struct{}{}
+	}
 	D := make(map[int]structs.Matrix[ring.Poly])
 	MACs := make(map[int]map[int][]byte)
 	for _, data := range round1Data {
+		if _, ok := inSet[data.PartyID]; !ok {
+			return nil, fmt.Errorf("corona: round-1 message from party %d outside the signing set", data.PartyID)
+		}
 		if _, dup := D[data.PartyID]; dup {
 			return nil, ErrDuplicateSigner
 		}
