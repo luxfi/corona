@@ -17,7 +17,7 @@
 package wire
 
 import (
-	"bytes"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/luxfi/math/codec"
@@ -42,38 +42,139 @@ var LatticeWireLimits = codec.Limits{
 	MaxDepth:          4,
 }
 
-// ValidateVectorPolyFrame walks a lattigo Vector[Poly] wire frame
-// without invoking lattigo's recursive ReadUint64Slice. Returns nil
-// iff every length-prefixed slice (vector outer length, per-poly
-// levels count, per-level coefficient count) is within
-// MaxLatticeUintSliceLen.
+// ValidateVectorPolyFrame walks a lattigo Vector[Poly] frame and returns nil
+// only when every length it declares is backed by bytes that are actually
+// there.
 //
-// Mirrors warp/pulsar.validateVectorPolyFrame and consolidates the
-// test-only walker that lived at threshold/fuzz_round_test.go onto
-// the canonical luxfi/math/codec substrate.
+// The frame is little-endian and self-describing:
 //
-// On rejection, the returned error wraps codec.ErrLimitExceeded so
-// callers can branch on errors.Is.
+//	vector := count:u64, count × poly
+//	poly   := levels:u64, n:u64, levels*n × coefficient:u64
+//	matrix := rows:u64, rows × vector
+//
+// A peer writes those counts, so a short frame can declare an enormous one —
+// and the decoder beneath this allocates from the declared count before it
+// discovers there is nothing to fill it with. A fifty-byte message naming 2^40
+// coefficients ends the process: sometimes with "makeslice: len out of range",
+// and sometimes by allocating until the kernel kills it. Reading a peer's
+// signature must not be able to do either.
+//
+// So the rule is the one readLenPrefixed already applies to the outer frame:
+// what is declared has to fit in what remains. That cannot refuse an honest
+// frame, since an honest frame's bytes are all present, and it refuses every
+// frame whose arithmetic does not close.
+//
+// MaxLatticeUintSliceLen still caps the shape corona itself will accept, above
+// and beyond what the bytes could hold.
 func ValidateVectorPolyFrame(frame []byte) error {
-	r, err := codec.NewReader(bytes.NewReader(frame), LatticeWireLimits)
-	if err != nil {
-		return fmt.Errorf("pulsar/wire: NewReader: %w", err)
+	if err := frameFits(frame); err != nil {
+		return err
 	}
-	// Outer vector length.
-	vec, err := r.ReadUint64Slice()
+	rest, err := walkVector(frame)
 	if err != nil {
-		// codec.Reader's bounded ReadUint64Slice rejects the lattice
-		// issue #4 attack input class (huge length) before allocation;
-		// surface that rejection as a substrate-validated error.
-		return fmt.Errorf("pulsar/wire: outer vector length: %w", err)
+		return err
 	}
-	// vec is the FIRST slice in the frame, but lattigo's
-	// Vector[Poly] format actually nests Poly structs after the
-	// length prefix, not raw uint64 elements. We re-interpret the
-	// outer-length read as "number of Poly entries to follow" by
-	// swallowing only the varint length and discarding the payload
-	// read.  Future Phase 5 work tightens this when we move pulsar
-	// fully onto math/codec; for now this is a hardened bound check.
-	_ = vec
+	return noTrailing(rest, "vector")
+}
+
+// ValidatePolyFrame is the same walk for a single Poly, which is what a
+// Signature's challenge is. A Poly names its own level and coefficient counts,
+// so it describes bytes that are not there exactly as a vector can.
+func ValidatePolyFrame(frame []byte) error {
+	if err := frameFits(frame); err != nil {
+		return err
+	}
+	rest, err := walkPoly(frame)
+	if err != nil {
+		return err
+	}
+	return noTrailing(rest, "poly")
+}
+
+// ValidateMatrixPolyFrame is the same walk for a Matrix[Poly], a count followed
+// by that many vectors. A group key's A is one.
+func ValidateMatrixPolyFrame(frame []byte) error {
+	if err := frameFits(frame); err != nil {
+		return err
+	}
+	rows, rest, err := takeCount(frame)
+	if err != nil {
+		return fmt.Errorf("matrix row count: %w", err)
+	}
+	for i := uint64(0); i < rows; i++ {
+		if rest, err = walkVector(rest); err != nil {
+			return fmt.Errorf("row %d: %w", i, err)
+		}
+	}
+	return noTrailing(rest, "matrix")
+}
+
+func frameFits(frame []byte) error {
+	if len(frame) > LatticeWireLimits.MaxFrameBytes {
+		return fmt.Errorf("%w: frame is %d bytes, limit %d",
+			codec.ErrLimitExceeded, len(frame), LatticeWireLimits.MaxFrameBytes)
+	}
 	return nil
+}
+
+// Bytes past the end of what a frame describes are bytes two frames can differ
+// in while decoding the same.
+func noTrailing(rest []byte, what string) error {
+	if len(rest) != 0 {
+		return fmt.Errorf("%w: %d trailing bytes after the %s", codec.ErrLimitExceeded, len(rest), what)
+	}
+	return nil
+}
+
+// takeCount reads one little-endian count and reports what follows it. A count
+// is refused when the bytes left could not hold that many of anything, since
+// every element costs at least one byte.
+func takeCount(b []byte) (uint64, []byte, error) {
+	if len(b) < 8 {
+		return 0, nil, fmt.Errorf("%w: %d bytes left, a count needs 8", codec.ErrLimitExceeded, len(b))
+	}
+	n := binary.LittleEndian.Uint64(b[:8])
+	rest := b[8:]
+	if n > uint64(len(rest)) {
+		return 0, nil, fmt.Errorf("%w: declared %d, only %d bytes remain", codec.ErrLimitExceeded, n, len(rest))
+	}
+	if n > MaxLatticeUintSliceLen {
+		return 0, nil, fmt.Errorf("%w: declared %d, corona accepts at most %d",
+			codec.ErrLimitExceeded, n, MaxLatticeUintSliceLen)
+	}
+	return n, rest, nil
+}
+
+func walkVector(b []byte) ([]byte, error) {
+	count, rest, err := takeCount(b)
+	if err != nil {
+		return nil, fmt.Errorf("vector length: %w", err)
+	}
+	for i := uint64(0); i < count; i++ {
+		if rest, err = walkPoly(rest); err != nil {
+			return nil, fmt.Errorf("poly %d: %w", i, err)
+		}
+	}
+	return rest, nil
+}
+
+func walkPoly(b []byte) ([]byte, error) {
+	levels, rest, err := takeCount(b)
+	if err != nil {
+		return nil, fmt.Errorf("level count: %w", err)
+	}
+	n, rest, err := takeCount(rest)
+	if err != nil {
+		return nil, fmt.Errorf("coefficient count: %w", err)
+	}
+	// levels*n*8 without trusting it to fit: divide instead of multiply, so a
+	// product that would wrap is refused rather than wrapping into a small
+	// number that passes.
+	const coeffBytes = 8
+	room := uint64(len(rest)) / coeffBytes
+	if n != 0 && levels > room/n {
+		return nil, fmt.Errorf("%w: %d levels of %d coefficients need more than the %d bytes left",
+			codec.ErrLimitExceeded, levels, n, len(rest))
+	}
+	return rest[levels*n*coeffBytes:], nil
 }
