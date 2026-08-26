@@ -122,8 +122,14 @@ func (s *Signature) UnmarshalBinary(b []byte) error {
 		return fmt.Errorf("corona/wire: %d trailing bytes after Signature", r.Len())
 	}
 
-	// Bounded validation of Z, Delta vector frames (C is a single Poly
-	// which is bounded by the ring size already).
+	// Every frame is walked before it is decoded, because the decoder allocates
+	// from the counts these carry. C is a single Poly and names its own level
+	// and coefficient counts, so it describes bytes that are not there exactly
+	// as a vector can — a twenty-four byte C naming 2^40 levels does not panic,
+	// it allocates until the process is killed.
+	if err := wire.ValidatePolyFrame(cBytes); err != nil {
+		return fmt.Errorf("%w: C: %v", ErrWireFrameRejected, err)
+	}
 	if err := wire.ValidateVectorPolyFrame(zBytes); err != nil {
 		return fmt.Errorf("%w: Z: %v", ErrWireFrameRejected, err)
 	}
@@ -222,6 +228,11 @@ func (gk *GroupKey) UnmarshalBinary(b []byte) error {
 		return fmt.Errorf("corona/wire: %d trailing bytes after GroupKey", r.Len())
 	}
 
+	// A is a matrix and carries the same kind of counts as everything else here,
+	// so it is walked before it is decoded rather than after.
+	if err := wire.ValidateMatrixPolyFrame(aBytes); err != nil {
+		return fmt.Errorf("%w: A: %v", ErrWireFrameRejected, err)
+	}
 	if err := wire.ValidateVectorPolyFrame(bBytes); err != nil {
 		return fmt.Errorf("%w: BTilde: %v", ErrWireFrameRejected, err)
 	}
