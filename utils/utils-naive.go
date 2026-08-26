@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"log"
 	"math/big"
 
 	"github.com/luxfi/lattice/v7/ring"
@@ -118,10 +117,9 @@ func MatrixVectorMulNaive(r *ring.Ring, M structs.Matrix[ring.Poly], vec structs
 // MatrixMatrixMul performs matrix-matrix multiplication.
 // It takes two matrices of ring.Poly pointers, M1 of dimensions m x p and M2 of dimensions p x n,
 // and outputs the result in a given result matrix of dimensions m x n.
-func MatrixMatrixMulNaive(r *ring.Ring, M1, M2 structs.Matrix[ring.Poly], result structs.Matrix[ring.Poly]) {
+func MatrixMatrixMulNaive(r *ring.Ring, M1, M2 structs.Matrix[ring.Poly], result structs.Matrix[ring.Poly]) error {
 	if M1 == nil || M2 == nil || len(M1) == 0 || len(M2) == 0 || len((M1)[0]) != len(M2) {
-		log.Fatalf("Matrix dimensions are not compatible for multiplication.")
-		return
+		return errShapeMismatch
 	}
 
 	m := len(M1)
@@ -146,6 +144,7 @@ func MatrixMatrixMulNaive(r *ring.Ring, M1, M2 structs.Matrix[ring.Poly], result
 			}
 		}
 	}
+	return nil
 }
 
 // VectorPolyMulNaive performs element-wise multiplication of a vector by a polynomial.

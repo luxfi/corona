@@ -3,6 +3,7 @@ package utils
 import (
 	"crypto/subtle"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -76,11 +77,17 @@ func MatrixVectorMulNTT(r *ring.Ring, M structs.Matrix[ring.Poly], vec structs.V
 	ConvertVectorFromNTT(r, vec)
 }
 
-// MatrixMatrixMul performs matrix-matrix multiplication.
-func MatrixMatrixMulNTT(r *ring.Ring, M1, M2 structs.Matrix[ring.Poly], result structs.Matrix[ring.Poly]) {
+// errShapeMismatch is what every routine here answers to a shape it cannot
+// multiply or add. A shape is a fact about the INPUT, and one input on these
+// paths is a commitment a peer sent, so it has to be something the caller can
+// refuse and carry on from. A library that ends the process on its argument
+// leaves the caller no such choice.
+var errShapeMismatch = errors.New("corona: matrix dimensions are not compatible for multiplication")
+
+// MatrixMatrixMulNTT performs matrix-matrix multiplication in the NTT domain.
+func MatrixMatrixMulNTT(r *ring.Ring, M1, M2 structs.Matrix[ring.Poly], result structs.Matrix[ring.Poly]) error {
 	if M1 == nil || M2 == nil || len(M1) == 0 || len(M2) == 0 || len((M1)[0]) != len(M2) {
-		log.Fatalf("Matrix dimensions are not compatible for multiplication.")
-		return
+		return errShapeMismatch
 	}
 
 	m := len(M1)
@@ -115,6 +122,7 @@ func MatrixMatrixMulNTT(r *ring.Ring, M1, M2 structs.Matrix[ring.Poly], result s
 	ConvertMatrixFromNTT(r, result)
 	ConvertMatrixFromNTT(r, M1)
 	ConvertMatrixFromNTT(r, M2)
+	return nil
 }
 
 // VectorPolyMul performs element-wise multiplication of a vector by a polynomial.
@@ -150,10 +158,9 @@ func MatrixVectorMul(r *ring.Ring, M structs.Matrix[ring.Poly], vec structs.Vect
 }
 
 // MatrixMatrixMul performs matrix-matrix multiplication.
-func MatrixMatrixMul(r *ring.Ring, M1, M2 structs.Matrix[ring.Poly], result structs.Matrix[ring.Poly]) {
+func MatrixMatrixMul(r *ring.Ring, M1, M2 structs.Matrix[ring.Poly], result structs.Matrix[ring.Poly]) error {
 	if M1 == nil || M2 == nil || len(M1) == 0 || len(M2) == 0 || len((M1)[0]) != len(M2) {
-		log.Fatalf("Matrix dimensions are not compatible for multiplication.")
-		return
+		return errShapeMismatch
 	}
 
 	m := len(M1)
@@ -167,6 +174,7 @@ func MatrixMatrixMul(r *ring.Ring, M1, M2 structs.Matrix[ring.Poly], result stru
 			}
 		}
 	}
+	return nil
 }
 
 // VectorPolyMul performs element-wise multiplication of a vector by a polynomial.
@@ -179,11 +187,6 @@ func VectorPolyMul(r *ring.Ring, vec structs.Vector[ring.Poly], poly ring.Poly, 
 // MatrixAdd adds two matrices of ring.Poly element-wise and stores the result in a given result matrix.
 func MatrixAdd(r *ring.Ring, M1, M2, result structs.Matrix[ring.Poly]) error {
 	if M1 == nil || M2 == nil || len(M1) == 0 || len(M2) == 0 || len(M1) != len(M2) || len((M1)[0]) != len((M2)[0]) {
-		// A shape mismatch is a fact about the INPUT — and one input here is a
-		// commitment a peer sent. It must be an error the caller refuses on, never
-		// os.Exit: log.Fatalf killed an honest validator whenever a peer delivered
-		// a malformed matrix. Nothing that touches peer data may take the process
-		// down with it.
 		return fmt.Errorf("corona: matrix dimensions must match for element-wise addition")
 	}
 

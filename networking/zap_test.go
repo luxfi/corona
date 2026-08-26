@@ -99,10 +99,14 @@ func TestZAP_SendRecvVector(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		received = comm1.RecvVector(nil, 0, len(testVector))
+		var recvErr error
+		received, recvErr = comm1.RecvVector(nil, 0, len(testVector))
+		_ = recvErr
 	}()
 
-	comm0.SendVector(nil, 1, testVector)
+	if err := comm0.SendVector(nil, 1, testVector); err != nil {
+		t.Fatalf("send: %v", err)
+	}
 
 	done := make(chan struct{})
 	go func() { wg.Wait(); close(done) }()
@@ -142,10 +146,14 @@ func TestZAP_SendRecvMatrix(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		received = comm1.RecvMatrix(nil, 0, len(testMatrix))
+		var recvErr error
+		received, recvErr = comm1.RecvMatrix(nil, 0, len(testMatrix))
+		_ = recvErr
 	}()
 
-	comm0.SendMatrix(nil, 1, testMatrix)
+	if err := comm0.SendMatrix(nil, 1, testMatrix); err != nil {
+		t.Fatalf("send: %v", err)
+	}
 
 	done := make(chan struct{})
 	go func() { wg.Wait(); close(done) }()
@@ -185,9 +193,13 @@ func TestZAP_SendRecvBytesSlice(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		out = comm1.RecvBytesSlice(nil, 0)
+		var recvErr error
+		out, recvErr = comm1.RecvBytesSlice(nil, 0)
+		_ = recvErr
 	}()
-	comm0.SendBytesSlice(nil, 1, in)
+	if err := comm0.SendBytesSlice(nil, 1, in); err != nil {
+		t.Fatalf("send: %v", err)
+	}
 
 	done := make(chan struct{})
 	go func() { wg.Wait(); close(done) }()
@@ -222,9 +234,13 @@ func TestZAP_SendRecvBytesMap(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		out = comm1.RecvBytesMap(nil, 0)
+		var recvErr error
+		out, recvErr = comm1.RecvBytesMap(nil, 0)
+		_ = recvErr
 	}()
-	comm0.SendBytesMap(nil, 1, in)
+	if err := comm0.SendBytesMap(nil, 1, in); err != nil {
+		t.Fatalf("send: %v", err)
+	}
 
 	done := make(chan struct{})
 	go func() { wg.Wait(); close(done) }()
@@ -263,9 +279,13 @@ func TestZAP_SendRecvBytesSliceMap(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		out = comm1.RecvBytesSliceMap(nil, 0)
+		var recvErr error
+		out, recvErr = comm1.RecvBytesSliceMap(nil, 0)
+		_ = recvErr
 	}()
-	comm0.SendBytesSliceMap(nil, 1, in)
+	if err := comm0.SendBytesSliceMap(nil, 1, in); err != nil {
+		t.Fatalf("send: %v", err)
+	}
 
 	done := make(chan struct{})
 	go func() { wg.Wait(); close(done) }()
@@ -324,9 +344,13 @@ func TestZAP_RoundtripPreservesLatticeBytes(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		received = comm1.RecvVector(nil, 0, len(v))
+		var recvErr error
+		received, recvErr = comm1.RecvVector(nil, 0, len(v))
+		_ = recvErr
 	}()
-	comm0.SendVector(nil, 1, v)
+	if err := comm0.SendVector(nil, 1, v); err != nil {
+		t.Fatalf("send: %v", err)
+	}
 
 	done := make(chan struct{})
 	go func() { wg.Wait(); close(done) }()
@@ -379,10 +403,14 @@ func BenchmarkSendRecvVector_ZAP(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		done := make(chan struct{})
 		go func() {
-			_ = comm1.RecvVector(nil, 0, len(v))
+			var recvErr error
+			_, recvErr = comm1.RecvVector(nil, 0, len(v))
+			_ = recvErr
 			close(done)
 		}()
-		comm0.SendVector(nil, 1, v)
+		if err := comm0.SendVector(nil, 1, v); err != nil {
+			b.Fatalf("send: %v", err)
+		}
 		<-done
 	}
 }
@@ -423,11 +451,15 @@ func BenchmarkSendRecvVector_BareTCPPipe(b *testing.B) {
 		done := make(chan struct{})
 		go func() {
 			reader := bufioNewReader(server)
-			_ = comm1.RecvVector(reader, 0, len(v))
+			var recvErr error
+			_, recvErr = comm1.RecvVector(reader, 0, len(v))
+			_ = recvErr
 			close(done)
 		}()
 		writer := bufioNewWriter(client)
-		comm0.SendVector(writer, 1, v)
+		if err := comm0.SendVector(writer, 1, v); err != nil {
+			b.Fatalf("send: %v", err)
+		}
 		<-done
 	}
 }
@@ -481,10 +513,14 @@ func BenchmarkSendRecvVector_BareTCPLoopback(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		done := make(chan struct{})
 		go func() {
-			_ = comm1.RecvVector(reader, 0, len(v))
+			var recvErr error
+			_, recvErr = comm1.RecvVector(reader, 0, len(v))
+			_ = recvErr
 			close(done)
 		}()
-		comm0.SendVector(writer, 1, v)
+		if err := comm0.SendVector(writer, 1, v); err != nil {
+			b.Fatalf("send: %v", err)
+		}
 		<-done
 	}
 }

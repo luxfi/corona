@@ -18,7 +18,7 @@ var K int
 var Threshold int
 
 // main function orchestrates the threshold signature protocol
-func LocalRun(x int) {
+func LocalRun(x int) error {
 	var totalGenDuration, totalFinalizeDuration, totalVerifyDuration time.Duration
 
 	// Create maps to collect durations across all runs
@@ -87,7 +87,7 @@ func LocalRun(x int) {
 			var r1err error
 			D[partyID], MACs[partyID], r1err = parties[partyID].SignRound1(A, sid, []byte(PRFKey), T)
 			if r1err != nil {
-				log.Fatalf("SignRound1 failed for party %d: %v", partyID, r1err)
+				return fmt.Errorf("sign round 1, party %d: %w", partyID, r1err)
 			}
 			signRound1Durations[partyID] = time.Since(start)
 		}
@@ -100,7 +100,7 @@ func LocalRun(x int) {
 			start = time.Now()
 			valid, DSum, hash := parties[partyID].SignRound2Preprocess(A, b, D, MACs, sid, T)
 			if !valid {
-				log.Fatalf("MAC verification failed for party %d", partyID)
+				return fmt.Errorf("sign round 2 preprocess, party %d: MAC did not verify", partyID)
 			}
 			signRound2PreprocessDurations[partyID] = time.Since(start)
 
@@ -157,6 +157,7 @@ func LocalRun(x int) {
 		totalSigningDurations[partyID] = totalSignRound1Durations[partyID] + totalSignRound2PreprocessDurations[partyID] + totalSignRound2Durations[partyID]
 	}
 	printAveragedStats("Total Signing", totalSigningDurations, x)
+	return nil
 }
 
 // printAveragedStats prints the mean, median, and standard deviation for a map of durations averaged over x runs

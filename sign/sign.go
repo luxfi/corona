@@ -199,7 +199,9 @@ func (party *Party) SignRound1(A structs.Matrix[ring.Poly], sid int, PRFKey []by
 
 	D := utils.InitializeMatrix(r, M, Dbar+1)
 
-	utils.MatrixMatrixMul(r, A, concatenatedR, D)
+	if err := utils.MatrixMatrixMul(r, A, concatenatedR, D); err != nil {
+		return nil, nil, err
+	}
 	if err := utils.MatrixAdd(r, concatenatedE, D, D); err != nil {
 		return nil, nil, err
 	}

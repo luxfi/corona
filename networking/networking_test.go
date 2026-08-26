@@ -56,11 +56,14 @@ func TestP2PComm_SendRecvVector(t *testing.T) {
 
 	// Send and receive in separate goroutines
 	done := make(chan bool)
-	var receivedVector structs.Vector[ring.Poly]
+	var (
+		receivedVector structs.Vector[ring.Poly]
+		recvErr        error
+	)
 
 	go func() {
 		reader := bufio.NewReader(server)
-		receivedVector = comm2.RecvVector(reader, 1, len(testVector))
+		receivedVector, recvErr = comm2.RecvVector(reader, 1, len(testVector))
 		done <- true
 	}()
 
@@ -68,13 +71,17 @@ func TestP2PComm_SendRecvVector(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	writer := bufio.NewWriter(client)
-	comm1.SendVector(writer, 2, testVector)
+	if err := comm1.SendVector(writer, 2, testVector); err != nil {
+		t.Fatalf("send: %v", err)
+	}
 	writer.Flush()
 
 	// Wait for receive to complete
 	select {
 	case <-done:
-		// Success
+		if recvErr != nil {
+			t.Fatalf("RecvVector: %v", recvErr)
+		}
 	case <-time.After(1 * time.Second):
 		t.Fatal("Timeout waiting for vector receive")
 	}
@@ -126,7 +133,9 @@ func TestP2PComm_SendRecvMatrix(t *testing.T) {
 
 	go func() {
 		reader := bufio.NewReader(server)
-		receivedMatrix = comm2.RecvMatrix(reader, 1, len(testMatrix))
+		var recvErr error
+		receivedMatrix, recvErr = comm2.RecvMatrix(reader, 1, len(testMatrix))
+		_ = recvErr
 		done <- true
 	}()
 
@@ -134,7 +143,9 @@ func TestP2PComm_SendRecvMatrix(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	writer := bufio.NewWriter(client)
-	comm1.SendMatrix(writer, 2, testMatrix)
+	if err := comm1.SendMatrix(writer, 2, testMatrix); err != nil {
+		t.Fatalf("send: %v", err)
+	}
 	writer.Flush()
 
 	// Wait for receive to complete
@@ -192,7 +203,9 @@ func TestP2PComm_SendRecvBytes(t *testing.T) {
 
 	go func() {
 		reader := bufio.NewReader(server)
-		receivedBytesSlices = comm2.RecvBytesSlice(reader, 1)
+		var recvErr error
+		receivedBytesSlices, recvErr = comm2.RecvBytesSlice(reader, 1)
+		_ = recvErr
 		done <- true
 	}()
 
@@ -201,7 +214,9 @@ func TestP2PComm_SendRecvBytes(t *testing.T) {
 
 	// Send the bytes slices using SendBytesSlice (matching protocol)
 	writer := bufio.NewWriter(client)
-	comm1.SendBytesSlice(writer, 2, testBytesSlices)
+	if err := comm1.SendBytesSlice(writer, 2, testBytesSlices); err != nil {
+		t.Fatalf("send: %v", err)
+	}
 	writer.Flush()
 
 	// Wait for receive to complete
@@ -256,7 +271,9 @@ func TestP2PComm_SendRecvBytesMap(t *testing.T) {
 
 	go func() {
 		reader := bufio.NewReader(server)
-		receivedBytesMap = comm2.RecvBytesMap(reader, 1)
+		var recvErr error
+		receivedBytesMap, recvErr = comm2.RecvBytesMap(reader, 1)
+		_ = recvErr
 		done <- true
 	}()
 
@@ -264,7 +281,9 @@ func TestP2PComm_SendRecvBytesMap(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	writer := bufio.NewWriter(client)
-	comm1.SendBytesMap(writer, 2, testBytesMap)
+	if err := comm1.SendBytesMap(writer, 2, testBytesMap); err != nil {
+		t.Fatalf("send: %v", err)
+	}
 	writer.Flush()
 
 	// Wait for receive to complete

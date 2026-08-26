@@ -9,12 +9,14 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/luxfi/corona/wire"
 	"github.com/luxfi/lattice/v7/ring"
 	"github.com/luxfi/lattice/v7/utils/structs"
 )
@@ -165,180 +167,166 @@ func (comm *P2PComm) hasLegacySock(rank int) bool {
 // SendVector serializes a lattice vector to bytes and ships it to dst.
 // writer is honored when present (legacy path); otherwise the ZAP node
 // is used.
-func (comm *P2PComm) SendVector(writer *bufio.Writer, dst int, msg structs.Vector[ring.Poly]) {
-	if writer != nil && comm.hasLegacySock(dst) {
-		if _, err := msg.WriteTo(writer); err != nil {
-			log.Fatalf("Failed to write vector: %v", err)
-		}
-		if err := writer.Flush(); err != nil {
-			log.Fatalf("Failed to flush writer: %v", err)
-		}
-		return
+func (comm *P2PComm) SendVector(writer *bufio.Writer, dst int, msg structs.Vector[ring.Poly]) error {
+	body, err := marshalTo(msg)
+	if err != nil {
+		return fmt.Errorf("corona/net: encode vector for %d: %w", dst, err)
 	}
-	var buf bytes.Buffer
-	bw := bufio.NewWriter(&buf)
-	if _, err := msg.WriteTo(bw); err != nil {
-		log.Fatalf("Failed to write vector: %v", err)
-	}
-	if err := bw.Flush(); err != nil {
-		log.Fatalf("Failed to flush vector buffer: %v", err)
-	}
-	if err := comm.node.send(context.Background(), dst, buf.Bytes()); err != nil {
-		log.Fatalf("Failed to send vector to %d: %v", dst, err)
-	}
+	return comm.deliver(writer, dst, body)
 }
 
 // RecvVector reads a lattice vector of the given length from src.
-func (comm *P2PComm) RecvVector(reader *bufio.Reader, src int, length int) structs.Vector[ring.Poly] {
-	if reader != nil && comm.hasLegacySock(src) {
+func (comm *P2PComm) RecvVector(reader *bufio.Reader, src int, length int) (structs.Vector[ring.Poly], error) {
+	if comm.streaming(reader, src) {
 		vec := make(structs.Vector[ring.Poly], length)
 		if _, err := vec.ReadFrom(reader); err != nil {
-			log.Fatalf("Failed to read vector: %v", err)
+			return nil, fmt.Errorf("corona/net: decode vector from %d: %w", src, err)
 		}
-		return vec
+		return vec, nil
 	}
-	body, err := comm.node.recvBody(src)
+	body, err := comm.collect(src)
 	if err != nil {
-		log.Fatalf("Failed to recv vector from %d: %v", src, err)
+		return nil, fmt.Errorf("corona/net: read vector from %d: %w", src, err)
+	}
+	if err := wire.ValidateVectorPolyFrame(body); err != nil {
+		return nil, fmt.Errorf("corona/net: vector from %d: %w", src, err)
 	}
 	vec := make(structs.Vector[ring.Poly], length)
 	if _, err := vec.ReadFrom(bufio.NewReader(bytes.NewReader(body))); err != nil {
-		log.Fatalf("Failed to read vector: %v", err)
+		return nil, fmt.Errorf("corona/net: decode vector from %d: %w", src, err)
 	}
-	return vec
+	return vec, nil
 }
 
-// SendMatrix serializes a lattice matrix to bytes and ships it to dst.
-func (comm *P2PComm) SendMatrix(writer *bufio.Writer, dst int, msg structs.Matrix[ring.Poly]) {
-	if writer != nil && comm.hasLegacySock(dst) {
-		if _, err := msg.WriteTo(writer); err != nil {
-			log.Fatalf("Error sending matrix: %v", err)
-		}
-		if err := writer.Flush(); err != nil {
-			log.Fatalf("Failed to flush writer: %v", err)
-		}
-		return
-	}
-	var buf bytes.Buffer
-	bw := bufio.NewWriter(&buf)
-	if _, err := msg.WriteTo(bw); err != nil {
-		log.Fatalf("Error sending matrix: %v", err)
-	}
-	if err := bw.Flush(); err != nil {
-		log.Fatalf("Failed to flush matrix buffer: %v", err)
-	}
-	if err := comm.node.send(context.Background(), dst, buf.Bytes()); err != nil {
-		log.Fatalf("Failed to send matrix to %d: %v", dst, err)
-	}
-}
-
-// RecvMatrix reads a lattice matrix of the given outer length from src.
-func (comm *P2PComm) RecvMatrix(reader *bufio.Reader, src int, length int) structs.Matrix[ring.Poly] {
-	if reader != nil && comm.hasLegacySock(src) {
-		matrix := make(structs.Matrix[ring.Poly], length)
-		if _, err := matrix.ReadFrom(reader); err != nil {
-			log.Fatalf("Failed to read matrix: %v", err)
-		}
-		return matrix
-	}
-	body, err := comm.node.recvBody(src)
+// SendMatrix ships a lattice matrix to dst.
+func (comm *P2PComm) SendMatrix(writer *bufio.Writer, dst int, msg structs.Matrix[ring.Poly]) error {
+	body, err := marshalTo(msg)
 	if err != nil {
-		log.Fatalf("Failed to recv matrix from %d: %v", src, err)
+		return fmt.Errorf("corona/net: encode matrix for %d: %w", dst, err)
 	}
-	matrix := make(structs.Matrix[ring.Poly], length)
-	if _, err := matrix.ReadFrom(bufio.NewReader(bytes.NewReader(body))); err != nil {
-		log.Fatalf("Failed to read matrix: %v", err)
+	return comm.deliver(writer, dst, body)
+}
+
+// RecvMatrix reads a lattice matrix of the given row count from src.
+func (comm *P2PComm) RecvMatrix(reader *bufio.Reader, src int, length int) (structs.Matrix[ring.Poly], error) {
+	if comm.streaming(reader, src) {
+		m := make(structs.Matrix[ring.Poly], length)
+		if _, err := m.ReadFrom(reader); err != nil {
+			return nil, fmt.Errorf("corona/net: decode matrix from %d: %w", src, err)
+		}
+		return m, nil
 	}
-	return matrix
+	body, err := comm.collect(src)
+	if err != nil {
+		return nil, fmt.Errorf("corona/net: read matrix from %d: %w", src, err)
+	}
+	if err := wire.ValidateMatrixPolyFrame(body); err != nil {
+		return nil, fmt.Errorf("corona/net: matrix from %d: %w", src, err)
+	}
+	m := make(structs.Matrix[ring.Poly], length)
+	if _, err := m.ReadFrom(bufio.NewReader(bytes.NewReader(body))); err != nil {
+		return nil, fmt.Errorf("corona/net: decode matrix from %d: %w", src, err)
+	}
+	return m, nil
 }
 
 // SendBytesSlice ships a slice of byte-slices to dst with explicit
 // length tags. Wire layout: uint32 numSlices, then for each slice
 // uint32 length + slice bytes.
-func (comm *P2PComm) SendBytesSlice(writer *bufio.Writer, dst int, data [][]byte) {
-	body := encodeBytesSlice(data)
-	if writer != nil && comm.hasLegacySock(dst) {
-		if _, err := writer.Write(body); err != nil {
-			log.Fatalf("Failed to write bytes slice: %v", err)
-		}
-		if err := writer.Flush(); err != nil {
-			log.Fatalf("Failed to flush writer: %v", err)
-		}
-		return
-	}
-	if err := comm.node.send(context.Background(), dst, body); err != nil {
-		log.Fatalf("Failed to send bytes slice to %d: %v", dst, err)
-	}
+func (comm *P2PComm) SendBytesSlice(writer *bufio.Writer, dst int, data [][]byte) error {
+	return comm.deliver(writer, dst, encodeBytesSlice(data))
 }
 
 // RecvBytesSlice reads a length-prefixed slice-of-slices from src.
-func (comm *P2PComm) RecvBytesSlice(reader *bufio.Reader, src int) [][]byte {
-	if reader != nil && comm.hasLegacySock(src) {
-		return decodeBytesSlice(reader)
+func (comm *P2PComm) RecvBytesSlice(reader *bufio.Reader, src int) ([][]byte, error) {
+	if comm.streaming(reader, src) {
+		return decodeBytesSlice(reader), nil
 	}
-	body, err := comm.node.recvBody(src)
+	body, err := comm.collect(src)
 	if err != nil {
-		log.Fatalf("Failed to recv bytes slice from %d: %v", src, err)
+		return nil, fmt.Errorf("corona/net: read bytes slice from %d: %w", src, err)
 	}
-	return decodeBytesSlice(bufio.NewReader(bytes.NewReader(body)))
+	return decodeBytesSlice(bufio.NewReader(bytes.NewReader(body))), nil
 }
 
 // SendBytesMap ships a map<int,[]byte> to dst.
-func (comm *P2PComm) SendBytesMap(writer *bufio.Writer, dst int, data map[int][]byte) {
-	body := encodeBytesMap(data)
-	if writer != nil && comm.hasLegacySock(dst) {
-		if _, err := writer.Write(body); err != nil {
-			log.Fatalf("Failed to write bytes map: %v", err)
-		}
-		if err := writer.Flush(); err != nil {
-			log.Fatalf("Failed to flush writer: %v", err)
-		}
-		return
-	}
-	if err := comm.node.send(context.Background(), dst, body); err != nil {
-		log.Fatalf("Failed to send bytes map to %d: %v", dst, err)
-	}
+func (comm *P2PComm) SendBytesMap(writer *bufio.Writer, dst int, data map[int][]byte) error {
+	return comm.deliver(writer, dst, encodeBytesMap(data))
 }
 
 // RecvBytesMap reads a map<int,[]byte> from src.
-func (comm *P2PComm) RecvBytesMap(reader *bufio.Reader, src int) map[int][]byte {
-	if reader != nil && comm.hasLegacySock(src) {
-		return decodeBytesMap(reader)
+func (comm *P2PComm) RecvBytesMap(reader *bufio.Reader, src int) (map[int][]byte, error) {
+	if comm.streaming(reader, src) {
+		return decodeBytesMap(reader), nil
 	}
-	body, err := comm.node.recvBody(src)
+	body, err := comm.collect(src)
 	if err != nil {
-		log.Fatalf("Failed to recv bytes map from %d: %v", src, err)
+		return nil, fmt.Errorf("corona/net: read bytes map from %d: %w", src, err)
 	}
-	return decodeBytesMap(bufio.NewReader(bytes.NewReader(body)))
+	return decodeBytesMap(bufio.NewReader(bytes.NewReader(body))), nil
 }
 
 // SendBytesSliceMap ships a map<int,[][]byte> to dst.
-func (comm *P2PComm) SendBytesSliceMap(writer *bufio.Writer, dst int, data map[int][][]byte) {
-	body := encodeBytesSliceMap(data)
-	if writer != nil && comm.hasLegacySock(dst) {
-		if _, err := writer.Write(body); err != nil {
-			log.Fatalf("Failed to write bytes-slice map: %v", err)
-		}
-		if err := writer.Flush(); err != nil {
-			log.Fatalf("Failed to flush writer: %v", err)
-		}
-		return
-	}
-	if err := comm.node.send(context.Background(), dst, body); err != nil {
-		log.Fatalf("Failed to send bytes-slice map to %d: %v", dst, err)
-	}
+func (comm *P2PComm) SendBytesSliceMap(writer *bufio.Writer, dst int, data map[int][][]byte) error {
+	return comm.deliver(writer, dst, encodeBytesSliceMap(data))
 }
 
 // RecvBytesSliceMap reads a map<int,[][]byte> from src.
-func (comm *P2PComm) RecvBytesSliceMap(reader *bufio.Reader, src int) map[int][][]byte {
-	if reader != nil && comm.hasLegacySock(src) {
-		return decodeBytesSliceMap(reader)
+func (comm *P2PComm) RecvBytesSliceMap(reader *bufio.Reader, src int) (map[int][][]byte, error) {
+	if comm.streaming(reader, src) {
+		return decodeBytesSliceMap(reader), nil
 	}
-	body, err := comm.node.recvBody(src)
+	body, err := comm.collect(src)
 	if err != nil {
-		log.Fatalf("Failed to recv bytes-slice map from %d: %v", src, err)
+		return nil, fmt.Errorf("corona/net: read bytes-slice map from %d: %w", src, err)
 	}
-	return decodeBytesSliceMap(bufio.NewReader(bytes.NewReader(body)))
+	return decodeBytesSliceMap(bufio.NewReader(bytes.NewReader(body))), nil
+}
+
+// marshalTo renders a lattice value to the bytes that go on the wire.
+func marshalTo(msg io.WriterTo) ([]byte, error) {
+	var buf bytes.Buffer
+	bw := bufio.NewWriter(&buf)
+	if _, err := msg.WriteTo(bw); err != nil {
+		return nil, err
+	}
+	if err := bw.Flush(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// deliver is the one way a body reaches a peer: the legacy socket when one is
+// still held for that rank, the ZAP node otherwise.
+func (comm *P2PComm) deliver(writer *bufio.Writer, dst int, body []byte) error {
+	if writer != nil && comm.hasLegacySock(dst) {
+		if _, err := writer.Write(body); err != nil {
+			return fmt.Errorf("corona/net: write to %d: %w", dst, err)
+		}
+		if err := writer.Flush(); err != nil {
+			return fmt.Errorf("corona/net: flush to %d: %w", dst, err)
+		}
+		return nil
+	}
+	if err := comm.node.send(context.Background(), dst, body); err != nil {
+		return fmt.Errorf("corona/net: send to %d: %w", dst, err)
+	}
+	return nil
+}
+
+// streaming reports whether this peer is read from a socket rather than as
+// discrete messages. A stream has no message boundary to read up to, so a value
+// is decoded straight from it; a discrete body is walked before it is decoded.
+func (comm *P2PComm) streaming(reader *bufio.Reader, src int) bool {
+	return reader != nil && comm.hasLegacySock(src)
+}
+
+// collect takes one discrete message from a peer as bytes rather than as a
+// decoded value. That is the point: a peer writes the counts inside these
+// bytes and the lattice decoder sizes its work from them, so the frame is
+// walked before anything decodes it.
+func (comm *P2PComm) collect(src int) ([]byte, error) {
+	return comm.node.recvBody(src)
 }
 
 // ---------------------------------------------------------------------
