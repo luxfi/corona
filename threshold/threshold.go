@@ -269,10 +269,9 @@ func (s *Signer) Round2(sessionID int, message string, prfKey []byte, signers []
 	// The agreed signing set. A round-1 message from a party OUTSIDE it is
 	// refused here, at the boundary, before its matrix touches any kernel: the
 	// MAC loop downstream only authenticates the members of `signers`, so a
-	// non-member's D was never checked and — carrying any shape, or none —
-	// reached the matrix routines, where a malformed one used to take the process
-	// down. Membership is the authentication precondition, so it is checked
-	// first.
+	// non-member's D would otherwise reach the matrix routines carrying any shape,
+	// or none, and shape is what those routines size themselves from. Membership
+	// is the authentication precondition, so it is checked first.
 	inSet := make(map[int]struct{}, len(signers))
 	for _, id := range signers {
 		inSet[id] = struct{}{}

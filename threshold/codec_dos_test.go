@@ -8,11 +8,10 @@ import (
 	"testing"
 )
 
-// TestAPeerCannotEndTheProcessWithALength. Decoding a signature means reading
-// counts a peer wrote, and the lattice decoder allocates from a count before it
-// discovers there is nothing to fill the space with. A fifty-byte message
-// naming 2^40 coefficients ended the process with "makeslice: len out of
-// range" — a node killed by reading its peer's signature.
+// TestAPeerCannotEndTheProcessWithALength pins what a signature frame is held
+// to: every count in it must be backed by bytes that are present. The lattice
+// decoder sizes its allocations from those counts, so each frame is walked
+// before it is decoded and one whose arithmetic does not close is refused.
 func TestAPeerCannotEndTheProcessWithALength(t *testing.T) {
 	le := func(n uint64) []byte {
 		var b [8]byte
@@ -28,7 +27,7 @@ func TestAPeerCannotEndTheProcessWithALength(t *testing.T) {
 	claim := func(polys, levels, n uint64) []byte {
 		return append(append(le(polys), le(levels)...), le(n)...)
 	}
-	// C is a single Poly, not a vector, so it names only levels and
+	// C is a single Poly, not a vector, so it carries only levels and
 	// coefficients.
 	polyClaim := func(levels, n uint64) []byte {
 		return append(le(levels), le(n)...)
@@ -61,7 +60,7 @@ func TestAPeerCannotEndTheProcessWithALength(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			defer func() {
 				if r := recover(); r != nil {
-					t.Fatalf("%d bytes from a peer ended the process: %v", len(tc.frame), r)
+					t.Fatalf("%d bytes from a peer reached the decoder: %v", len(tc.frame), r)
 				}
 			}()
 			var s Signature
@@ -72,8 +71,8 @@ func TestAPeerCannotEndTheProcessWithALength(t *testing.T) {
 	}
 }
 
-// A group key's A is a matrix and was decoded without ever being walked, so it
-// could name rows and coefficients that were not there.
+// A group key's A is a matrix, so its rows and their contents are held to the
+// same rule.
 func TestAGroupKeysMatrixCannotEndTheProcess(t *testing.T) {
 	le := func(n uint64) []byte {
 		var b [8]byte
@@ -109,7 +108,7 @@ func TestAGroupKeysMatrixCannotEndTheProcess(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			defer func() {
 				if r := recover(); r != nil {
-					t.Fatalf("a group key from a peer ended the process: %v", r)
+					t.Fatalf("a group key from a peer reached the decoder: %v", r)
 				}
 			}()
 			var gk GroupKey

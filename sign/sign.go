@@ -274,7 +274,7 @@ func (party *Party) SignRound2Preprocess(A structs.Matrix[ring.Poly], b structs.
 	// entries named by T; ranging D folded in every commitment a peer sent,
 	// including one keyed by a party id outside T that no MAC ever checked. A
 	// non-member's matrix — of any shape, since nothing validated it — then
-	// reached the adder, where a mismatch used to take the process down.
+	// reached the adder, where its shape decides what gets allocated.
 	for _, j := range T {
 		D_j, ok := D[j]
 		if !ok {
