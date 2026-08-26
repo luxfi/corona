@@ -44,7 +44,9 @@ func main() {
 	sign.Threshold = parties
 
 	if partyIDString == "l" {
-		sign.LocalRun(iters)
+		if err := sign.LocalRun(iters); err != nil {
+			log.Fatalf("local run: %v", err)
+		}
 		return
 	}
 
@@ -125,11 +127,21 @@ func main() {
 				go func(i int) {
 					defer sendWg.Done()
 					writer := bufio.NewWriter(*comm.GetSock(i))
-					comm.SendVector(writer, i, b)
-					comm.SendMatrix(writer, i, A)
-					comm.SendVector(writer, i, skShares[i])
-					comm.SendBytesSliceMap(writer, i, seeds)
-					comm.SendBytesMap(writer, i, MACKeys[i])
+					if err := comm.SendVector(writer, i, b); err != nil {
+						log.Fatalf("send to peer: %v", err)
+					}
+					if err := comm.SendMatrix(writer, i, A); err != nil {
+						log.Fatalf("send to peer: %v", err)
+					}
+					if err := comm.SendVector(writer, i, skShares[i]); err != nil {
+						log.Fatalf("send to peer: %v", err)
+					}
+					if err := comm.SendBytesSliceMap(writer, i, seeds); err != nil {
+						log.Fatalf("send to peer: %v", err)
+					}
+					if err := comm.SendBytesMap(writer, i, MACKeys[i]); err != nil {
+						log.Fatalf("send to peer: %v", err)
+					}
 				}(i)
 			}
 		}
@@ -137,11 +149,26 @@ func main() {
 		genEnd = time.Now()
 	} else {
 		reader := bufio.NewReader(*comm.GetSock(sign.TrustedDealerID))
-		b = comm.RecvVector(reader, sign.TrustedDealerID, sign.M)
-		A = comm.RecvMatrix(reader, sign.TrustedDealerID, sign.M)
-		party.SkShare = comm.RecvVector(reader, sign.TrustedDealerID, sign.N)
-		party.Seed = comm.RecvBytesSliceMap(reader, sign.TrustedDealerID)
-		party.MACKeys = comm.RecvBytesMap(reader, sign.TrustedDealerID)
+		b, err = comm.RecvVector(reader, sign.TrustedDealerID, sign.M)
+		if err != nil {
+			log.Fatalf("recv vector from peer: %v", err)
+		}
+		A, err = comm.RecvMatrix(reader, sign.TrustedDealerID, sign.M)
+		if err != nil {
+			log.Fatalf("recv matrix from peer: %v", err)
+		}
+		party.SkShare, err = comm.RecvVector(reader, sign.TrustedDealerID, sign.N)
+		if err != nil {
+			log.Fatalf("recv vector from peer: %v", err)
+		}
+		party.Seed, err = comm.RecvBytesSliceMap(reader, sign.TrustedDealerID)
+		if err != nil {
+			log.Fatalf("recv seed map from peer: %v", err)
+		}
+		party.MACKeys, err = comm.RecvBytesMap(reader, sign.TrustedDealerID)
+		if err != nil {
+			log.Fatalf("recv MAC keys from peer: %v", err)
+		}
 	}
 
 	time.Sleep(time.Second * 5)
@@ -172,15 +199,25 @@ func main() {
 			go func(i int) {
 				defer round1Wg.Done()
 				writer := bufio.NewWriter(*comm.GetSock(i))
-				comm.SendMatrix(writer, i, D[partyID])
-				comm.SendBytesMap(writer, i, MACs[partyID])
+				if err := comm.SendMatrix(writer, i, D[partyID]); err != nil {
+					log.Fatalf("send to peer: %v", err)
+				}
+				if err := comm.SendBytesMap(writer, i, MACs[partyID]); err != nil {
+					log.Fatalf("send to peer: %v", err)
+				}
 			}(i)
 
 			go func(i int) {
 				defer round1Wg.Done()
 				reader := bufio.NewReader(*comm.GetSock(i))
-				D[i] = comm.RecvMatrix(reader, i, sign.M)
-				MACs[i] = comm.RecvBytesMap(reader, i)
+				D[i], err = comm.RecvMatrix(reader, i, sign.M)
+				if err != nil {
+					log.Fatalf("recv matrix from peer: %v", err)
+				}
+				MACs[i], err = comm.RecvBytesMap(reader, i)
+				if err != nil {
+					log.Fatalf("recv MAC keys from peer: %v", err)
+				}
 			}(i)
 		}
 	}
@@ -208,13 +245,18 @@ func main() {
 	signRound2Start = time.Now()
 	if partyID != sign.CombinerID {
 		writer := bufio.NewWriter(*comm.GetSock(sign.CombinerID))
-		comm.SendVector(writer, sign.CombinerID, z[partyID])
+		if err := comm.SendVector(writer, sign.CombinerID, z[partyID]); err != nil {
+			log.Fatalf("send to peer: %v", err)
+		}
 		signRound2End = time.Now()
 	} else {
 		for i := 0; i < sign.K; i++ {
 			if i != sign.CombinerID {
 				reader := bufio.NewReader(*comm.GetSock(i))
-				z[i] = comm.RecvVector(reader, i, sign.N)
+				z[i], err = comm.RecvVector(reader, i, sign.N)
+				if err != nil {
+					log.Fatalf("recv vector from peer: %v", err)
+				}
 			}
 		}
 		combinerReceiveEnd = time.Now()
