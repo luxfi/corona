@@ -40,10 +40,10 @@ func TestFramesTheLibraryWroteAreAccepted(t *testing.T) {
 	}
 }
 
-// TestADeclaredLengthMustBeBackedByBytes. A peer writes the counts in this
-// frame, and the decoder beneath allocates from them before discovering there
-// is nothing to fill the space with: a fifty-byte message naming 2^40
-// coefficients used to end the process with "makeslice: len out of range".
+// TestADeclaredLengthMustBeBackedByBytes pins the rule every count is held to:
+// a count is worth only the bytes behind it. The decoder beneath sizes its
+// allocations from these counts, so one that outruns the frame has to be
+// refused here rather than acted on there.
 func TestADeclaredLengthMustBeBackedByBytes(t *testing.T) {
 	u64 := func(n uint64) []byte {
 		var b [8]byte

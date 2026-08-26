@@ -52,17 +52,12 @@ var LatticeWireLimits = codec.Limits{
 //	poly   := levels:u64, n:u64, levels*n × coefficient:u64
 //	matrix := rows:u64, rows × vector
 //
-// A peer writes those counts, so a short frame can declare an enormous one —
-// and the decoder beneath this allocates from the declared count before it
-// discovers there is nothing to fill it with. A fifty-byte message naming 2^40
-// coefficients ends the process: sometimes with "makeslice: len out of range",
-// and sometimes by allocating until the kernel kills it. Reading a peer's
-// signature must not be able to do either.
-//
-// So the rule is the one readLenPrefixed already applies to the outer frame:
-// what is declared has to fit in what remains. That cannot refuse an honest
-// frame, since an honest frame's bytes are all present, and it refuses every
-// frame whose arithmetic does not close.
+// A peer writes those counts, and the decoder beneath this sizes its
+// allocations from a count before it reads the bytes meant to fill it. So a
+// count is worth only the bytes behind it, and the rule at every one is the
+// rule readLenPrefixed applies to the outer frame: what is declared has to fit
+// in what remains. That cannot refuse an honest frame, whose bytes are all
+// present, and it refuses every frame whose arithmetic does not close.
 //
 // MaxLatticeUintSliceLen still caps the shape corona itself will accept, above
 // and beyond what the bytes could hold.
@@ -78,8 +73,8 @@ func ValidateVectorPolyFrame(frame []byte) error {
 }
 
 // ValidatePolyFrame is the same walk for a single Poly, which is what a
-// Signature's challenge is. A Poly names its own level and coefficient counts,
-// so it describes bytes that are not there exactly as a vector can.
+// Signature's challenge is. A Poly carries its own level and coefficient
+// counts, so it needs the same walk a vector does.
 func ValidatePolyFrame(frame []byte) error {
 	if err := frameFits(frame); err != nil {
 		return err
