@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   lint:
-    runs-on: [lux-build-linux-amd64]
+    runs-on: [linux-amd64]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
       - run: go vet ./...
 
   test:
-    runs-on: [lux-build-linux-amd64]
+    runs-on: [linux-amd64]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +71,7 @@ jobs:
     # Cross-compilation, all from the one Linux runner. This is the same
     # coverage the old three-OS matrix gave the build step, without naming a
     # runner label for each OS.
-    runs-on: [lux-build-linux-amd64]
+    runs-on: [linux-amd64]
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -114,7 +114,7 @@ jobs:
           path: bin/
 
   security:
-    runs-on: [lux-build-linux-amd64]
+    runs-on: [linux-amd64]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -135,7 +135,7 @@ jobs:
   # exercise — it calls `go build` directly.
   make-build:
     needs: [lint, test, build]
-    runs-on: [lux-build-linux-amd64]
+    runs-on: [linux-amd64]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
