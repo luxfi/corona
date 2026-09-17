@@ -1,6 +1,6 @@
 module github.com/luxfi/corona
 
-go 1.26.8
+go 1.27.1
 
 require (
 	github.com/luxfi/dkg v0.3.5
